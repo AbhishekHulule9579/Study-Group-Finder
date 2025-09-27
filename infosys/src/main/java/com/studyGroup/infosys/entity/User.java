@@ -2,6 +2,12 @@ package com.studyGroup.infosys.entity;
 
 import java.math.BigDecimal;
 
+import java.time.Instant;
+import java.util.Date;
+
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
 import org.springframework.security.core.userdetails.UserDetails;
 
 import jakarta.persistence.Column;
@@ -70,5 +76,21 @@ public class User implements UserDetails{
 
     @Builder.Default
     private String role="USER";
+
+    @Builder.Default
+    private boolean enabled=true;
+
+    @CreationTimestamp
+    @Column(updatable=false)
+    private Date createdAt;
+
+    @UpdateTimestamp
+    private Date updatedAt;
+
+    //Guys this is useful reset password 
+    private String resetPasswordToken;
+    private Instant resetPasswordExpiry;
+    // this is JWT authentication
     
+
 }
