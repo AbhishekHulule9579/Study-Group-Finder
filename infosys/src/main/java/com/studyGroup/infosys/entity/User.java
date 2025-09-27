@@ -92,5 +92,6 @@ public class User implements UserDetails{
     private Instant resetPasswordExpiry;
     // this is JWT authentication
     
+    
 
 }
