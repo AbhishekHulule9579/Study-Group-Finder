@@ -7,7 +7,7 @@ const Home = () => {
         <h1>Wellcome to 👇</h1>
         <h1>Study Finder Application</h1>
         <button className='w-[150px] h-[50px] rounded border-1 border-black bg-blue-400'>
-                <Link to='/Collab'>Join Now</Link>
+                <Link to='/SignIn'>Join Now</Link>
         </button>
         
     </div>
