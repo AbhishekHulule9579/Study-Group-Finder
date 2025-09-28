@@ -1,5 +1,6 @@
-import java.math.BigDecimal;
+package com.studyGroup.infosys.dto;
 
+import java.math.BigDecimal;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
@@ -18,7 +19,7 @@ public class RegisterDto{
     private String firstName;
 
     @NotBlank
-    private String lastname;
+    private String lastName;
 
     @NotBlank
     @Email
@@ -52,4 +53,5 @@ public class RegisterDto{
     @Size(min=6,message="Password must be atleast 6 character")
     private String password; 
 
+    private String avatarUrl;
 }
