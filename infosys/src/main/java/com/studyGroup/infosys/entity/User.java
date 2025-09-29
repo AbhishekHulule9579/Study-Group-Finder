@@ -1,99 +1,155 @@
 package com.studyGroup.infosys.entity;
 
-import java.math.BigDecimal;
-
-import java.time.Instant;
-import java.util.Date;
-
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
-import org.springframework.security.core.userdetails.UserDetails;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
 @Entity
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@Table(name="users")
-public class User {
+@Table(name = "user")
+public class User{
+
+    @Column(name = "fullname")
+    private String fullname;
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(nullable=false)
-    private String firstName;
-
-    private String middleName;
-
-    @Column(nullable=false)
-    private String lastName;
-
-    @Column(unique=true,nullable=false)
+    @Column(name = "email")
     private String email;
 
-    @Column(nullable=false)
+    @Column(name = "role")
+    private int role;
+
+    @Column(name = "password")
     private String password;
 
-    @Column(nullable=false)
-    private String phone;
-
-    @Column(nullable=false)
-    private String city;
-
-    @Column(nullable=false)
-    private String pincode;
-    
+    @Column(name = "secondary_school")
     private String secondarySchool;
-    private Integer secondarySchoolYear;
 
-    @Column(precision=5,scale=2)
-    private BigDecimal secondarySchoolPercentage;
+    @Column(name = "secondary_school_passing_year")
+    private Integer secondarySchoolPassingYear;
 
+    @Column(name = "secondary_school_percentage")
+    private Double secondarySchoolPercentage;
+
+    @Column(name = "higher_secondary_school")
     private String higherSecondarySchool;
+
+    @Column(name = "higher_secondary_passing_year")
     private Integer higherSecondaryPassingYear;
 
-    @Column(precision=5,scale=2)
-    private BigDecimal higherSecondaryPercentage;
+    @Column(name = "higher_secondary_percentage")
+    private Double higherSecondaryPercentage;
 
+    @Column(name = "university_name")
     private String universityName;
+
+    @Column(name = "university_passing_year")
     private Integer universityPassingYear;
-    
-    @Column(precision=4,scale=2)
-    private BigDecimal universityPassingGPA;
 
-    private String avatarUrl;
+    @Column(name = "university_gpa")
+    private Double universityPassingGPA;
 
-    @Builder.Default
-    private String role="USER";
+    // Getters and Setters
 
-    @Builder.Default
-    private boolean enabled=true;
+    public String getFullname() {
+        return fullname;
+    }
+    public void setFullname(String fullname) {
+        this.fullname = fullname;
+    }
 
-    @CreationTimestamp
-    @Column(updatable=false)
-    private Date createdAt;
+    public String getEmail() {
+        return email;
+    }
+    public void setEmail(String email) {
+        this.email = email;
+    }
 
-    @UpdateTimestamp
-    private Date updatedAt;
+    public int getRole() {
+        return role;
+    }
+    public void setRole(int role) {
+        this.role = role;
+    }
 
-    //Guys this is useful reset password 
-    private String resetPasswordToken;
-    private Instant resetPasswordExpiry;
-    // this is JWT authentication
-    
-    
+    public String getPassword() {
+        return password;
+    }
+    public void setPassword(String password) {
+        this.password = password;
+    }
 
+    public String getSecondarySchool() {
+        return secondarySchool;
+    }
+    public void setSecondarySchool(String secondarySchool) {
+        this.secondarySchool = secondarySchool;
+    }
+
+    public Integer getSecondarySchoolPassingYear() {
+        return secondarySchoolPassingYear;
+    }
+    public void setSecondarySchoolPassingYear(Integer secondarySchoolPassingYear) {
+        this.secondarySchoolPassingYear = secondarySchoolPassingYear;
+    }
+
+    public Double getSecondarySchoolPercentage() {
+        return secondarySchoolPercentage;
+    }
+    public void setSecondarySchoolPercentage(Double secondarySchoolPercentage) {
+        this.secondarySchoolPercentage = secondarySchoolPercentage;
+    }
+
+    public String getHigherSecondarySchool() {
+        return higherSecondarySchool;
+    }
+    public void setHigherSecondarySchool(String higherSecondarySchool) {
+        this.higherSecondarySchool = higherSecondarySchool;
+    }
+
+    public Integer getHigherSecondaryPassingYear() {
+        return higherSecondaryPassingYear;
+    }
+    public void setHigherSecondaryPassingYear(Integer higherSecondaryPassingYear) {
+        this.higherSecondaryPassingYear = higherSecondaryPassingYear;
+    }
+
+    public Double getHigherSecondaryPercentage() {
+        return higherSecondaryPercentage;
+    }
+    public void setHigherSecondaryPercentage(Double higherSecondaryPercentage) {
+        this.higherSecondaryPercentage = higherSecondaryPercentage;
+    }
+
+    public String getUniversityName() {
+        return universityName;
+    }
+    public void setUniversityName(String universityName) {
+        this.universityName = universityName;
+    }
+
+    public Integer getUniversityPassingYear() {
+        return universityPassingYear;
+    }
+    public void setUniversityPassingYear(Integer universityPassingYear) {
+        this.universityPassingYear = universityPassingYear;
+    }
+
+    public Double getUniversityPassingGPA() {
+        return universityPassingGPA;
+    }
+    public void setUniversityPassingGPA(Double universityPassingGPA) {
+        this.universityPassingGPA = universityPassingGPA;
+    }
+
+    @Override
+    public String toString() {
+        return "Users [fullname=" + fullname + ", email=" + email + ", role=" + role + ", password=" + password
+                + ", secondarySchool=" + secondarySchool + ", secondarySchoolPassingYear=" + secondarySchoolPassingYear
+                + ", secondarySchoolPercentage=" + secondarySchoolPercentage + ", higherSecondarySchool="
+                + higherSecondarySchool + ", higherSecondaryPassingYear=" + higherSecondaryPassingYear
+                + ", higherSecondaryPercentage=" + higherSecondaryPercentage + ", universityName=" + universityName
+                + ", universityPassingYear=" + universityPassingYear + ", universityPassingGPA=" + universityPassingGPA
+                + "]";
+    }
 }
