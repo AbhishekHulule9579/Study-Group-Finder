@@ -21,12 +21,7 @@ public class SecurityConfig {
     @Autowired
     private JwtAuthFilter authFilter;
 
-    // The PasswordEncoder bean has been REMOVED from this file and moved to AppConfig.java
-    // to break the circular dependency.
-
-    /**
-     * Configures the security filter chain. This is where we define our security rules.
-     */
+    
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -42,9 +37,7 @@ public class SecurityConfig {
         return http.build();
     }
 
-    /**
-     * Configures CORS to allow requests from the frontend development server.
-     */
+    
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();

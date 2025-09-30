@@ -19,13 +19,10 @@ public class UserController {
     @Autowired
     private UserService userService;
     
-    // We need JWTService to validate tokens in our secure endpoints
     @Autowired
     private JWTService jwtService;
 
-    /**
-     * Endpoint for user registration.
-     */
+    
     @PostMapping("/signup")
     public ResponseEntity<String> signup(@RequestBody User user) {
         String response = userService.registerUser(user);
@@ -35,9 +32,7 @@ public class UserController {
         return ResponseEntity.ok("User Registered Successfully");
     }
 
-    /**
-     * Endpoint for initiating the password recovery process.
-     */
+    
     @PostMapping("/forgot-password")
     public ResponseEntity<String> forgotPassword(@RequestBody Map<String, String> body) {
         String email = body.get("email");
@@ -48,9 +43,6 @@ public class UserController {
         return ResponseEntity.ok("Password recovery instructions sent to the registered email.");
     }
 
-    /**
-     * Endpoint for user sign-in.
-     */
     @PostMapping("/signin")
     public ResponseEntity<?> signin(@RequestBody LoginRequest loginRequest) {
         String response = userService.validateCredentials(loginRequest.getEmail(), loginRequest.getPassword());
@@ -61,9 +53,7 @@ public class UserController {
         return ResponseEntity.ok(Collections.singletonMap("token", token));
     }
 
-    /**
-     * Secure endpoint to fetch the profile of the currently logged-in user.
-     */
+    
     @GetMapping("/profile")
     public ResponseEntity<?> getProfile(@RequestHeader("Authorization") String authHeader) {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -77,12 +67,7 @@ public class UserController {
         return ResponseEntity.ok(userProfile);
     }
     
-    /**
-     * Secure endpoint to update the academic details of the currently logged-in user.
-     * @param authHeader The Authorization header containing the "Bearer" token.
-     * @param userDetails The User object with updated details from the request body.
-     * @return A response entity with the updated User object or an error message.
-     */
+ 
     @PutMapping("/profile")
     public ResponseEntity<?> updateUserProfile(@RequestHeader("Authorization") String authHeader, @RequestBody User userDetails) {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {

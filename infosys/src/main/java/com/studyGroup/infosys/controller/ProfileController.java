@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/profile") // Standard API prefix
+@RequestMapping("/api/profile") 
 @CrossOrigin(origins = "*")
 public class ProfileController {
 
@@ -20,13 +20,10 @@ public class ProfileController {
     @Autowired
     private JWTService jwtService;
 
-    /**
-     * Gets the profile for the currently authenticated user.
-     * The user's identity is determined by the email within the JWT token.
-     */
-    @GetMapping // Correct HTTP method for getting data
+   
+    @GetMapping 
     public ResponseEntity<?> getProfile(@RequestHeader("Authorization") String authHeader) {
-        // Extract token from "Bearer <token>"
+      
         String token = authHeader.substring(7);
         String email = jwtService.validateToken(token);
 
@@ -36,19 +33,15 @@ public class ProfileController {
 
         Optional<Profile> profileOptional = profileService.getProfileByEmail(email);
 
-        // **FIXED LOGIC**: Using a clear if/else block to avoid the type mismatch.
         if (profileOptional.isPresent()) {
-            return ResponseEntity.ok(profileOptional.get()); // Returns ResponseEntity<Profile>
+            return ResponseEntity.ok(profileOptional.get()); 
         } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Profile not found."); // Returns ResponseEntity<String>
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Profile not found."); 
         }
     }
 
-    /**
-     * Creates or updates the profile for the authenticated user.
-     * It uses the email from the token to ensure a user can only edit their own profile.
-     */
-    @PostMapping // Correct HTTP method for creating/updating data
+   
+    @PostMapping 
     public ResponseEntity<?> updateProfile(@RequestHeader("Authorization") String authHeader, @RequestBody Profile profileDetails) {
         String token = authHeader.substring(7);
         String email = jwtService.validateToken(token);
@@ -57,12 +50,10 @@ public class ProfileController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or expired token.");
         }
 
-        // Security check: Force the email in the profile data to match the token's email
         profileDetails.setEmail(email);
 
         Profile savedProfile = profileService.saveOrUpdateProfile(profileDetails);
         
-        // Return the saved profile object with a 200 OK status
         return ResponseEntity.ok(savedProfile);
     }
 }

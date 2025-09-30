@@ -22,40 +22,31 @@ public class JWTService {
     private long expirationTime;
 
     private SecretKey getSigningKey() {
-        // Creates a secure key from the secret string in your properties file.
+       
         return Keys.hmacShaKeyFor(secretKeyString.getBytes(StandardCharsets.UTF_8));
     }
 
-    /**
-     * Generates a JWT token for a given email (subject).
-     */
+ 
     public String generateToken(String email) {
         return Jwts.builder()
-                .setSubject(email) // Using the standard 'subject' claim for the user identifier
+                .setSubject(email) 
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + expirationTime)) // Correctly adds expiration time
+                .setExpiration(new Date(System.currentTimeMillis() + expirationTime))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    /**
-     * Validates a token and returns the email (subject) from it.
-     * Returns "401" if the token is expired or invalid in any way.
-     */
+    
     public String validateToken(String token) {
         try {
-            // This single line handles parsing and validation. 
-            // If the token is expired or the signature is wrong, it will throw an exception.
             return getClaimFromToken(token, Claims::getSubject);
         } catch (Exception e) {
-            // Any exception during parsing means the token is invalid.
+           
             return "401";
         }
     }
 
-    /**
-     * A generic helper function to extract a specific claim from a token.
-     */
+    
     private <T> T getClaimFromToken(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())

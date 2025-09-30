@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.Optional;
 
-// **STEP 1**: Implement the UserDetailsService interface
+
 @Service
 public class UserService implements UserDetailsService {
 
@@ -27,11 +27,7 @@ public class UserService implements UserDetailsService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    /**
-     * **STEP 2**: Implement the required method from UserDetailsService.
-     * This method is the bridge between our User model and Spring Security.
-     * It tells Spring Security how to find a user by their username (in our case, email).
-     */
+   
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         Optional<User> userOptional = usersRepository.findByEmail(username);
@@ -39,13 +35,10 @@ public class UserService implements UserDetailsService {
             throw new UsernameNotFoundException("User not found with email: " + username);
         }
         User user = userOptional.get();
-        // Return a standard Spring Security User object.
+        
         return new org.springframework.security.core.userdetails.User(user.getEmail(), user.getPassword(), new ArrayList<>());
     }
 
-    /**
-     * Registers a new user. The user's password is now securely hashed before being saved.
-     */
     public String registerUser(User user) {
         if (usersRepository.existsByEmail(user.getEmail())) {
             return "401::Email Id already exists";
@@ -55,9 +48,7 @@ public class UserService implements UserDetailsService {
         return "200::User Registered Successfully";
     }
 
-    /**
-     * Handles user login by securely comparing the provided password with the stored hash.
-     */
+  
     public String validateCredentials(String email, String password) {
         Optional<User> userOptional = usersRepository.findByEmail(email);
 
@@ -71,9 +62,7 @@ public class UserService implements UserDetailsService {
         return "401::Invalid Credentials";
     }
 
-    /**
-     * Retrieves a user's profile based on a JWT token.
-     */
+   
     public User getUserProfile(String token) {
         String email = jwtService.validateToken(token);
         if ("401".equals(email)) {
@@ -82,9 +71,7 @@ public class UserService implements UserDetailsService {
         return usersRepository.findByEmail(email).orElse(null);
     }
     
-    /**
-     * Recovers a user's password.
-     */
+  
     public String recoverPassword(String email) {
         Optional<User> userOptional = usersRepository.findByEmail(email);
         if (userOptional.isEmpty()) {
@@ -95,9 +82,6 @@ public class UserService implements UserDetailsService {
         return emailService.sendEmail(user.getEmail(), "Study Group Finder Password Recovery Request", message);
     }
     
-    /**
-     * Updates the academic details of an existing user.
-     */
     public User updateUser(String email, User userDetails) {
         Optional<User> userOptional = usersRepository.findByEmail(email);
         if (userOptional.isPresent()) {
@@ -115,7 +99,7 @@ public class UserService implements UserDetailsService {
 
             return usersRepository.save(existingUser);
         }
-        return null; // User not found
+        return null;
     }
 }
 

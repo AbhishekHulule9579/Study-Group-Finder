@@ -11,7 +11,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "user") // Using lowercase 'user' as is conventional
+@Table(name = "user")
 @Data 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -28,7 +28,6 @@ public class User {
     @Column(name = "email")
     private String email;
     
-    // As discussed, ensure this 'role' column exists in your database table.
     @Column(name = "role") 
     private int role;
 

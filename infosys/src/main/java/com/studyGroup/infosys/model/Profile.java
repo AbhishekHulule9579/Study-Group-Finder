@@ -10,9 +10,9 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "profile")
-@Data // Generates getters, setters, toString, equals, and hashCode
-@NoArgsConstructor // Generates a no-argument constructor
-@AllArgsConstructor // Generates a constructor with all arguments
+@Data 
+@NoArgsConstructor 
+@AllArgsConstructor 
 public class Profile {
 
     @Id
@@ -22,7 +22,7 @@ public class Profile {
     @Column(name = "fullname")
     private String fullname;
 
-    @Column(name = "profile_pic_url") // Storing URL is generally better than base64
+    @Column(name = "profile_pic_url") 
     private String profilePicUrl;
 
     @Column(name = "phone")
@@ -34,8 +34,6 @@ public class Profile {
     @Column(name = "linkedin_url")
     private String linkedinUrl;
 
-    // For simplicity, we'll keep education as a simple text field.
-    // In a production app, this would ideally be a separate 'Education' table.
     @Column(name = "education", columnDefinition = "TEXT")
     private String education;
 }
