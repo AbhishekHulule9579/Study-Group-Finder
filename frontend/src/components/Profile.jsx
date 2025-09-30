@@ -81,12 +81,14 @@ export default function Profile() {
     setError("");
     const token = sessionStorage.getItem("token");
     
+    // Ensure the profile object being saved has the correct email and fullname
+    const profileToSave = { ...profile, email: user.email, fullname: user.name };
+
     try {
-      // **CORRECTED LOGIC**: Save both user and profile data in parallel
       const [userUpdateRes, profileUpdateRes] = await Promise.all([
         // API call to update academic user details
         fetch("http://localhost:8145/api/users/profile", {
-          method: "PUT", // Use PUT for updating user details
+          method: "PUT",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
@@ -95,17 +97,16 @@ export default function Profile() {
         }),
         // API call to update contact/display profile details
         fetch("http://localhost:8145/api/profile", {
-          method: "POST", // POST is fine here for create/update
+          method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(profile),
+          body: JSON.stringify(profileToSave),
         }),
       ]);
 
       if (!userUpdateRes.ok || !profileUpdateRes.ok) {
-        // Provide a more specific error if possible
         const userError = !userUpdateRes.ok ? await userUpdateRes.text() : "";
         const profileError = !profileUpdateRes.ok ? await profileUpdateRes.text() : "";
         throw new Error(`Failed to save. User: ${userError} Profile: ${profileError}`);
@@ -182,7 +183,8 @@ export default function Profile() {
                             <div className="grid md:grid-cols-3 gap-4">
                                 <input name="universityName" value={user.universityName || ''} onChange={handleUserChange} placeholder="University Name" className="p-2 border rounded-md" />
                                 <input name="universityPassingYear" value={user.universityPassingYear || ''} onChange={handleUserChange} placeholder="Passing Year" type="number" className="p-2 border rounded-md" />
-                                <input name="universityPassingGPA" value={user.universityPassingGPA || ''} onChange={handleUserChange} placeholder="GPA" type="number" step="0.01" className="p-2 border rounded-md" />
+                                {/* **THE FIX**: Changed name and value to use 'universityGpa' */}
+                                <input name="universityGpa" value={user.universityGpa || ''} onChange={handleUserChange} placeholder="GPA" type="number" step="0.01" className="p-2 border rounded-md" />
                             </div>
                         </div>
                     </div>

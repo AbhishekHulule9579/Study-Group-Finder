@@ -27,7 +27,7 @@ public class UserService implements UserDetailsService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-   
+    
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         Optional<User> userOptional = usersRepository.findByEmail(username);
@@ -48,7 +48,7 @@ public class UserService implements UserDetailsService {
         return "200::User Registered Successfully";
     }
 
-  
+ 
     public String validateCredentials(String email, String password) {
         Optional<User> userOptional = usersRepository.findByEmail(email);
 
@@ -71,7 +71,7 @@ public class UserService implements UserDetailsService {
         return usersRepository.findByEmail(email).orElse(null);
     }
     
-  
+ 
     public String recoverPassword(String email) {
         Optional<User> userOptional = usersRepository.findByEmail(email);
         if (userOptional.isEmpty()) {
@@ -95,7 +95,8 @@ public class UserService implements UserDetailsService {
             existingUser.setHigherSecondaryPercentage(userDetails.getHigherSecondaryPercentage());
             existingUser.setUniversityName(userDetails.getUniversityName());
             existingUser.setUniversityPassingYear(userDetails.getUniversityPassingYear());
-            existingUser.setUniversityPassingGPA(userDetails.getUniversityPassingGPA());
+          
+            existingUser.setUniversityGpa(userDetails.getUniversityGpa());
 
             return usersRepository.save(existingUser);
         }

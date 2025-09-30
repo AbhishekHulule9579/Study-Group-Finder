@@ -10,19 +10,20 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "profile")
-@Data 
-@NoArgsConstructor 
-@AllArgsConstructor 
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class Profile {
 
     @Id
-    @Column(name = "email", nullable = false, unique = true)
+    @Column(name = "email")
     private String email;
 
     @Column(name = "fullname")
     private String fullname;
 
-    @Column(name = "profile_pic_url") 
+    // **THE FIX**: Changed from TEXT to LONGTEXT to support larger image files.
+    @Column(name = "profile_pic_url", columnDefinition = "LONGTEXT")
     private String profilePicUrl;
 
     @Column(name = "phone")
@@ -33,7 +34,5 @@ public class Profile {
 
     @Column(name = "linkedin_url")
     private String linkedinUrl;
-
-    @Column(name = "education", columnDefinition = "TEXT")
-    private String education;
 }
+

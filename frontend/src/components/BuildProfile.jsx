@@ -14,10 +14,9 @@ export default function BuildProfile() {
     higherSecondaryPercentage: "",
     universityName: "",
     universityPassingYear: "",
-    universityPassingGPA: "",
+    universityGpa: "", // **THE FIX**: Name now matches the backend and the input field
   });
 
-  // Check if initial signup data exists, otherwise redirect
   useEffect(() => {
     const savedSignup = sessionStorage.getItem("signupData");
     if (!savedSignup) {
@@ -34,7 +33,6 @@ export default function BuildProfile() {
     setError("");
 
     const savedSignup = JSON.parse(sessionStorage.getItem("signupData") || "{}");
-    // Merge initial signup data with the academic details
     const fullUserData = { ...savedSignup, ...form };
 
     try {
@@ -48,7 +46,6 @@ export default function BuildProfile() {
 
       if (res.ok) {
         sessionStorage.removeItem("signupData");
-        // Redirect to login with a success message
         navigate("/login", { state: { message: "Registration successful! Please log in." } });
       } else {
         setError(message || "An error occurred during signup.");
@@ -71,7 +68,7 @@ export default function BuildProfile() {
             <div className="grid md:grid-cols-3 gap-4">
               <input type="text" name="secondarySchool" placeholder="School Name" value={form.secondarySchool} onChange={handleChange} required className="rounded-lg w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-400"/>
               <input type="number" name="secondarySchoolPassingYear" placeholder="Year" value={form.secondarySchoolPassingYear} onChange={handleChange} required className="rounded-lg w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-400"/>
-              <input type="number" step="0.01" name="secondarySchoolPercentage" placeholder="eg. 85.80" value={form.secondarySchoolPercentage} onChange={handleChange} required className="rounded-lg w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-400"/>
+              <input type="number" step="0.01" name="secondarySchoolPercentage" placeholder="Percentage" value={form.secondarySchoolPercentage} onChange={handleChange} required className="rounded-lg w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-400"/>
             </div>
           </div>
 
@@ -79,9 +76,9 @@ export default function BuildProfile() {
           <div>
             <h3 className="text-lg font-semibold text-green-600 mb-2">Higher Secondary School</h3>
             <div className="grid md:grid-cols-3 gap-4">
-               <input type="text" name="higherSecondarySchool" placeholder="School Name" value={form.higherSecondarySchool} onChange={handleChange} required className="rounded-lg w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-green-400"/>
-               <input type="number" name="higherSecondaryPassingYear" placeholder="Year" value={form.higherSecondaryPassingYear} onChange={handleChange} required className="rounded-lg w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-green-400"/>
-               <input type="number" step="0.01" name="higherSecondaryPercentage" placeholder="eg. 90.00" value={form.higherSecondaryPercentage} onChange={handleChange} required className="rounded-lg w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-green-400"/>
+              <input type="text" name="higherSecondarySchool" placeholder="School Name" value={form.higherSecondarySchool} onChange={handleChange} required className="rounded-lg w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-green-400"/>
+              <input type="number" name="higherSecondaryPassingYear" placeholder="Year" value={form.higherSecondaryPassingYear} onChange={handleChange} required className="rounded-lg w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-green-400"/>
+              <input type="number" step="0.01" name="higherSecondaryPercentage" placeholder="Percentage" value={form.higherSecondaryPercentage} onChange={handleChange} required className="rounded-lg w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-green-400"/>
             </div>
           </div>
 
@@ -91,7 +88,8 @@ export default function BuildProfile() {
             <div className="grid md:grid-cols-3 gap-4">
               <input type="text" name="universityName" placeholder="University Name" value={form.universityName} onChange={handleChange} required className="rounded-lg w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-teal-400"/>
               <input type="number" name="universityPassingYear" placeholder="Year" value={form.universityPassingYear} onChange={handleChange} required className="rounded-lg w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-teal-400"/>
-              <input type="number" step="0.01" name="universityGPA" placeholder="eg. 9.00" value={form.universityGPA} onChange={handleChange} required className="rounded-lg w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-teal-400"/>
+              {/* **THE FIX**: Name and value now correctly use 'universityGpa' */}
+              <input type="number" step="0.01" name="universityGpa" placeholder="GPA" value={form.universityGpa} onChange={handleChange} required className="rounded-lg w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-teal-400"/>
             </div>
           </div>
 
@@ -105,3 +103,4 @@ export default function BuildProfile() {
     </div>
   );
 }
+
