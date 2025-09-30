@@ -3,33 +3,45 @@ import { useNavigate } from "react-router-dom";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
-  const [errorBorder, setErrorBorder] = useState("");
-  const [response, setResponse] = useState("");
+  const [message, setMessage] = useState("");
+  const [isError, setIsError] = useState(false);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setErrorBorder("");
-    setResponse("");
+    setMessage("");
+    setIsError(false);
+    setLoading(true);
+
     if (!email) {
-      setErrorBorder("1px solid red");
+      setMessage("Please enter your email address.");
+      setIsError(true);
+      setLoading(false);
       return;
     }
+
     try {
-      let url = "http://localhost:8145/users/forgetpassword/" + email;
-      const res = await fetch(url);
-      const text = await res.text();
-      let data = text.split("::");
-      if (data[0] === "200") {
-        setResponse(<label style={{ color: "green" }}>{data[1]}</label>);
+      const res = await fetch("http://localhost:8145/api/users/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const responseText = await res.text();
+
+      if (res.ok) {
+        setIsError(false);
+        setMessage(responseText);
       } else {
-        setResponse(<label style={{ color: "red" }}>{data[1]}</label>);
+        setIsError(true);
+        setMessage(responseText || "An error occurred.");
       }
-    } catch {
-      setResponse(
-        <label style={{ color: "red" }}>Server error occurred.</label>
-      );
+    } catch (err) {
+      setIsError(true);
+      setMessage("Failed to connect to the server. Please try again.");
     }
+    setLoading(false);
   };
 
   return (
@@ -43,18 +55,22 @@ export default function ForgotPassword() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            style={{ border: errorBorder }}
-            className="rounded-lg w-full px-4 py-3 border border-gray-300 focus:ring-2 focus:ring-purple-400"
+            className={`rounded-lg w-full px-4 py-3 border ${isError ? 'border-red-500' : 'border-gray-300'} focus:ring-2 focus:ring-purple-400`}
             placeholder="Enter your email address"
             required
           />
           <button
             type="submit"
-            className="w-full py-3 px-4 rounded-lg bg-gradient-to-r from-purple-600 to-orange-500 text-lg font-bold text-white shadow hover:from-purple-700 hover:to-orange-600 transition"
+            disabled={loading}
+            className="w-full py-3 px-4 rounded-lg bg-gradient-to-r from-purple-600 to-orange-500 text-lg font-bold text-white shadow hover:from-purple-700 hover:to-orange-600 transition disabled:opacity-50"
           >
-            Reset Password
+            {loading ? "Sending..." : "Reset Password"}
           </button>
-          <div className="mt-3 text-center">{response}</div>
+          {message && (
+            <div className={`mt-3 text-center p-2 rounded-lg ${isError ? 'text-red-700 bg-red-100' : 'text-green-700 bg-green-100'}`}>
+              {message}
+            </div>
+          )}
         </form>
         <button
           className="mt-4 text-sm text-purple-600 hover:underline w-full"

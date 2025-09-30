@@ -1,35 +1,69 @@
 package com.studyGroup.infosys.controller;
 
+import com.studyGroup.infosys.model.Profile;
+import com.studyGroup.infosys.service.JWTService;
+import com.studyGroup.infosys.service.ProfileService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import com.studyGroup.infosys.entity.Profile;
-import com.studyGroup.infosys.entity.ProfileManager;
+import java.util.Optional;
 
 @RestController
-@RequestMapping("/profile")
+@RequestMapping("/api/profile") // Standard API prefix
 @CrossOrigin(origins = "*")
 public class ProfileController {
 
     @Autowired
-    ProfileManager profileManager;
+    private ProfileService profileService;
 
-    // Get profile for an authenticated user (by email)
-    @PostMapping("/get")
-    public Profile getProfile(@RequestBody Profile request) {
-        Profile p = profileManager.getProfile(request.getEmail());
-        if (p == null) {
-        	
-        	// Use a proper name from the Users table or from session
-        	return new Profile(request.getEmail(), null, null, null, null, "[]", "User");
+    @Autowired
+    private JWTService jwtService;
 
+    /**
+     * Gets the profile for the currently authenticated user.
+     * The user's identity is determined by the email within the JWT token.
+     */
+    @GetMapping // Correct HTTP method for getting data
+    public ResponseEntity<?> getProfile(@RequestHeader("Authorization") String authHeader) {
+        // Extract token from "Bearer <token>"
+        String token = authHeader.substring(7);
+        String email = jwtService.validateToken(token);
+
+        if ("401".equals(email)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or expired token.");
         }
-        return p;
+
+        Optional<Profile> profileOptional = profileService.getProfileByEmail(email);
+
+        // **FIXED LOGIC**: Using a clear if/else block to avoid the type mismatch.
+        if (profileOptional.isPresent()) {
+            return ResponseEntity.ok(profileOptional.get()); // Returns ResponseEntity<Profile>
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Profile not found."); // Returns ResponseEntity<String>
+        }
     }
 
-    // Update profile for an authenticated user
-    @PostMapping("/update")
-    public String updateProfile(@RequestBody Profile profile) {
-        profileManager.saveOrUpdateProfile(profile);
-        return "200::Profile updated successfully";
+    /**
+     * Creates or updates the profile for the authenticated user.
+     * It uses the email from the token to ensure a user can only edit their own profile.
+     */
+    @PostMapping // Correct HTTP method for creating/updating data
+    public ResponseEntity<?> updateProfile(@RequestHeader("Authorization") String authHeader, @RequestBody Profile profileDetails) {
+        String token = authHeader.substring(7);
+        String email = jwtService.validateToken(token);
+
+        if ("401".equals(email)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or expired token.");
+        }
+
+        // Security check: Force the email in the profile data to match the token's email
+        profileDetails.setEmail(email);
+
+        Profile savedProfile = profileService.saveOrUpdateProfile(profileDetails);
+        
+        // Return the saved profile object with a 200 OK status
+        return ResponseEntity.ok(savedProfile);
     }
 }
+

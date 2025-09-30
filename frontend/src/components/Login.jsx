@@ -1,10 +1,12 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState(location.state?.message || "");
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -13,19 +15,36 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    const res = await fetch("http://localhost:8145/users/signin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    const text = await res.text();
-    const [code, message] = text.split("::");
+    setSuccessMessage("");
 
-    if (code === "200") {
-      sessionStorage.setItem("csrid", message);
-      navigate("/dashboard");
-    } else {
-      setError(message);
+    console.log("1. HandleSubmit function called."); // DEBUG
+    console.log("2. Sending user data:", form); // DEBUG
+
+    try {
+      const res = await fetch("http://localhost:8145/api/users/signin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+
+      console.log("3. Received API Response:", res); // DEBUG
+      console.log("4. Response status:", res.status, res.statusText); // DEBUG
+
+      const data = await res.json();
+      console.log("5. Parsed response data:", data); // DEBUG
+
+      if (res.ok) {
+        console.log("6. Login successful. Token received:", data.token); // DEBUG
+        sessionStorage.setItem("token", data.token);
+        console.log("7. Navigating to /dashboard..."); // DEBUG
+        navigate("/dashboard");
+      } else {
+        console.error("6. Login failed. Error message:", data.message); // DEBUG
+        setError(data.message || "Invalid credentials");
+      }
+    } catch (err) {
+      console.error("CRITICAL ERROR: The API call failed completely.", err); // DEBUG
+      setError("Failed to connect to the server. Please check your connection and try again.");
     }
   };
 
@@ -38,6 +57,7 @@ export default function Login() {
           </span>
           <p className="mt-2 text-md text-gray-500">Sign in to your account</p>
         </div>
+        {successMessage && <p className="text-green-600 bg-green-100 p-3 rounded-lg text-center">{successMessage}</p>}
         <form
           className="mt-8 space-y-6"
           autoComplete="off"
@@ -89,3 +109,4 @@ export default function Login() {
     </div>
   );
 }
+

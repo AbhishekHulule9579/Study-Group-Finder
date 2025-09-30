@@ -1,284 +1,201 @@
 import React, { useState, useEffect } from "react";
-
-const demoSubjects = [
-  "Engineering Mathematics",
-  "Digital Logic",
-  "Computer Organization and Architecture",
-  "Programming and Data Structures",
-  "Algorithms",
-  "Theory of Computation",
-];
+import { useNavigate } from "react-router-dom";
 
 export default function Profile() {
-  const email = sessionStorage.getItem("csrid"); // should hold email, not token
-  const [profilePic, setProfilePic] = useState(null);
-  const [fullname, setFullname] = useState("User");
-  const [contact, setContact] = useState({
+  const navigate = useNavigate();
+  // State for data from the User entity (academic info)
+  const [user, setUser] = useState(null); 
+  // State for data from the Profile entity (contact info, pic)
+  const [profile, setProfile] = useState({
+    profilePicUrl: null,
     phone: "",
-    email: "",
-    linkedin: "",
-    github: "",
+    githubUrl: "",
+    linkedinUrl: "",
   });
-  const [education, setEducation] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    async function fetchProfile() {
+    const fetchProfileData = async () => {
       setLoading(true);
+      setError("");
+      const token = sessionStorage.getItem("token");
+      if (!token) {
+        navigate("/login");
+        return;
+      }
+
       try {
-        const res = await fetch("http://localhost:8145/profile/get", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setProfilePic(data.profilePic || null);
-          setFullname(data.fullname || "User");
-          setContact({
-            phone: data.phone || "",
-            email: data.email || email || "",
-            linkedin: data.linkedin || "",
-            github: data.github || "",
-          });
-          if (data.education) setEducation(JSON.parse(data.education));
-          else setEducation([]);
+        const [userRes, profileRes] = await Promise.all([
+          fetch("http://localhost:8145/api/users/profile", {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch("http://localhost:8145/api/profile", {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
+
+        if (userRes.ok) {
+          const userData = await userRes.json();
+          setUser(userData);
         } else {
-          alert("Failed to load profile data.");
-          setEducation([]);
+          throw new Error("Session expired. Please log in again.");
         }
-      } catch (e) {
-        alert("Error loading profile: " + e.message);
-        setEducation([]);
+
+        if (profileRes.ok) {
+          const profileData = await profileRes.json();
+          setProfile(profileData);
+        }
+        
+      } catch (err) {
+        setError(err.message);
+        sessionStorage.removeItem("token");
+        navigate("/login");
       }
       setLoading(false);
-    }
-    if (email) fetchProfile();
-    else alert("No email found in session.");
-  }, [email]);
-
-  const saveProfile = async () => {
-    setSaving(true);
-    const profile = {
-      email: contact.email,
-      profilePic,
-      phone: contact.phone,
-      linkedin: contact.linkedin,
-      github: contact.github,
-      education: JSON.stringify(education),
-      fullname,
     };
+    fetchProfileData();
+  }, [navigate]);
+
+  const handleUserChange = (e) => {
+    setUser({ ...user, [e.target.name]: e.target.value });
+  };
+  
+  const handleProfileChange = (e) => {
+    setProfile({ ...profile, [e.target.name]: e.target.value });
+  };
+
+  const handleImageUpload = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setProfile(prev => ({ ...prev, profilePicUrl: event.target.result }));
+      };
+      reader.readAsDataURL(e.target.files[0]);
+    }
+  };
+
+  const saveChanges = async () => {
+    setSaving(true);
+    setError("");
+    const token = sessionStorage.getItem("token");
+    
     try {
-      const res = await fetch("http://localhost:8145/profile/update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(profile),
-      });
-      const text = await res.text();
-      const [code, message] = text.split("::");
-      alert(message);
-      if (code !== "200") throw new Error(message);
-    } catch (e) {
-      alert("Failed to save profile: " + e.message);
+      // **CORRECTED LOGIC**: Save both user and profile data in parallel
+      const [userUpdateRes, profileUpdateRes] = await Promise.all([
+        // API call to update academic user details
+        fetch("http://localhost:8145/api/users/profile", {
+          method: "PUT", // Use PUT for updating user details
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(user),
+        }),
+        // API call to update contact/display profile details
+        fetch("http://localhost:8145/api/profile", {
+          method: "POST", // POST is fine here for create/update
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(profile),
+        }),
+      ]);
+
+      if (!userUpdateRes.ok || !profileUpdateRes.ok) {
+        // Provide a more specific error if possible
+        const userError = !userUpdateRes.ok ? await userUpdateRes.text() : "";
+        const profileError = !profileUpdateRes.ok ? await profileUpdateRes.text() : "";
+        throw new Error(`Failed to save. User: ${userError} Profile: ${profileError}`);
+      }
+      
+      alert("All changes saved successfully!");
+
+    } catch (err) {
+      setError(err.message);
     }
     setSaving(false);
   };
 
-  const handleImageUpload = (e) => {
-    if (e.target.files.length) {
-      const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onloadend = () => setProfilePic(reader.result);
-      reader.readAsDataURL(file);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="text-white text-center mt-20">Loading profile...</div>
-    );
+  if (loading || !user) {
+    return <div className="text-center text-xl mt-20">Loading profile...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-[#10131a] text-gray-100 px-4 py-8 flex justify-center">
-      <div className="flex flex-col md:flex-row w-full max-w-6xl gap-8">
-        {/* Side Panel */}
-        <div className="flex flex-col gap-6 md:w-1/3">
-          <div className="bg-[#181d26] rounded-2xl p-6 flex flex-col items-center shadow-lg relative">
-            <label
-              htmlFor="profile-pic-upload"
-              className="cursor-pointer group flex flex-col items-center"
-            >
-              <div className="w-28 h-28 rounded-full bg-gray-800 flex items-center justify-center text-3xl font-bold mb-1 border-4 border-[#232645] overflow-hidden">
-                {profilePic ? (
-                  <img
-                    src={profilePic}
-                    alt="Profile"
-                    className="object-cover w-full h-full"
-                  />
-                ) : (
-                  <span>+</span>
-                )}
-              </div>
-              <input
-                id="profile-pic-upload"
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-              />
-              <span className="text-blue-400 underline group-hover:text-blue-200 text-xs mt-2">
-                {profilePic ? "Change Photo" : "Upload Photo"}
-              </span>
-            </label>
-            <input
-              className="mt-4 rounded bg-gray-800 px-3 py-1 text-white text-center font-bold text-xl mb-1"
-              value={fullname}
-              onChange={(e) => setFullname(e.target.value)}
-              placeholder="Full Name"
-              style={{ textAlign: "center" }}
-            />
-            <div className="text-gray-400 text-xs">@{email}</div>
-          </div>
+    <div className="min-h-screen bg-gray-100 text-gray-800 px-4 py-8">
+        <div className="max-w-5xl mx-auto">
+            <div className="flex flex-col md:flex-row gap-8">
+                {/* Side Panel */}
+                <div className="md:w-1/3 flex flex-col gap-6">
+                    <div className="bg-white rounded-2xl p-6 shadow-md flex flex-col items-center">
+                          <label htmlFor="profile-pic-upload" className="cursor-pointer group">
+                            <div className="w-28 h-28 rounded-full bg-gray-200 mb-4 border-4 border-purple-200 overflow-hidden flex items-center justify-center">
+                                {profile.profilePicUrl ? (
+                                    <img src={profile.profilePicUrl} alt="Profile" className="object-cover w-full h-full" />
+                                ) : (
+                                    <span className="text-4xl text-gray-400">{user.name.charAt(0).toUpperCase()}</span>
+                                )}
+                            </div>
+                            <input id="profile-pic-upload" type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                        </label>
+                        <h2 className="text-2xl font-bold text-gray-800">{user.name}</h2>
+                        <p className="text-gray-500 text-sm">@{user.email}</p>
+                    </div>
 
-          {/* Contact Info */}
-          <div className="bg-[#181d26] rounded-2xl p-5 shadow-lg">
-            <div className="font-semibold mb-2">Contact Information</div>
-            <input
-              className="rounded bg-gray-800 px-3 py-1 text-white mb-2"
-              value={contact.phone}
-              onChange={(e) =>
-                setContact((c) => ({ ...c, phone: e.target.value }))
-              }
-              placeholder="Phone"
-            />
-            <input
-              className="rounded bg-gray-800 px-3 py-1 text-white mb-2"
-              value={contact.email}
-              readOnly
-              placeholder="Email (read-only)"
-            />
-            <input
-              className="rounded bg-gray-800 px-3 py-1 text-white mb-2"
-              value={contact.linkedin}
-              onChange={(e) =>
-                setContact((c) => ({ ...c, linkedin: e.target.value }))
-              }
-              placeholder="LinkedIn URL"
-            />
-            <input
-              className="rounded bg-gray-800 px-3 py-1 text-white"
-              value={contact.github}
-              onChange={(e) =>
-                setContact((c) => ({ ...c, github: e.target.value }))
-              }
-              placeholder="GitHub URL"
-            />
-          </div>
-        </div>
+                    <div className="bg-white rounded-2xl p-6 shadow-md">
+                        <h3 className="font-semibold mb-3 text-lg">Contact Information</h3>
+                        <div className="space-y-3">
+                            <input name="phone" value={profile.phone || ''} onChange={handleProfileChange} placeholder="Phone" className="w-full p-2 border rounded-md" />
+                            <input name="linkedinUrl" value={profile.linkedinUrl || ''} onChange={handleProfileChange} placeholder="LinkedIn URL" className="w-full p-2 border rounded-md" />
+                            <input name="githubUrl" value={profile.githubUrl || ''} onChange={handleProfileChange} placeholder="GitHub URL" className="w-full p-2 border rounded-md" />
+                        </div>
+                    </div>
+                </div>
 
-        {/* Main Content */}
-        <div className="flex flex-col gap-6 flex-1">
-          {/* Badges & Titles */}
-          <div className="bg-[#181d26] rounded-2xl p-6 shadow-lg flex flex-col min-h-32 justify-center">
-            <div className="font-bold text-lg mb-3">Badges & Titles</div>
-            <div className="text-gray-400 text-center">
-              No badges or titles earned yet.
+                {/* Main Content */}
+                <div className="flex-1 flex flex-col gap-6">
+                    <div className="bg-white rounded-2xl p-6 shadow-md">
+                        <h3 className="text-xl font-bold mb-4 text-purple-700">Academic History</h3>
+                        
+                        <div className="mb-6">
+                            <h4 className="text-lg font-semibold text-gray-700 mb-2">Secondary School</h4>
+                            <div className="grid md:grid-cols-3 gap-4">
+                                <input name="secondarySchool" value={user.secondarySchool || ''} onChange={handleUserChange} placeholder="School Name" className="p-2 border rounded-md" />
+                                <input name="secondarySchoolPassingYear" value={user.secondarySchoolPassingYear || ''} onChange={handleUserChange} placeholder="Passing Year" type="number" className="p-2 border rounded-md" />
+                                <input name="secondarySchoolPercentage" value={user.secondarySchoolPercentage || ''} onChange={handleUserChange} placeholder="Percentage" type="number" step="0.01" className="p-2 border rounded-md" />
+                            </div>
+                        </div>
+
+                        <div className="mb-6">
+                            <h4 className="text-lg font-semibold text-gray-700 mb-2">Higher Secondary School</h4>
+                            <div className="grid md:grid-cols-3 gap-4">
+                                <input name="higherSecondarySchool" value={user.higherSecondarySchool || ''} onChange={handleUserChange} placeholder="School Name" className="p-2 border rounded-md" />
+                                <input name="higherSecondaryPassingYear" value={user.higherSecondaryPassingYear || ''} onChange={handleUserChange} placeholder="Passing Year" type="number" className="p-2 border rounded-md" />
+                                <input name="higherSecondaryPercentage" value={user.higherSecondaryPercentage || ''} onChange={handleUserChange} placeholder="Percentage" type="number" step="0.01" className="p-2 border rounded-md" />
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 className="text-lg font-semibold text-gray-700 mb-2">University</h4>
+                            <div className="grid md:grid-cols-3 gap-4">
+                                <input name="universityName" value={user.universityName || ''} onChange={handleUserChange} placeholder="University Name" className="p-2 border rounded-md" />
+                                <input name="universityPassingYear" value={user.universityPassingYear || ''} onChange={handleUserChange} placeholder="Passing Year" type="number" className="p-2 border rounded-md" />
+                                <input name="universityPassingGPA" value={user.universityPassingGPA || ''} onChange={handleUserChange} placeholder="GPA" type="number" step="0.01" className="p-2 border rounded-md" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {error && <p className="text-red-500 text-center">{error}</p>}
+                    
+                    <button onClick={saveChanges} disabled={saving} className="w-full py-3 px-4 rounded-lg bg-purple-600 text-lg font-bold text-white shadow hover:bg-purple-700 transition disabled:opacity-50">
+                        {saving ? "Saving..." : "Save All Changes"}
+                    </button>
+                </div>
             </div>
-          </div>
-
-          {/* Education */}
-          <div className="bg-[#181d26] rounded-2xl p-6 shadow-lg">
-            <div className="font-bold text-lg mb-3">Education</div>
-            {education.length === 0 && (
-              <p className="text-gray-400">
-                No education details. You can add below.
-              </p>
-            )}
-            {education.map((edu, idx) => (
-              <div key={idx} className="flex gap-2 mb-2">
-                <input
-                  className="rounded bg-gray-800 px-2 py-1 w-1/3 text-white"
-                  value={edu.institute || ""}
-                  onChange={(e) => {
-                    const eds = [...education];
-                    eds[idx].institute = e.target.value;
-                    setEducation(eds);
-                  }}
-                  placeholder="Institute"
-                />
-                <input
-                  className="rounded bg-gray-800 px-2 py-1 w-1/3 text-white"
-                  value={edu.degree || ""}
-                  onChange={(e) => {
-                    const eds = [...education];
-                    eds[idx].degree = e.target.value;
-                    setEducation(eds);
-                  }}
-                  placeholder="Degree"
-                />
-                <input
-                  className="rounded bg-gray-800 px-2 py-1 w-1/6 text-white"
-                  value={edu.year || ""}
-                  onChange={(e) => {
-                    const eds = [...education];
-                    eds[idx].year = e.target.value;
-                    setEducation(eds);
-                  }}
-                  placeholder="Year"
-                />
-                <input
-                  className="rounded bg-gray-800 px-2 py-1 w-1/6 text-white"
-                  value={edu.gpa || ""}
-                  onChange={(e) => {
-                    const eds = [...education];
-                    eds[idx].gpa = e.target.value;
-                    setEducation(eds);
-                  }}
-                  placeholder="GPA"
-                />
-              </div>
-            ))}
-            <button
-              className="mt-2 px-4 py-1 rounded bg-blue-700 hover:bg-blue-800 text-white font-semibold"
-              onClick={() =>
-                setEducation([
-                  ...education,
-                  { institute: "", degree: "", year: "", gpa: "" },
-                ])
-              }
-            >
-              + Add Education
-            </button>
-          </div>
-
-          {/* Subjects */}
-          <div className="bg-[#181d26] rounded-2xl p-6 shadow-lg">
-            <div className="font-bold mb-2">Subjects Learning</div>
-            <div className="flex flex-wrap gap-3">
-              {demoSubjects.map((subject) => (
-                <span
-                  key={subject}
-                  className="px-3 py-1 bg-blue-900 bg-opacity-30 text-blue-300 rounded-full text-sm border border-blue-800"
-                >
-                  {subject}{" "}
-                  <span className="text-green-400 text-xs ml-1">Learning</span>
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Save Button */}
-          <button
-            className="mt-6 w-full py-3 px-4 rounded bg-gradient-to-r from-blue-600 via-green-400 to-teal-500 text-white font-bold shadow hover:from-blue-700 hover:to-teal-600 transition"
-            onClick={saveProfile}
-            disabled={saving}
-          >
-            {saving ? "Saving..." : "Save All Changes"}
-          </button>
         </div>
-      </div>
     </div>
   );
 }
+

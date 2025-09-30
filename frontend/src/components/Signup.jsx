@@ -4,11 +4,12 @@ import { Link, useNavigate } from "react-router-dom";
 export default function Signup() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
-    fullname: "",
+    name: "", // Changed from fullname to name to match the backend User entity
     email: "",
     password: "",
-    role: "1", // default role as Student
+    role: 1, // default role as Student
   });
+  const [error, setError] = useState("");
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -16,13 +17,14 @@ export default function Signup() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
 
     if (!form.email.includes("@")) {
-      alert("Email must contain '@'");
+      setError("Please enter a valid email address.");
       return;
     }
 
-    // Do NOT call backend here for DB update yet, just store partial details in session and go to BuildProfile
+    // Save partial details to session and go to the next step
     sessionStorage.setItem("signupData", JSON.stringify(form));
     navigate("/buildprofile");
   };
@@ -31,8 +33,8 @@ export default function Signup() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-tr from-pink-500 via-orange-400 to-purple-600 py-12 px-4">
       <div className="max-w-3xl flex flex-col md:flex-row w-full bg-white rounded-3xl shadow-xl overflow-hidden">
         <div className="hidden md:block md:w-1/2">
-          <div className="h-130 w-100 overflow-hidden rounded-xl">
-            <img
+          <div className="h-full w-full overflow-hidden">
+             <img
               src="https://i.pinimg.com/1200x/c9/03/c5/c903c59083d681e959cb833816da2042.jpg"
               alt="signup"
               className="h-full w-full object-cover object-center"
@@ -49,10 +51,10 @@ export default function Signup() {
           <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
             <input
               type="text"
-              name="fullname"
+              name="name" // Changed from fullname to name
               placeholder="Full Name"
               required
-              value={form.fullname}
+              value={form.name}
               onChange={handleChange}
               className="rounded-lg w-full px-4 py-3 border border-gray-300 focus:ring-2 focus:ring-pink-400 focus:border-transparent"
             />
@@ -74,6 +76,7 @@ export default function Signup() {
               onChange={handleChange}
               className="rounded-lg w-full px-4 py-3 border border-gray-300 focus:ring-2 focus:ring-orange-400 focus:border-transparent"
             />
+             {error && <p className="text-red-500 text-center text-sm">{error}</p>}
             <button
               type="submit"
               className="w-full py-3 px-4 rounded-lg bg-gradient-to-r from-pink-600 via-orange-400 to-purple-600 text-lg font-bold text-white shadow hover:from-pink-700 hover:to-purple-700 transition"
@@ -97,3 +100,4 @@ export default function Signup() {
     </div>
   );
 }
+
