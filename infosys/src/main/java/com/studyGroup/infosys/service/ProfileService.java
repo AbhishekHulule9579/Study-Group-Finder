@@ -29,23 +29,17 @@ public class ProfileService {
     }
 
     public Profile saveOrUpdateProfile(Profile profile) {
-        // When a new profile is created, initialize enrolled courses to an empty set
+       
         if (profile.getEnrolledCourseIds() == null) {
             profile.setEnrolledCourseIds("[]");
         }
         return profileRepository.save(profile);
     }
 
-    /**
-     * Enrolls a user in a specific course.
-     * @param email The email of the user to enroll.
-     * @param courseId The ID of the course to enroll in.
-     * @return The updated profile.
-     * @throws RuntimeException if the user profile or course is not found.
-     */
-    public Profile enrollInCourse(String email, String courseId) { // <-- FIX: Changed to String
+
+    public Profile enrollInCourse(String email, String courseId) { 
         Optional<Profile> profileOptional = profileRepository.findByEmail(email);
-        Optional<Course> courseOptional = courseService.getCourseById(courseId); // <-- FIX: Now correctly passes a String
+        Optional<Course> courseOptional = courseService.getCourseById(courseId);
 
         if (profileOptional.isPresent() && courseOptional.isPresent()) {
             Profile profile = profileOptional.get();
@@ -53,28 +47,25 @@ public class ProfileService {
                 Set<String> enrolledCourseIds;
                 String enrolledCoursesJson = profile.getEnrolledCourseIds();
 
-                // Handle new users or users with no enrolled courses yet
                 if (enrolledCoursesJson == null || enrolledCoursesJson.isEmpty()) {
                     enrolledCourseIds = new HashSet<>();
                 } else {
                     enrolledCourseIds = objectMapper.readValue(
                         enrolledCoursesJson,
-                        new TypeReference<Set<String>>() {} // <-- FIX: Changed to Set<String>
+                        new TypeReference<Set<String>>() {} 
                     );
                 }
 
-                // Add the new course ID and save it back as a JSON string
                 enrolledCourseIds.add(courseId);
                 profile.setEnrolledCourseIds(objectMapper.writeValueAsString(enrolledCourseIds));
 
                 return profileRepository.save(profile);
             } catch (IOException e) {
-                // This would happen if the JSON is malformed, so we throw an exception
+               
                 throw new RuntimeException("Could not update enrolled courses.", e);
             }
         }
         
-        // Throw an exception if the profile or course wasn't found
         throw new RuntimeException("User profile or course not found.");
     }
 }

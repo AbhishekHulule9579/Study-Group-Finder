@@ -14,7 +14,6 @@ import java.util.function.Function;
 @Service
 public class JWTService {
 
-    // These values are injected from your application.properties file for better security and configuration.
     @Value("${jwt.secret}")
     private String secretKeyString;
 
