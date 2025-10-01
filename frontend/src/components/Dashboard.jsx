@@ -7,6 +7,8 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [enrolledCourses, setEnrolledCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const handleLogout = useCallback(() => {
     sessionStorage.removeItem("token");
@@ -14,7 +16,7 @@ export default function Dashboard() {
   }, [navigate]);
 
   useEffect(() => {
-    const fetchUserData = async () => {
+    const fetchDashboardData = async () => {
       const token = sessionStorage.getItem("token");
       if (!token) {
         navigate("/login");
@@ -22,38 +24,59 @@ export default function Dashboard() {
       }
 
       try {
-        const [userRes, profileRes] = await Promise.all([
+        // Fetch all necessary data in parallel for speed
+        const [userRes, profileRes, allCoursesRes] = await Promise.all([
           fetch("http://localhost:8145/api/users/profile", {
             headers: { Authorization: `Bearer ${token}` },
           }),
           fetch("http://localhost:8145/api/profile", {
             headers: { Authorization: `Bearer ${token}` },
           }),
+          fetch("http://localhost:8145/api/courses", {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
         ]);
 
-        if (userRes.ok) {
-          const userData = await userRes.json();
-          setUser(userData);
-        } else {
-          throw new Error("Invalid session");
+        // **THE FIX IS HERE**: We now handle each response separately.
+        
+        // 1. User data is essential. If it fails, the token is invalid, so log out.
+        if (!userRes.ok || !allCoursesRes.ok) {
+           throw new Error("Invalid session. Please log in again.");
         }
         
-        if(profileRes.ok) {
-          const profileData = await profileRes.json();
-          setProfile(profileData);
+        const userData = await userRes.json();
+        const allCoursesData = await allCoursesRes.json();
+        setUser(userData);
+
+        // 2. Profile data is optional. If it exists, we use it. If not, we continue.
+        let profileData = null;
+        if (profileRes.ok) {
+            profileData = await profileRes.json();
+            setProfile(profileData);
+        }
+
+        // 3. Process enrolled courses using the (potentially null) profile data.
+        if (profileData && profileData.enrolledCourseIds) {
+            const enrolledIds = JSON.parse(profileData.enrolledCourseIds);
+            const userCourses = allCoursesData.filter(course => 
+                enrolledIds.includes(course.courseId)
+            );
+            setEnrolledCourses(userCourses);
         }
 
       } catch (error) {
-        console.error("Failed to fetch user data:", error);
-        handleLogout();
+        console.error("Failed to fetch dashboard data:", error);
+        handleLogout(); // If a critical fetch fails, log the user out.
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchUserData();
+    fetchDashboardData();
   }, [navigate, handleLogout]);
 
-  if (!user) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  if (loading || !user) {
+    return <div className="min-h-screen flex items-center justify-center text-lg font-semibold">Loading Dashboard...</div>;
   }
 
   return (
@@ -78,6 +101,27 @@ export default function Dashboard() {
         <div className="flex-1 p-10 max-w-7xl mx-auto w-full mt-[92px]">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 auto-rows-fr">
             <DashboardCard>
+                <CardHeader title="My Enrolled Courses">
+                    <Tab label="All" active />
+                    <Tab label="Current" />
+                    <Tab label="Completed" />
+                </CardHeader>
+                {enrolledCourses.length > 0 ? (
+                    enrolledCourses.map(course => (
+                        <CourseCard
+                            key={course.courseId}
+                            code={course.courseId}
+                            name={course.courseName}
+                            progress={Math.floor(Math.random() * 50) + 20}
+                            peers={Math.floor(Math.random() * 10) + 5}
+                        />
+                    ))
+                ) : (
+                    <p className="text-center text-gray-500 mt-4">You haven't enrolled in any courses yet.</p>
+                )}
+            </DashboardCard>
+            
+            <DashboardCard>
               <CardHeader title="Your Groups">
                 <Tab label="All" active />
                 <Tab label="Active" />
@@ -94,27 +138,6 @@ export default function Dashboard() {
                 members={["NS", "KP"]}
               />
             </DashboardCard>
-
-            <DashboardCard>
-              <CardHeader title="Courses">
-                <Tab label="All" active />
-                <Tab label="Current" />
-                <Tab label="Completed" />
-              </CardHeader>
-              <CourseCard
-                code="CS-221"
-                name="Intro to AI"
-                progress={70}
-                peers={5}
-              />
-              <CourseCard
-                code="CS-210"
-                name="Data Structures"
-                progress={50}
-                peers={10}
-              />
-            </DashboardCard>
-            {/* ... Other cards ... */}
           </div>
         </div>
       </div>
@@ -299,8 +322,7 @@ function Tab({ label, active }) {
 }
 
 function GroupCard({ code, name, members }) {
-    // ... implementation
-    return <div>Group Card</div>
+    return <div className="text-center p-4 text-gray-500">Group Card Placeholder</div>
 }
 
 function CourseCard({ code, name, progress, peers }) {
@@ -314,7 +336,6 @@ function CourseCard({ code, name, progress, peers }) {
         <div className="h-2 bg-gray-300 rounded-xl mt-2 overflow-hidden">
           <div
             className="bg-gradient-to-r from-emerald-400 to-green-600 h-full rounded-l-xl transition-all duration-300"
-            // **THE FIX**: Wrap the value in backticks to create a valid template literal string
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -326,11 +347,4 @@ function CourseCard({ code, name, progress, peers }) {
     </div>
   );
 }
-
-// ... other sub-components
-function CalendarWidget() { return <div>Calendar</div>; }
-function UpcomingSessionList() { return <div>Upcoming</div>; }
-function QuickAction({ label }) { return <button>{label}</button>; }
-function PeerCard({ name }) { return <div>{name}</div>; }
-function Notification({ text }) { return <div>{text}</div>; }
 
