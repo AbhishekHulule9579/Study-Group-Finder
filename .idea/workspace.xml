@@ -1,37 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="c6410e9f-f1be-4a63-bcd5-00badae84606" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/frontend/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/package-lock.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/package.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/App.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/App.jsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/auth/SignIn.jsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/auth/SignUp.jsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/components/Home.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/components/Home.jsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/components/Nav.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/components/Nav.jsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/main.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/main.jsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/userDataStore/useUserStore.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/infosys/.gitattributes" beforeDir="false" afterPath="$PROJECT_DIR$/infosys/.gitattributes" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/infosys/.mvn/wrapper/maven-wrapper.properties" beforeDir="false" afterPath="$PROJECT_DIR$/infosys/.mvn/wrapper/maven-wrapper.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/infosys/mvnw.cmd" beforeDir="false" afterPath="$PROJECT_DIR$/infosys/mvnw.cmd" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/infosys/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/infosys/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/infosys/src/main/java/com/studyGroup/infosys/InfosysApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/infosys/src/main/java/com/studyGroup/infosys/InfosysApplication.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/infosys/src/main/java/com/studyGroup/infosys/config/JwtAuthFilter.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/infosys/src/main/java/com/studyGroup/infosys/config/SecurityConfig.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/infosys/src/main/java/com/studyGroup/infosys/controller/AuthController.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/infosys/src/main/java/com/studyGroup/infosys/controller/FileController.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/infosys/src/main/java/com/studyGroup/infosys/dto/LoginDto.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/infosys/src/main/java/com/studyGroup/infosys/dto/RegisterDto.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/infosys/src/main/java/com/studyGroup/infosys/entity/User.java" beforeDir="false" afterPath="$PROJECT_DIR$/infosys/src/main/java/com/studyGroup/infosys/entity/User.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/infosys/src/main/java/com/studyGroup/infosys/payload/ApiResponse.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/infosys/src/main/java/com/studyGroup/infosys/payload/JwtResponse.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/infosys/src/main/java/com/studyGroup/infosys/repository/UserRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/infosys/src/main/java/com/studyGroup/infosys/service/impl/UserDetailsImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/infosys/src/main/java/com/studyGroup/infosys/service/impl/UserDetailsServiceImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/infosys/src/main/java/com/studyGroup/infosys/util/JwtUtil.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/infosys/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/infosys/src/main/resources/application.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/infosys/src/test/java/com/studyGroup/infosys/InfosysApplicationTests.java" beforeDir="false" afterPath="$PROJECT_DIR$/infosys/src/test/java/com/studyGroup/infosys/InfosysApplicationTests.java" afterDir="false" />
-    </list>
+    <list default="true" id="c6410e9f-f1be-4a63-bcd5-00badae84606" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -40,39 +10,52 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
-  "lastFilter": {
-    "state": "OPEN",
-    "assignee": "AbhishekHulule9579"
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;AbhishekHulule9579&quot;
   }
-}]]></component>
-  <component name="GithubPullRequestsUISettings"><![CDATA[{
-  "selectedUrlAndAccountId": {
-    "url": "https://github.com/AbhishekHulule9579/Study-Group-Finder.git",
-    "accountId": "cd7e66bb-1178-43f1-8943-511a4750caca"
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/AbhishekHulule9579/Study-Group-Finder.git&quot;,
+    &quot;accountId&quot;: &quot;cd7e66bb-1178-43f1-8943-511a4750caca&quot;
   }
-}]]></component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 3
-}]]></component>
+}</component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 3
+}</component>
   <component name="ProjectId" id="33MynmqQtg6BDziF5ffSKDovtIp" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "feature-auth-setup",
-    "ignore.virus.scanning.warn.message": "true",
-    "last_opened_file_path": "D:/Study_Group_Finder",
-    "project.structure.last.edited": "Project",
-    "project.structure.proportion": "0.15",
-    "project.structure.side.proportion": "0.2"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;feature-auth-setup&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/Study_Group_Finder&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Project&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.15&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;
   }
-}]]></component>
+}</component>
+  <component name="RunManager">
+    <configuration default="true" type="JetRunConfigurationType">
+      <module name="Study_Group_Finder" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration default="true" type="KotlinStandaloneScriptRunConfigurationType">
+      <module name="Study_Group_Finder" />
+      <option name="filePath" />
+      <method v="2" />
+    </configuration>
+  </component>
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
       <changelist id="c6410e9f-f1be-4a63-bcd5-00badae84606" name="Changes" comment="" />

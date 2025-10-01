@@ -22,7 +22,8 @@ public class Profile {
     @Column(name = "fullname")
     private String fullname;
 
-    // **THE FIX**: Changed from TEXT to LONGTEXT to support larger image files.
+    // This definition is crucial. It allows the database column to store the
+    // very long text string of an uploaded avatar image.
     @Column(name = "profile_pic_url", columnDefinition = "LONGTEXT")
     private String profilePicUrl;
 
@@ -34,5 +35,13 @@ public class Profile {
 
     @Column(name = "linkedin_url")
     private String linkedinUrl;
+
+    // --- THIS IS THE NEW FIELD ---
+    /**
+     * Stores a list of enrolled course IDs as a JSON string (e.g., "[1, 2, 5]").
+     * Using TEXT allows for a long list of courses.
+     */
+    @Column(name = "enrolled_course_ids", columnDefinition = "TEXT")
+    private String enrolledCourseIds = "[]"; // Default to an empty JSON array
 }
 
