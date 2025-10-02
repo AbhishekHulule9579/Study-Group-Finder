@@ -168,10 +168,11 @@ export default function Profile() {
 
                     <div className="bg-white rounded-2xl p-6 shadow-md">
                         <h3 className="font-semibold mb-4 text-lg text-purple-700">Contact Information</h3>
+                        {/* *** THIS IS THE CORRECTED CODE *** */}
                         <div className="space-y-4">
-                            <input name="phone" value={profile.phone || ''} onChange={handleProfileChange} placeholder="Phone" className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-400" />
-                            <input name="linkedinUrl" value={profile.linkedinUrl || ''} onChange={handleProfileChange} placeholder="LinkedIn URL" className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-400" />
-                            <input name="githubUrl" value={profile.githubUrl || ''} onChange={handleProfileChange} placeholder="GitHub URL" className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-400" />
+                            <LabeledInput label="Phone" name="phone" value={profile.phone} onChange={handleProfileChange} placeholder="Your phone number" />
+                            <LabeledInput label="LinkedIn URL" name="linkedinUrl" value={profile.linkedinUrl} onChange={handleProfileChange} placeholder="https://linkedin.com/in/..." />
+                            <LabeledInput label="GitHub URL" name="githubUrl" value={profile.githubUrl} onChange={handleProfileChange} placeholder="https://github.com/..." />
                         </div>
                     </div>
                 </div>
@@ -220,4 +221,3 @@ export default function Profile() {
     </div>
   );
 }
-

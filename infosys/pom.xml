@@ -96,6 +96,13 @@
             <version>32.1.2-jre</version>
         </dependency>
         
+        <!-- *** THIS IS THE NEW DEPENDENCY FOR VALIDATION *** -->
+        <dependency>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
+            <version>3.0.2</version>
+        </dependency>
+
         <!-- JWT (JSON Web Token) Libraries -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
@@ -153,3 +160,4 @@
     </build>
 
 </project>
+

@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
+// A simple utility function to validate email format using a regular expression
+const isEmailValid = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
 export default function Signup() {
   const navigate = useNavigate();
   const [step, setStep] = useState('DETAILS'); // 'DETAILS' | 'OTP'
@@ -22,12 +28,12 @@ export default function Signup() {
   useEffect(() => {
     let interval;
     if (step === 'OTP' && timer > 0) {
-      setResendDisabled(true); // Disable resend when timer is active
+      setResendDisabled(true);
       interval = setInterval(() => {
         setTimer((prevTimer) => prevTimer - 1);
       }, 1000);
     } else if (timer === 0) {
-      setResendDisabled(false); // Enable resend when timer finishes
+      setResendDisabled(false);
       clearInterval(interval);
     }
     return () => clearInterval(interval);
@@ -43,11 +49,19 @@ export default function Signup() {
     setMessage("");
     setLoading(true);
 
-    if (!form.email.includes("@") || !form.name || !form.password) {
-      setError("Please fill in your name, email, and password.");
+    // *** THIS IS THE CORRECTED AND FINAL VALIDATION LOGIC ***
+    if (!form.name || !form.password) {
+      setError("Please fill in your name and password.");
       setLoading(false);
       return;
     }
+
+    if (!isEmailValid(form.email)) {
+      setError("Please enter a valid email address (e.g., name@example.com).");
+      setLoading(false);
+      return;
+    }
+    // *** END OF VALIDATION LOGIC ***
 
     try {
       const res = await fetch("http://localhost:8145/api/users/register/send-otp", {
@@ -61,8 +75,8 @@ export default function Signup() {
       if (res.ok) {
         setMessage(responseText);
         setStep('OTP');
-        setTimer(300); // Reset timer
-      } else if (res.status === 409) { // Conflict - user exists
+        setTimer(300);
+      } else if (res.status === 409) {
         setError(<span>{responseText} <Link to="/login" className="font-bold underline">Login here.</Link></span>);
       } else {
         setError(responseText || "An error occurred while sending OTP.");
@@ -89,7 +103,6 @@ export default function Signup() {
       const responseText = await res.text();
 
       if (res.ok) {
-        // OTP is correct, save details and move to next step
         sessionStorage.setItem("signupData", JSON.stringify(form));
         navigate("/buildprofile");
       } else {
@@ -223,3 +236,4 @@ export default function Signup() {
     </div>
   );
 }
+
