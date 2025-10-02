@@ -29,43 +29,64 @@ public class ProfileService {
     }
 
     public Profile saveOrUpdateProfile(Profile profile) {
-       
         if (profile.getEnrolledCourseIds() == null) {
             profile.setEnrolledCourseIds("[]");
         }
         return profileRepository.save(profile);
     }
 
-
-    public Profile enrollInCourse(String email, String courseId) { 
-        Optional<Profile> profileOptional = profileRepository.findByEmail(email);
-        Optional<Course> courseOptional = courseService.getCourseById(courseId);
-
-        if (profileOptional.isPresent() && courseOptional.isPresent()) {
-            Profile profile = profileOptional.get();
-            try {
-                Set<String> enrolledCourseIds;
-                String enrolledCoursesJson = profile.getEnrolledCourseIds();
-
-                if (enrolledCoursesJson == null || enrolledCoursesJson.isEmpty()) {
-                    enrolledCourseIds = new HashSet<>();
-                } else {
-                    enrolledCourseIds = objectMapper.readValue(
-                        enrolledCoursesJson,
-                        new TypeReference<Set<String>>() {} 
-                    );
-                }
-
-                enrolledCourseIds.add(courseId);
-                profile.setEnrolledCourseIds(objectMapper.writeValueAsString(enrolledCourseIds));
-
-                return profileRepository.save(profile);
-            } catch (IOException e) {
-               
-                throw new RuntimeException("Could not update enrolled courses.", e);
-            }
+    /**
+     * Helper method to safely parse the JSON string of enrolled course IDs into a Set.
+     */
+    private Set<String> getEnrolledCourseIdsAsSet(Profile profile) throws IOException {
+        String enrolledCoursesJson = profile.getEnrolledCourseIds();
+        if (enrolledCoursesJson == null || enrolledCoursesJson.isEmpty() || enrolledCoursesJson.equals("[]")) {
+            return new HashSet<>();
         }
-        
-        throw new RuntimeException("User profile or course not found.");
+        return objectMapper.readValue(enrolledCoursesJson, new TypeReference<>() {});
+    }
+
+
+    public Profile enrollInCourse(String email, String courseId) {
+        Profile profile = profileRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User profile not found."));
+
+        // Ensure the course exists before trying to enroll
+        courseService.getCourseById(courseId)
+                .orElseThrow(() -> new RuntimeException("Course not found."));
+
+        try {
+            Set<String> enrolledCourseIds = getEnrolledCourseIdsAsSet(profile);
+            enrolledCourseIds.add(courseId);
+            profile.setEnrolledCourseIds(objectMapper.writeValueAsString(enrolledCourseIds));
+            return profileRepository.save(profile);
+        } catch (IOException e) {
+            throw new RuntimeException("Could not update enrolled courses.", e);
+        }
+    }
+
+    /**
+     * Removes a course from the user's enrolled list.
+     * @param email The email of the user.
+     * @param courseId The ID of the course to un-enroll from.
+     * @return The updated profile.
+     */
+    public Profile unenrollFromCourse(String email, String courseId) {
+        Profile profile = profileRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User profile not found."));
+
+        try {
+            Set<String> enrolledCourseIds = getEnrolledCourseIdsAsSet(profile);
+
+            if (enrolledCourseIds.remove(courseId)) { // remove() returns true if the element was present
+                profile.setEnrolledCourseIds(objectMapper.writeValueAsString(enrolledCourseIds));
+                return profileRepository.save(profile);
+            } else {
+                // If the course wasn't in the list, no need to save, just return the profile.
+                return profile;
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Could not update enrolled courses.", e);
+        }
     }
 }

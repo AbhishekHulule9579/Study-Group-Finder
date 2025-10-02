@@ -12,6 +12,11 @@ import { Route, Routes } from "react-router-dom";
 import Profile from "./components/Profile";
 import ForgotPassword from "./components/ForgotPassword";
 
+// Import the new components
+import MyCourses from "./components/MyCourses";
+import MyGroups from "./components/MyGroups";
+import FindPeers from "./components/FindPeers";
+
 const App = () => {
   return (
     <div className="min-h-screen bg-gray-50">
@@ -27,6 +32,11 @@ const App = () => {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/ForgotPassword" element={<ForgotPassword />} />
+
+          {/* Add the new routes for the dashboard pages */}
+          <Route path="/my-courses" element={<MyCourses />} />
+          <Route path="/my-groups" element={<MyGroups />} />
+          <Route path="/find-peers" element={<FindPeers />} />
         </Routes>
       </div>
     </div>

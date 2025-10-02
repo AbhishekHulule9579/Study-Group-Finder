@@ -1,14 +1,13 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 // --- MAIN DASHBOARD COMPONENT ---
-
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [enrolledCourses, setEnrolledCourses] = useState([]);
+  const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [userName, setUserName] = useState("User");
 
   const handleLogout = useCallback(() => {
     sessionStorage.removeItem("token");
@@ -24,49 +23,25 @@ export default function Dashboard() {
       }
 
       try {
-        // Fetch all necessary data in parallel for speed
-        const [userRes, profileRes, allCoursesRes] = await Promise.all([
-          fetch("http://localhost:8145/api/users/profile", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch("http://localhost:8145/api/profile", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch("http://localhost:8145/api/courses", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-        ]);
+        const response = await fetch("http://localhost:8145/api/dashboard", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-        // **THE FIX IS HERE**: We now handle each response separately.
-        
-        // 1. User data is essential. If it fails, the token is invalid, so log out.
-        if (!userRes.ok || !allCoursesRes.ok) {
-           throw new Error("Invalid session. Please log in again.");
-        }
-        
-        const userData = await userRes.json();
-        const allCoursesData = await allCoursesRes.json();
-        setUser(userData);
-
-        // 2. Profile data is optional. If it exists, we use it. If not, we continue.
-        let profileData = null;
-        if (profileRes.ok) {
-            profileData = await profileRes.json();
-            setProfile(profileData);
+        if (!response.ok) {
+          throw new Error("Your session has expired. Please log in again.");
         }
 
-        // 3. Process enrolled courses using the (potentially null) profile data.
-        if (profileData && profileData.enrolledCourseIds) {
-            const enrolledIds = JSON.parse(profileData.enrolledCourseIds);
-            const userCourses = allCoursesData.filter(course => 
-                enrolledIds.includes(course.courseId)
-            );
-            setEnrolledCourses(userCourses);
+        const data = await response.json();
+        setDashboardData(data);
+        // Assuming the user's name is part of the user object in dashboard data
+        if (data.user && data.user.name) {
+          setUserName(data.user.name);
         }
 
-      } catch (error) {
-        console.error("Failed to fetch dashboard data:", error);
-        handleLogout(); // If a critical fetch fails, log the user out.
+      } catch (err) {
+        setError(err.message);
+        // If there's any error fetching dashboard data, the token is likely invalid.
+        handleLogout();
       } finally {
         setLoading(false);
       }
@@ -75,69 +50,69 @@ export default function Dashboard() {
     fetchDashboardData();
   }, [navigate, handleLogout]);
 
-  if (loading || !user) {
-    return <div className="min-h-screen flex items-center justify-center text-lg font-semibold">Loading Dashboard...</div>;
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center text-xl font-semibold">Loading Dashboard...</div>;
+  }
+
+  if (error) {
+    return <div className="min-h-screen flex items-center justify-center text-xl font-semibold text-red-500">Error: {error}</div>;
   }
 
   return (
-    <div
-      className="min-h-screen flex bg-white relative"
-      style={{
-        background: "linear-gradient(100deg, #f3e9ff 65%, #fff0e4 100%)",
-      }}
-    >
-      <div
-        className="fixed top-0 right-0 w-[700px] h-[500px] pointer-events-none"
-        style={{
-          background:
-            "radial-gradient(ellipse 70% 50% at 100% 0%, #b678f144 0%, #fcad7c44 70%, transparent 80%)",
-          zIndex: 0,
-        }}
-      />
-      <Sidebar user={user} onLogout={handleLogout} />
+    <div className="min-h-screen bg-gray-50 p-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Welcome Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-800">Welcome back, {userName}! 👋</h1>
+          <p className="mt-1 text-lg text-gray-500">Ready to connect with your study partners and ace your courses?</p>
+        </div>
 
-      <div className="flex-1 flex flex-col min-h-screen ml-64 relative z-10">
-        <DashboardHeader user={user} profile={profile} onLogout={handleLogout} />
-        <div className="flex-1 p-10 max-w-7xl mx-auto w-full mt-[92px]">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 auto-rows-fr">
-            <DashboardCard>
-                <CardHeader title="My Enrolled Courses">
-                    <Tab label="All" active />
-                    <Tab label="Current" />
-                    <Tab label="Completed" />
-                </CardHeader>
-                {enrolledCourses.length > 0 ? (
-                    enrolledCourses.map(course => (
-                        <CourseCard
-                            key={course.courseId}
-                            code={course.courseId}
-                            name={course.courseName}
-                            progress={Math.floor(Math.random() * 50) + 20}
-                            peers={Math.floor(Math.random() * 10) + 5}
-                        />
-                    ))
-                ) : (
-                    <p className="text-center text-gray-500 mt-4">You haven't enrolled in any courses yet.</p>
-                )}
-            </DashboardCard>
-            
-            <DashboardCard>
-              <CardHeader title="Your Groups">
-                <Tab label="All" active />
-                <Tab label="Active" />
-                <Tab label="Archived" />
-              </CardHeader>
-              <GroupCard
-                code="CS-221"
-                name="Intro to AI Study Group"
-                members={["AJ", "RD"]}
-              />
-              <GroupCard
-                code="CS-210"
-                name="Data Structures"
-                members={["NS", "KP"]}
-              />
-            </DashboardCard>
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          <SummaryCard 
+            icon="📚" 
+            title="Enrolled Courses" 
+            value={dashboardData?.enrolledCoursesCount ?? 0} 
+            color="purple" 
+          />
+          <SummaryCard 
+            icon="👨‍👩‍👧‍👦" 
+            title="Study Groups" 
+            value={dashboardData?.joinedGroups?.length ?? 0} 
+            color="blue" 
+          />
+          <SummaryCard 
+            icon="🤝" 
+            title="Suggested Peers" 
+            value={dashboardData?.suggestedPeers?.length ?? 0} 
+            color="green" 
+          />
+        </div>
+
+        {/* Quick Actions */}
+        <div className="mb-8">
+            <h2 className="text-2xl font-bold text-gray-700 mb-4">Quick Actions</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <QuickActionCard icon="✏️" title="Manage Courses" description="Add or remove courses" link="/my-courses" />
+                <QuickActionCard icon="➕" title="Study Groups" description="Join or create groups" link="/my-groups" />
+                <QuickActionCard icon="🔍" title="Find Peers" description="Connect with classmates" link="/find-peers" />
+                <QuickActionCard icon="👤" title="Update Profile" description="Edit your information" link="/profile" />
+            </div>
+        </div>
+
+        {/* My Study Groups List */}
+        <div>
+          <h2 className="text-2xl font-bold text-gray-700 mb-4">My Study Groups</h2>
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            {dashboardData?.joinedGroups && dashboardData.joinedGroups.length > 0 ? (
+              <div className="space-y-4">
+                {dashboardData.joinedGroups.map(group => (
+                  <GroupCard key={group.id} group={group} />
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-gray-500 py-4">You haven't joined any study groups yet.</p>
+            )}
           </div>
         </div>
       </div>
@@ -145,205 +120,48 @@ export default function Dashboard() {
   );
 }
 
-// --- Sub-components for the Dashboard Layout ---
 
-function Sidebar({ user, onLogout }) {
-  const getInitials = (name) => {
-    if (!name) return "";
-    const names = name.split(' ');
-    return names.length > 1 ? `${names[0][0]}${names[names.length - 1][0]}` : name[0];
+// --- Reusable Sub-components for the Dashboard ---
+
+function SummaryCard({ icon, title, value, color }) {
+  const colors = {
+    purple: "from-purple-500 to-indigo-500",
+    blue: "from-blue-500 to-cyan-500",
+    green: "from-emerald-500 to-green-500",
   };
-
   return (
-    <aside className="w-64 bg-white flex flex-col fixed h-full shadow-lg border-r border-gray-200 z-20">
-      <div className="flex items-center justify-center h-24 border-b border-gray-200">
-        <span className="font-extrabold text-2xl text-[#fa983a] tracking-tight">
-          STUDYHUB
-        </span>
+    <div className={`bg-gradient-to-br ${colors[color]} text-white p-6 rounded-xl shadow-lg flex items-center justify-between`}>
+      <div>
+        <p className="text-lg font-medium opacity-80">{title}</p>
+        <p className="text-4xl font-bold">{value}</p>
       </div>
-      <nav className="flex-1 px-6 py-8">
-        <SidebarLink icon="🏠" label="Dashboard" to="/dashboard" active />
-        <SidebarLink icon="📚" label="Courses" to="/courses" />
-        <SidebarLink icon="👨‍👩‍👧‍👦" label="Groups" to="/groups" />
-        <SidebarLink icon="📅" label="Calendar" to="/calendar" />
-        <SidebarLink icon="⚙️" label="Settings" to="/settings" />
-      </nav>
-      <div className="px-6 py-4 border-t border-gray-200">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-purple-800 to-amber-500 text-white flex items-center justify-center font-bold text-lg">
-            {getInitials(user.name)}
-          </div>
-          <div>
-            <div className="font-bold text-gray-800">{user.name}</div>
-            <div className="text-sm text-gray-500 truncate">{user.email}</div>
-          </div>
-        </div>
-        <button
-          onClick={onLogout}
-          className="w-full mt-4 py-2 bg-red-600 text-white font-bold rounded-lg shadow hover:bg-red-700 transition"
-        >
-          Logout
-        </button>
-      </div>
-    </aside>
-  );
-}
-
-function SidebarLink({ icon, label, to, active }) {
-  return (
-    <Link
-      to={to}
-      className={`flex items-center gap-4 px-4 py-3 mb-2 rounded-lg text-lg font-semibold transition ${
-        active
-          ? "bg-purple-100 text-purple-800"
-          : "text-gray-600 hover:bg-gray-100"
-      }`}
-    >
-      <span>{icon}</span>
-      <span>{label}</span>
-    </Link>
-  );
-}
-
-function DashboardHeader({ user, profile, onLogout }) {
-  return (
-    <header className="h-24 w-full bg-white/80 backdrop-blur-lg flex items-center px-10 fixed top-0 left-64 right-0 border-b border-gray-200 z-20">
-      <div className="flex-1 flex items-center">
-        <input
-          type="search"
-          placeholder="Search courses, groups, people"
-          className="w-full max-w-[360px] px-5 py-2 bg-white/80 text-gray-900 rounded-lg border border-purple-100 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-purple-200"
-        />
-      </div>
-      <div className="flex items-center gap-4 ml-8">
-        <button className="bg-gradient-to-r from-purple-700 to-orange-500 text-white px-5 py-2 rounded-xl font-bold shadow hover:scale-105 transition font-semibold">
-          + Create Group
-        </button>
-        <button className="border-2 border-orange-400 text-orange-500 px-5 py-2 rounded-xl font-bold shadow-sm hover:bg-orange-50">
-          Open Chat
-        </button>
-        <ProfileDropdown user={user} profile={profile} onLogout={onLogout} />
-      </div>
-    </header>
-  );
-}
-
-function ProfileDropdown({ user, profile, onLogout }) {
-  const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
-  const ref = useRef();
-
-  useEffect(() => {
-    const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  return (
-    <div className="relative" ref={ref}>
-      <button onClick={() => setOpen((o) => !o)} className="focus:outline-none">
-        {profile?.profilePicUrl ? (
-          <img
-            src={profile.profilePicUrl}
-            alt="profile"
-            className="w-10 h-10 rounded-full object-cover border-2 border-white shadow"
-          />
-        ) : (
-          <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-gray-700 font-extrabold shadow">
-            {user.name ? user.name.charAt(0).toUpperCase() : ""}
-          </div>
-        )}
-      </button>
-      {open && (
-        <div className="absolute right-0 mt-2 bg-white rounded-xl shadow-lg p-4 z-50 flex flex-col items-center min-w-[180px]">
-          <div className="font-bold text-base text-gray-900 mb-1">
-            {user.name}
-          </div>
-          <button
-            className="w-full py-2 my-2 bg-gradient-to-r from-purple-600 to-orange-400 text-white font-bold rounded-lg shadow hover:from-purple-700 hover:to-orange-500"
-            onClick={() => {
-              setOpen(false);
-              navigate("/profile");
-            }}
-          >
-            Profile
-          </button>
-          <button
-            className="w-full py-2 text-red-600 font-bold border border-red-200 rounded-lg shadow hover:bg-red-50"
-            onClick={onLogout}
-          >
-            Logout
-          </button>
-        </div>
-      )}
+      <div className="text-5xl opacity-50">{icon}</div>
     </div>
   );
 }
 
-function DashboardCard({ children }) {
-  return (
-    <section className="rounded-2xl bg-white relative p-6 shadow-lg flex flex-col justify-between min-h-[18rem] border border-gray-200 overflow-hidden">
-      <div
-        className="absolute top-0 right-0 w-2/3 h-2/3 pointer-events-none rounded-tr-3xl rounded-bl-full"
-        style={{
-          background:
-            "radial-gradient(ellipse 80% 60% at 100% 0%, #b678f115 0%, #fcad7c112 100%, transparent 100%)",
-          zIndex: 0,
-        }}
-      />
-      <div className="relative z-10">{children}</div>
-    </section>
-  );
+function QuickActionCard({ icon, title, description, link }) {
+    return (
+        <Link to={link} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:shadow-md hover:-translate-y-1 transition-transform duration-200 flex flex-col items-start">
+            <div className="text-3xl mb-3">{icon}</div>
+            <h3 className="text-lg font-bold text-gray-800">{title}</h3>
+            <p className="text-gray-500">{description}</p>
+        </Link>
+    );
 }
 
-function CardHeader({ title, children }) {
+function GroupCard({ group }) {
   return (
-    <div className="flex flex-row justify-between items-center mb-4">
-      <span className="text-lg font-bold text-[#3e3e64]">{title}</span>
-      <div className="flex gap-2">{children}</div>
-    </div>
-  );
-}
-
-function Tab({ label, active }) {
-  return (
-    <button
-      className={`px-5 py-1 rounded-full font-semibold transition text-sm ${
-        active
-          ? "bg-gradient-to-r from-purple-800 to-amber-500 text-white shadow border-none"
-          : "bg-[#f2f4fb] text-gray-700 border border-[#d9dbf2] hover:text-yellow-400"
-      }`}
-    >
-      {label}
-    </button>
-  );
-}
-
-function GroupCard({ code, name, members }) {
-    return <div className="text-center p-4 text-gray-500">Group Card Placeholder</div>
-}
-
-function CourseCard({ code, name, progress, peers }) {
-  return (
-    <div className="flex items-center min-h-[72px] bg-[#f9f9fc] p-3 rounded-xl gap-4 mb-2 shadow-sm border border-gray-200">
-      <div className="w-16 h-16 bg-gradient-to-tr from-purple-800 to-amber-500 rounded-xl flex items-center justify-center font-bold text-xl text-white">
-        {code}
-      </div>
-      <div className="flex-1 flex flex-col gap-1 justify-center">
-        <span className="text-[#3e3e64] font-semibold">{name}</span>
-        <div className="h-2 bg-gray-300 rounded-xl mt-2 overflow-hidden">
-          <div
-            className="bg-gradient-to-r from-emerald-400 to-green-600 h-full rounded-l-xl transition-all duration-300"
-            style={{ width: `${progress}%` }}
-          />
+    <div className="border border-gray-200 rounded-lg p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+        <div>
+            <h4 className="font-bold text-lg text-gray-800">{group.name}</h4>
+            <p className="text-gray-600">{group.description}</p>
+            <span className="text-sm font-medium text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full mt-2 inline-block">{group.courseId}</span>
         </div>
-        <div className="text-xs text-gray-500">{peers} peers</div>
-      </div>
-      <button className="bg-gradient-to-tr from-purple-800 to-amber-500 text-white px-3 py-1 rounded-lg font-bold transition hover:brightness-90">
-        View Course
-      </button>
+        <div className="flex items-center gap-2">
+            <button className="px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition">Open Chat</button>
+            <button className="px-4 py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition">Leave Group</button>
+        </div>
     </div>
   );
 }
