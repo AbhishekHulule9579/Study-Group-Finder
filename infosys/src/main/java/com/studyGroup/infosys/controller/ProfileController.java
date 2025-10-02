@@ -69,12 +69,7 @@ public class ProfileController {
         }
     }
 
-    /**
-     * Endpoint to un-enroll the current user from a course.
-     * @param authHeader The Authorization header containing the JWT.
-     * @param courseId The ID of the course to un-enroll from.
-     * @return The updated profile on success, or an error response.
-     */
+    
     @DeleteMapping("/unenroll/{courseId}")
     public ResponseEntity<?> unenrollFromCourse(@RequestHeader("Authorization") String authHeader, @PathVariable String courseId) {
         String token = authHeader.substring(7);

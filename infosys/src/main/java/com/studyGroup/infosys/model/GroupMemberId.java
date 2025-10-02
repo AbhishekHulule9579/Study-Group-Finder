@@ -9,10 +9,6 @@ import lombok.NoArgsConstructor;
 import java.io.Serializable;
 import java.util.Objects;
 
-/**
- * This class represents the composite primary key for the GroupMember entity.
- * A composite key is a key that consists of two or more attributes to uniquely identify a record.
- */
 @Embeddable
 @Data
 @NoArgsConstructor
@@ -25,7 +21,6 @@ public class GroupMemberId implements Serializable {
     @Column(name = "user_id")
     private Integer userId;
 
-    // The equals() and hashCode() methods are essential for composite keys to work correctly.
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

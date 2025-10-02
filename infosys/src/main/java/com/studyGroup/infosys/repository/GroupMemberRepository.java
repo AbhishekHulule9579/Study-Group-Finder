@@ -11,6 +11,5 @@ import java.util.List;
 @Repository
 public interface GroupMemberRepository extends JpaRepository<GroupMember, GroupMemberId> {
 
-    // This custom query method finds all memberships for a given user ID.
     List<GroupMember> findByUserId(Integer userId);
 }

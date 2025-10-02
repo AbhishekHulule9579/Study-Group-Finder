@@ -35,9 +35,7 @@ public class ProfileService {
         return profileRepository.save(profile);
     }
 
-    /**
-     * Helper method to safely parse the JSON string of enrolled course IDs into a Set.
-     */
+    
     private Set<String> getEnrolledCourseIdsAsSet(Profile profile) throws IOException {
         String enrolledCoursesJson = profile.getEnrolledCourseIds();
         if (enrolledCoursesJson == null || enrolledCoursesJson.isEmpty() || enrolledCoursesJson.equals("[]")) {
@@ -51,7 +49,6 @@ public class ProfileService {
         Profile profile = profileRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User profile not found."));
 
-        // Ensure the course exists before trying to enroll
         courseService.getCourseById(courseId)
                 .orElseThrow(() -> new RuntimeException("Course not found."));
 
@@ -65,12 +62,6 @@ public class ProfileService {
         }
     }
 
-    /**
-     * Removes a course from the user's enrolled list.
-     * @param email The email of the user.
-     * @param courseId The ID of the course to un-enroll from.
-     * @return The updated profile.
-     */
     public Profile unenrollFromCourse(String email, String courseId) {
         Profile profile = profileRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User profile not found."));
@@ -78,11 +69,10 @@ public class ProfileService {
         try {
             Set<String> enrolledCourseIds = getEnrolledCourseIdsAsSet(profile);
 
-            if (enrolledCourseIds.remove(courseId)) { // remove() returns true if the element was present
+            if (enrolledCourseIds.remove(courseId)) { 
                 profile.setEnrolledCourseIds(objectMapper.writeValueAsString(enrolledCourseIds));
                 return profileRepository.save(profile);
             } else {
-                // If the course wasn't in the list, no need to save, just return the profile.
                 return profile;
             }
         } catch (IOException e) {

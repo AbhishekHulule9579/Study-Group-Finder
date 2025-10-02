@@ -49,7 +49,7 @@ public class UserController {
         if (response.startsWith("401")) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid Credentials");
         }
-        String token = response.substring(5); // Removes "200::"
+        String token = response.substring(5); 
         return ResponseEntity.ok(Collections.singletonMap("token", token));
     }
 

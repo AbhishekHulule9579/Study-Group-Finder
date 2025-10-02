@@ -34,7 +34,7 @@ public class CourseService {
     public Course updateCourse(String courseId, Course courseDetails) {
         return courseRepository.findById(courseId).map(course -> {
             course.setCourseName(courseDetails.getCourseName());
-            // The line trying to set the instructor has been removed.
+         
             course.setDescription(courseDetails.getDescription());
             return courseRepository.save(course);
         }).orElse(null);

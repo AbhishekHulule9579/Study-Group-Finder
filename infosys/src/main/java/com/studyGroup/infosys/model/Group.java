@@ -6,7 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-// "group" is a reserved SQL keyword, so we escape it with backticks.
+
 @Table(name = "group")
 @Data
 @NoArgsConstructor
@@ -22,7 +22,6 @@ public class Group {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    // This creates the foreign key relationship to the Course table.
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "course_id", nullable = false)
     private Course course;
