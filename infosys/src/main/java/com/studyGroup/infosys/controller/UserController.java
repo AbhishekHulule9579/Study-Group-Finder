@@ -112,6 +112,8 @@ public class UserController {
                     .body(Collections.singletonMap("message", "User not registered. Please register first."));
         }
         if (response.startsWith("401")) { // Invalid credentials (wrong password)
+            // *** THIS IS THE CRUCIAL FIX ***
+            // This now correctly returns HTTP 401 Unauthorized for wrong passwords.
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Collections.singletonMap("message", "Invalid email or password."));
         }

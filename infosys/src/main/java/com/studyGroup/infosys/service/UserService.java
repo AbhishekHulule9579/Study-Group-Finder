@@ -1,6 +1,8 @@
 package com.studyGroup.infosys.service;
 
+import com.studyGroup.infosys.model.Profile;
 import com.studyGroup.infosys.model.User;
+import com.studyGroup.infosys.repository.ProfileRepository;
 import com.studyGroup.infosys.repository.UsersRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -17,9 +19,12 @@ public class UserService implements UserDetailsService {
 
     @Autowired
     private UsersRepository usersRepository;
-    
+
     @Autowired
-    private EmailService emailService; 
+    private ProfileRepository profileRepository; // Added ProfileRepository
+
+    @Autowired
+    private EmailService emailService;
     
     @Autowired
     private JWTService jwtService;
@@ -49,6 +54,14 @@ public class UserService implements UserDetailsService {
         }
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         usersRepository.save(user);
+
+        // *** THIS IS THE FIX ***
+        // Create a new, empty profile for the user at the same time.
+        Profile profile = new Profile();
+        profile.setEmail(user.getEmail());
+        profile.setFullname(user.getName());
+        profileRepository.save(profile);
+        
         return "200::User Registered Successfully";
     }
 
@@ -111,5 +124,4 @@ public class UserService implements UserDetailsService {
         return null;
     }
 }
-
 

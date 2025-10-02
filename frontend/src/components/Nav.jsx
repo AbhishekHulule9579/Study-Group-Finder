@@ -3,30 +3,34 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 
 export default function Nav() {
   const navigate = useNavigate();
-  const location = useLocation(); // Hook to get the current URL location
+  const location = useLocation();
   const [isLoggedIn, setIsLoggedIn] = useState(!!sessionStorage.getItem("token"));
   const [profilePic, setProfilePic] = useState(null);
   const [userName, setUserName] = useState("User");
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef();
 
-  // ***** THIS IS THE FINAL, CORRECTED LOGIC *****
   const handleLogout = useCallback(() => {
     sessionStorage.removeItem("token");
     setIsLoggedIn(false);
     setUserName("User");
     setProfilePic(null);
-    // This 'if' condition is the crucial fix. It prevents the redirect loop.
+    // This check is important to prevent re-navigating to the same page.
     if (location.pathname !== "/login") {
         navigate("/login");
     }
-  }, [navigate, location.pathname]); // Added location.pathname dependency
+  }, [navigate, location.pathname]);
 
   useEffect(() => {
     const token = sessionStorage.getItem("token");
     setIsLoggedIn(!!token);
 
+    // ***** THIS IS THE CRUCIAL FIX *****
+    // Define public pages where we should NOT attempt to fetch user data.
     const publicPages = ["/", "/about", "/collab", "/login", "/signup", "/forgotpassword"];
+    
+    // If we are on a public page OR if there is no token, do not proceed.
+    // This stops the Nav component from interfering with the Login page's state.
     if (publicPages.includes(location.pathname) || !token) {
       return; 
     }
@@ -43,6 +47,7 @@ export default function Nav() {
         ]);
 
         if (!userRes.ok) {
+          // If the token is invalid on a protected page, then log out.
           handleLogout();
           return;
         }
