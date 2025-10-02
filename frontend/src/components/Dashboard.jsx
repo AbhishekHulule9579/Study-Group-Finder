@@ -23,20 +23,25 @@ export default function Dashboard() {
       }
 
       try {
-        const response = await fetch("http://localhost:8145/api/dashboard", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const [dashboardRes, userRes] = await Promise.all([
+            fetch("http://localhost:8145/api/dashboard", {
+                headers: { Authorization: `Bearer ${token}` },
+            }),
+            fetch("http://localhost:8145/api/users/profile", {
+                headers: { Authorization: `Bearer ${token}` },
+            })
+        ]);
 
-        if (!response.ok) {
+
+        if (!dashboardRes.ok || !userRes.ok) {
           throw new Error("Your session has expired. Please log in again.");
         }
 
-        const data = await response.json();
+        const data = await dashboardRes.json();
+        const userData = await userRes.json();
+
         setDashboardData(data);
-        // Assuming the user's name is part of the user object in dashboard data
-        if (data.user && data.user.name) {
-          setUserName(data.user.name);
-        }
+        setUserName(userData.name || "User");
 
       } catch (err) {
         setError(err.message);
@@ -69,12 +74,14 @@ export default function Dashboard() {
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          <SummaryCard 
-            icon="📚" 
-            title="Enrolled Courses" 
-            value={dashboardData?.enrolledCoursesCount ?? 0} 
-            color="purple" 
-          />
+          <Link to="/my-courses">
+            <SummaryCard 
+              icon="📚" 
+              title="Enrolled Courses" 
+              value={dashboardData?.enrolledCoursesCount ?? 0} 
+              color="purple" 
+            />
+          </Link>
           <SummaryCard 
             icon="👨‍👩‍👧‍👦" 
             title="Study Groups" 
@@ -130,7 +137,7 @@ function SummaryCard({ icon, title, value, color }) {
     green: "from-emerald-500 to-green-500",
   };
   return (
-    <div className={`bg-gradient-to-br ${colors[color]} text-white p-6 rounded-xl shadow-lg flex items-center justify-between`}>
+    <div className={`bg-gradient-to-br ${colors[color]} text-white p-6 rounded-xl shadow-lg flex items-center justify-between transition hover:scale-105`}>
       <div>
         <p className="text-lg font-medium opacity-80">{title}</p>
         <p className="text-4xl font-bold">{value}</p>
@@ -156,7 +163,7 @@ function GroupCard({ group }) {
         <div>
             <h4 className="font-bold text-lg text-gray-800">{group.name}</h4>
             <p className="text-gray-600">{group.description}</p>
-            <span className="text-sm font-medium text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full mt-2 inline-block">{group.courseId}</span>
+            {group.course && <span className="text-sm font-medium text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full mt-2 inline-block">{group.course.courseId}</span>}
         </div>
         <div className="flex items-center gap-2">
             <button className="px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition">Open Chat</button>
@@ -165,4 +172,3 @@ function GroupCard({ group }) {
     </div>
   );
 }
-

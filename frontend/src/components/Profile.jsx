@@ -1,6 +1,28 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
+// A reusable input component with a label
+function LabeledInput({ label, name, value, onChange, placeholder, type = "text", step }) {
+    return (
+        <div>
+            <label htmlFor={name} className="block text-sm font-medium text-gray-600 mb-1">
+                {label}
+            </label>
+            <input
+                id={name}
+                name={name}
+                value={value || ''}
+                onChange={onChange}
+                placeholder={placeholder}
+                type={type}
+                step={step}
+                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-400 transition"
+            />
+        </div>
+    );
+}
+
+
 export default function Profile() {
   const navigate = useNavigate();
   // State for data from the User entity (academic info)
@@ -81,12 +103,10 @@ export default function Profile() {
     setError("");
     const token = sessionStorage.getItem("token");
     
-    // Ensure the profile object being saved has the correct email and fullname
     const profileToSave = { ...profile, email: user.email, fullname: user.name };
 
     try {
       const [userUpdateRes, profileUpdateRes] = await Promise.all([
-        // API call to update academic user details
         fetch("http://localhost:8145/api/users/profile", {
           method: "PUT",
           headers: {
@@ -95,7 +115,6 @@ export default function Profile() {
           },
           body: JSON.stringify(user),
         }),
-        // API call to update contact/display profile details
         fetch("http://localhost:8145/api/profile", {
           method: "POST",
           headers: {
@@ -130,27 +149,29 @@ export default function Profile() {
             <div className="flex flex-col md:flex-row gap-8">
                 {/* Side Panel */}
                 <div className="md:w-1/3 flex flex-col gap-6">
-                    <div className="bg-white rounded-2xl p-6 shadow-md flex flex-col items-center">
-                          <label htmlFor="profile-pic-upload" className="cursor-pointer group">
-                            <div className="w-28 h-28 rounded-full bg-gray-200 mb-4 border-4 border-purple-200 overflow-hidden flex items-center justify-center">
-                                {profile.profilePicUrl ? (
-                                    <img src={profile.profilePicUrl} alt="Profile" className="object-cover w-full h-full" />
-                                ) : (
-                                    <span className="text-4xl text-gray-400">{user.name.charAt(0).toUpperCase()}</span>
-                                )}
+                    <div className="bg-white rounded-2xl p-6 shadow-md flex flex-col items-center text-center">
+                          <label htmlFor="profile-pic-upload" className="cursor-pointer relative">
+                            <div className="w-32 h-32 rounded-full bg-gradient-to-br from-purple-500 to-orange-400 p-1 mb-4">
+                                <div className="w-full h-full rounded-full bg-gray-200 overflow-hidden flex items-center justify-center">
+                                    {profile.profilePicUrl ? (
+                                        <img src={profile.profilePicUrl} alt="Profile" className="object-cover w-full h-full" />
+                                    ) : (
+                                        <span className="text-5xl text-white">{user.name.charAt(0).toUpperCase()}</span>
+                                    )}
+                                </div>
                             </div>
                             <input id="profile-pic-upload" type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
                         </label>
                         <h2 className="text-2xl font-bold text-gray-800">{user.name}</h2>
-                        <p className="text-gray-500 text-sm">@{user.email}</p>
+                        <p className="text-gray-500">{user.email}</p>
                     </div>
 
                     <div className="bg-white rounded-2xl p-6 shadow-md">
-                        <h3 className="font-semibold mb-3 text-lg">Contact Information</h3>
-                        <div className="space-y-3">
-                            <input name="phone" value={profile.phone || ''} onChange={handleProfileChange} placeholder="Phone" className="w-full p-2 border rounded-md" />
-                            <input name="linkedinUrl" value={profile.linkedinUrl || ''} onChange={handleProfileChange} placeholder="LinkedIn URL" className="w-full p-2 border rounded-md" />
-                            <input name="githubUrl" value={profile.githubUrl || ''} onChange={handleProfileChange} placeholder="GitHub URL" className="w-full p-2 border rounded-md" />
+                        <h3 className="font-semibold mb-4 text-lg text-purple-700">Contact Information</h3>
+                        <div className="space-y-4">
+                            <input name="phone" value={profile.phone || ''} onChange={handleProfileChange} placeholder="Phone" className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-400" />
+                            <input name="linkedinUrl" value={profile.linkedinUrl || ''} onChange={handleProfileChange} placeholder="LinkedIn URL" className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-400" />
+                            <input name="githubUrl" value={profile.githubUrl || ''} onChange={handleProfileChange} placeholder="GitHub URL" className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-400" />
                         </div>
                     </div>
                 </div>
@@ -158,40 +179,39 @@ export default function Profile() {
                 {/* Main Content */}
                 <div className="flex-1 flex flex-col gap-6">
                     <div className="bg-white rounded-2xl p-6 shadow-md">
-                        <h3 className="text-xl font-bold mb-4 text-purple-700">Academic History</h3>
+                        <h3 className="text-xl font-bold mb-6 text-purple-700">Academic History</h3>
                         
-                        <div className="mb-6">
-                            <h4 className="text-lg font-semibold text-gray-700 mb-2">Secondary School</h4>
-                            <div className="grid md:grid-cols-3 gap-4">
-                                <input name="secondarySchool" value={user.secondarySchool || ''} onChange={handleUserChange} placeholder="School Name" className="p-2 border rounded-md" />
-                                <input name="secondarySchoolPassingYear" value={user.secondarySchoolPassingYear || ''} onChange={handleUserChange} placeholder="Passing Year" type="number" className="p-2 border rounded-md" />
-                                <input name="secondarySchoolPercentage" value={user.secondarySchoolPercentage || ''} onChange={handleUserChange} placeholder="Percentage" type="number" step="0.01" className="p-2 border rounded-md" />
+                        <div className="mb-8">
+                            <h4 className="text-lg font-semibold text-gray-700 mb-4">Secondary School</h4>
+                            <div className="grid md:grid-cols-3 gap-6">
+                                <LabeledInput label="School Name" name="secondarySchool" value={user.secondarySchool} onChange={handleUserChange} placeholder="e.g., Central School" />
+                                <LabeledInput label="Passing Year" name="secondarySchoolPassingYear" value={user.secondarySchoolPassingYear} onChange={handleUserChange} placeholder="e.g., 2018" type="number" />
+                                <LabeledInput label="Percentage" name="secondarySchoolPercentage" value={user.secondarySchoolPercentage} onChange={handleUserChange} placeholder="e.g., 85.5" type="number" step="0.01" />
                             </div>
                         </div>
 
-                        <div className="mb-6">
-                            <h4 className="text-lg font-semibold text-gray-700 mb-2">Higher Secondary School</h4>
-                            <div className="grid md:grid-cols-3 gap-4">
-                                <input name="higherSecondarySchool" value={user.higherSecondarySchool || ''} onChange={handleUserChange} placeholder="School Name" className="p-2 border rounded-md" />
-                                <input name="higherSecondaryPassingYear" value={user.higherSecondaryPassingYear || ''} onChange={handleUserChange} placeholder="Passing Year" type="number" className="p-2 border rounded-md" />
-                                <input name="higherSecondaryPercentage" value={user.higherSecondaryPercentage || ''} onChange={handleUserChange} placeholder="Percentage" type="number" step="0.01" className="p-2 border rounded-md" />
+                        <div className="mb-8">
+                            <h4 className="text-lg font-semibold text-gray-700 mb-4">Higher Secondary School</h4>
+                            <div className="grid md:grid-cols-3 gap-6">
+                                <LabeledInput label="School Name" name="higherSecondarySchool" value={user.higherSecondarySchool} onChange={handleUserChange} placeholder="e.g., City College" />
+                                <LabeledInput label="Passing Year" name="higherSecondaryPassingYear" value={user.higherSecondaryPassingYear} onChange={handleUserChange} placeholder="e.g., 2020" type="number" />
+                                <LabeledInput label="Percentage" name="higherSecondaryPercentage" value={user.higherSecondaryPercentage} onChange={handleUserChange} placeholder="e.g., 90.2" type="number" step="0.01" />
                             </div>
                         </div>
 
                         <div>
-                            <h4 className="text-lg font-semibold text-gray-700 mb-2">University</h4>
-                            <div className="grid md:grid-cols-3 gap-4">
-                                <input name="universityName" value={user.universityName || ''} onChange={handleUserChange} placeholder="University Name" className="p-2 border rounded-md" />
-                                <input name="universityPassingYear" value={user.universityPassingYear || ''} onChange={handleUserChange} placeholder="Passing Year" type="number" className="p-2 border rounded-md" />
-                                {/* **THE FIX**: Changed name and value to use 'universityGpa' */}
-                                <input name="universityGpa" value={user.universityGpa || ''} onChange={handleUserChange} placeholder="GPA" type="number" step="0.01" className="p-2 border rounded-md" />
+                            <h4 className="text-lg font-semibold text-gray-700 mb-4">University</h4>
+                            <div className="grid md:grid-cols-3 gap-6">
+                                <LabeledInput label="University Name" name="universityName" value={user.universityName} onChange={handleUserChange} placeholder="e.g., State University" />
+                                <LabeledInput label="Passing Year" name="universityPassingYear" value={user.universityPassingYear} onChange={handleUserChange} placeholder="e.g., 2024" type="number" />
+                                <LabeledInput label="GPA" name="universityGpa" value={user.universityGpa} onChange={handleUserChange} placeholder="e.g., 3.8" type="number" step="0.01" />
                             </div>
                         </div>
                     </div>
 
                     {error && <p className="text-red-500 text-center">{error}</p>}
                     
-                    <button onClick={saveChanges} disabled={saving} className="w-full py-3 px-4 rounded-lg bg-purple-600 text-lg font-bold text-white shadow hover:bg-purple-700 transition disabled:opacity-50">
+                    <button onClick={saveChanges} disabled={saving} className="w-full py-3 px-4 rounded-lg bg-gradient-to-r from-purple-600 to-orange-500 text-lg font-bold text-white shadow-lg hover:from-purple-700 hover:to-orange-600 transition disabled:opacity-50">
                         {saving ? "Saving..." : "Save All Changes"}
                     </button>
                 </div>

@@ -28,7 +28,7 @@ public class SecurityConfig {
             .cors(Customizer.withDefaults())
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/users/signup", "/api/users/signin", "/api/users/forgot-password").permitAll()
+                .requestMatchers("/api/users/signup", "/api/users/signin", "/api/users/forgot-password", "/api/courses/**").permitAll()
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
