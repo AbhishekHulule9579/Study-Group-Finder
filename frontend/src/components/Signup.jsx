@@ -1,33 +1,184 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 export default function Signup() {
   const navigate = useNavigate();
+  const [step, setStep] = useState('DETAILS'); // 'DETAILS' | 'OTP'
   const [form, setForm] = useState({
-    name: "", // Changed from fullname to name to match the backend User entity
+    name: "",
     email: "",
     password: "",
-    role: 1, // default role as Student
+    role: 1,
   });
+  const [otp, setOtp] = useState("");
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // For OTP timer
+  const [timer, setTimer] = useState(300); // 5 minutes in seconds
+  const [resendDisabled, setResendDisabled] = useState(true);
+
+  useEffect(() => {
+    let interval;
+    if (step === 'OTP' && timer > 0) {
+      setResendDisabled(true); // Disable resend when timer is active
+      interval = setInterval(() => {
+        setTimer((prevTimer) => prevTimer - 1);
+      }, 1000);
+    } else if (timer === 0) {
+      setResendDisabled(false); // Enable resend when timer finishes
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [step, timer]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSendOtp = async (e) => {
+    if (e) e.preventDefault();
     setError("");
+    setMessage("");
+    setLoading(true);
 
-    if (!form.email.includes("@")) {
-      setError("Please enter a valid email address.");
+    if (!form.email.includes("@") || !form.name || !form.password) {
+      setError("Please fill in your name, email, and password.");
+      setLoading(false);
       return;
     }
 
-    // Save partial details to session and go to the next step
-    sessionStorage.setItem("signupData", JSON.stringify(form));
-    navigate("/buildprofile");
+    try {
+      const res = await fetch("http://localhost:8145/api/users/register/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: form.email, name: form.name }),
+      });
+
+      const responseText = await res.text();
+
+      if (res.ok) {
+        setMessage(responseText);
+        setStep('OTP');
+        setTimer(300); // Reset timer
+      } else if (res.status === 409) { // Conflict - user exists
+        setError(<span>{responseText} <Link to="/login" className="font-bold underline">Login here.</Link></span>);
+      } else {
+        setError(responseText || "An error occurred while sending OTP.");
+      }
+    } catch (err) {
+      setError("Failed to connect to the server. Please try again.");
+    }
+    setLoading(false);
   };
+  
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setError("");
+    setMessage("");
+    setLoading(true);
+
+    try {
+      const res = await fetch("http://localhost:8145/api/users/register/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: form.email, otp: otp }),
+      });
+
+      const responseText = await res.text();
+
+      if (res.ok) {
+        // OTP is correct, save details and move to next step
+        sessionStorage.setItem("signupData", JSON.stringify(form));
+        navigate("/buildprofile");
+      } else {
+        setError(responseText || "Verification failed. Please check the OTP and try again.");
+      }
+    } catch (err) {
+      setError("Failed to connect to the server. Please try again.");
+    }
+    setLoading(false);
+  };
+
+  const renderDetailsStep = () => (
+    <form className="mt-8 space-y-5" onSubmit={handleSendOtp}>
+      <input
+        type="text"
+        name="name"
+        placeholder="Full Name"
+        required
+        value={form.name}
+        onChange={handleChange}
+        className="rounded-lg w-full px-4 py-3 border border-gray-300 focus:ring-2 focus:ring-pink-400 focus:border-transparent"
+      />
+      <input
+        type="email"
+        name="email"
+        placeholder="Email"
+        required
+        value={form.email}
+        onChange={handleChange}
+        className="rounded-lg w-full px-4 py-3 border border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-transparent"
+      />
+      <input
+        type="password"
+        name="password"
+        placeholder="Password"
+        required
+        minLength="6"
+        value={form.password}
+        onChange={handleChange}
+        className="rounded-lg w-full px-4 py-3 border border-gray-300 focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+      />
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full py-3 px-4 rounded-lg bg-gradient-to-r from-pink-600 via-orange-400 to-purple-600 text-lg font-bold text-white shadow hover:from-pink-700 hover:to-purple-700 transition disabled:opacity-50"
+      >
+        {loading ? "Sending..." : "Continue"}
+      </button>
+    </form>
+  );
+
+  const renderOtpStep = () => (
+     <form className="mt-8 space-y-5" onSubmit={handleVerifyOtp}>
+        <p className="text-center text-gray-600">
+            An OTP has been sent to <strong>{form.email}</strong>. Please enter it below.
+        </p>
+        <input
+            type="text"
+            name="otp"
+            placeholder="6-Digit OTP"
+            required
+            maxLength="6"
+            value={otp}
+            onChange={(e) => setOtp(e.target.value)}
+            className="rounded-lg w-full px-4 py-3 border border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-transparent text-center tracking-[1em]"
+        />
+        <div className="text-center text-sm text-gray-500">
+            {timer > 0 ? `OTP expires in: ${Math.floor(timer / 60)}:${(timer % 60).toString().padStart(2, '0')}` : "OTP has expired."}
+        </div>
+         <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 px-4 rounded-lg bg-gradient-to-r from-pink-600 via-orange-400 to-purple-600 text-lg font-bold text-white shadow hover:from-pink-700 hover:to-purple-700 transition disabled:opacity-50"
+        >
+            {loading ? "Verifying..." : "Verify & Continue"}
+        </button>
+        <div className="text-center">
+             <button
+                type="button"
+                onClick={handleSendOtp}
+                disabled={resendDisabled || loading}
+                className="text-sm text-purple-600 hover:underline disabled:text-gray-400 disabled:cursor-not-allowed"
+            >
+                Resend OTP
+            </button>
+        </div>
+     </form>
+  );
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-tr from-pink-500 via-orange-400 to-purple-600 py-12 px-4">
@@ -44,46 +195,18 @@ export default function Signup() {
         <div className="w-full md:w-1/2 p-10">
           <div className="flex flex-col items-center">
             <span className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600">
-              Join the Community
+              {step === 'DETAILS' ? "Join the Community" : "Verify Your Email"}
             </span>
-            <p className="mt-2 text-md text-gray-500">Create your account</p>
+            <p className="mt-2 text-md text-gray-500">
+                {step === 'DETAILS' ? "Create your account" : "One last step!"}
+            </p>
           </div>
-          <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
-            <input
-              type="text"
-              name="name" // Changed from fullname to name
-              placeholder="Full Name"
-              required
-              value={form.name}
-              onChange={handleChange}
-              className="rounded-lg w-full px-4 py-3 border border-gray-300 focus:ring-2 focus:ring-pink-400 focus:border-transparent"
-            />
-            <input
-              type="email"
-              name="email"
-              placeholder="Email"
-              required
-              value={form.email}
-              onChange={handleChange}
-              className="rounded-lg w-full px-4 py-3 border border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-transparent"
-            />
-            <input
-              type="password"
-              name="password"
-              placeholder="Password"
-              required
-              value={form.password}
-              onChange={handleChange}
-              className="rounded-lg w-full px-4 py-3 border border-gray-300 focus:ring-2 focus:ring-orange-400 focus:border-transparent"
-            />
-             {error && <p className="text-red-500 text-center text-sm">{error}</p>}
-            <button
-              type="submit"
-              className="w-full py-3 px-4 rounded-lg bg-gradient-to-r from-pink-600 via-orange-400 to-purple-600 text-lg font-bold text-white shadow hover:from-pink-700 hover:to-purple-700 transition"
-            >
-              Continue to Build Profile
-            </button>
-          </form>
+          
+          {error && <div className="mt-4 text-red-600 bg-red-100 p-3 rounded-lg text-center">{error}</div>}
+          {message && <div className="mt-4 text-green-600 bg-green-100 p-3 rounded-lg text-center">{message}</div>}
+
+          {step === 'DETAILS' ? renderDetailsStep() : renderOtpStep()}
+          
           <div className="text-center mt-6">
             <span className="text-sm text-gray-500">
               Already have an account?
@@ -100,4 +223,3 @@ export default function Signup() {
     </div>
   );
 }
-

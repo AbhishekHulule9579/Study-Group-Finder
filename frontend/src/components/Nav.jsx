@@ -10,56 +10,60 @@ export default function Nav() {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef();
 
+  // ***** THIS IS THE FINAL, CORRECTED LOGIC *****
   const handleLogout = useCallback(() => {
     sessionStorage.removeItem("token");
     setIsLoggedIn(false);
     setUserName("User");
     setProfilePic(null);
-    navigate("/login");
-  }, [navigate]);
+    // This 'if' condition is the crucial fix. It prevents the redirect loop.
+    if (location.pathname !== "/login") {
+        navigate("/login");
+    }
+  }, [navigate, location.pathname]); // Added location.pathname dependency
 
   useEffect(() => {
-    const checkLoginStatusAndFetchData = async () => {
-      const token = sessionStorage.getItem("token");
-      setIsLoggedIn(!!token);
+    const token = sessionStorage.getItem("token");
+    setIsLoggedIn(!!token);
 
-      if (token) {
-        try {
-          // Fetch user and profile data in parallel for efficiency
-          const [userRes, profileRes] = await Promise.all([
-            fetch("http://localhost:8145/api/users/profile", {
-              headers: { Authorization: `Bearer ${token}` },
-            }),
-            fetch("http://localhost:8145/api/profile", {
-              headers: { Authorization: `Bearer ${token}` },
-            }),
-          ]);
+    const publicPages = ["/", "/about", "/collab", "/login", "/signup", "/forgotpassword"];
+    if (publicPages.includes(location.pathname) || !token) {
+      return; 
+    }
 
-          if (userRes.ok) {
-            const userData = await userRes.json();
-            setUserName(userData.name || "User");
-          } else {
-            // If the main user fetch fails, the token is invalid.
-            handleLogout();
-            return;
-          }
+    const fetchUserDataForNav = async () => {
+      try {
+        const [userRes, profileRes] = await Promise.all([
+          fetch("http://localhost:8145/api/users/profile", {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch("http://localhost:8145/api/profile", {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
 
-          if (profileRes.ok) {
-            const profileData = await profileRes.json();
-            setProfilePic(profileData.profilePicUrl || null);
-          } else {
-            // It's okay if profile isn't found, just means no picture yet.
-            setProfilePic(null);
-          }
-        } catch (error) {
-          console.error("Failed to fetch user data:", error);
+        if (!userRes.ok) {
           handleLogout();
+          return;
         }
+
+        const userData = await userRes.json();
+        setUserName(userData.name || "User");
+
+        if (profileRes.ok) {
+          const profileData = await profileRes.json();
+          setProfilePic(profileData.profilePicUrl || null);
+        } else {
+          setProfilePic(null);
+        }
+      } catch (error) {
+        console.error("Failed to fetch user data for nav:", error);
+        handleLogout();
       }
     };
 
-    checkLoginStatusAndFetchData();
-  }, [location, handleLogout]); // Re-run this logic every time the page location changes
+    fetchUserDataForNav();
+  }, [location, handleLogout]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -105,9 +109,7 @@ export default function Nav() {
                   Welcome, {userName}
                 </div>
                 
-                {/* --- THIS IS THE CORRECTED LOGIC --- */}
                 {location.pathname === "/profile" ? (
-                  // If we are on the Profile page, show the Dashboard button
                   <button
                     className="w-full py-2 mb-2 bg-gradient-to-r from-purple-700 to-orange-400 text-white font-bold rounded-lg shadow"
                     onClick={() => {
@@ -118,7 +120,6 @@ export default function Nav() {
                     Dashboard
                   </button>
                 ) : (
-                  // On any other page (like Dashboard), show the Profile button
                   <button
                     className="w-full py-2 mb-2 bg-gradient-to-r from-purple-700 to-orange-400 text-white font-bold rounded-lg shadow"
                     onClick={() => {

@@ -14,12 +14,13 @@ export default function BuildProfile() {
     higherSecondaryPercentage: "",
     universityName: "",
     universityPassingYear: "",
-    universityGpa: "", // **THE FIX**: Name now matches the backend and the input field
+    universityGpa: "",
   });
 
   useEffect(() => {
     const savedSignup = sessionStorage.getItem("signupData");
     if (!savedSignup) {
+      // If no signup data is found, redirect back to the start of the process
       navigate("/signup");
     }
   }, [navigate]);
@@ -36,7 +37,8 @@ export default function BuildProfile() {
     const fullUserData = { ...savedSignup, ...form };
 
     try {
-      const res = await fetch("http://localhost:8145/api/users/signup", {
+      // Use the new /register endpoint for final submission
+      const res = await fetch("http://localhost:8145/api/users/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(fullUserData),
@@ -47,7 +49,11 @@ export default function BuildProfile() {
       if (res.ok) {
         sessionStorage.removeItem("signupData");
         navigate("/login", { state: { message: "Registration successful! Please log in." } });
-      } else {
+      } else if (res.status === 403) { // Forbidden - Email not verified
+         setError("Email not verified. Please complete the verification step first.");
+         setTimeout(() => navigate("/signup"), 3000); // Redirect after 3 seconds
+      }
+      else {
         setError(message || "An error occurred during signup.");
       }
     } catch (err) {
@@ -88,7 +94,6 @@ export default function BuildProfile() {
             <div className="grid md:grid-cols-3 gap-4">
               <input type="text" name="universityName" placeholder="University Name" value={form.universityName} onChange={handleChange} required className="rounded-lg w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-teal-400"/>
               <input type="number" name="universityPassingYear" placeholder="Year" value={form.universityPassingYear} onChange={handleChange} required className="rounded-lg w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-teal-400"/>
-              {/* **THE FIX**: Name and value now correctly use 'universityGpa' */}
               <input type="number" step="0.01" name="universityGpa" placeholder="GPA" value={form.universityGpa} onChange={handleChange} required className="rounded-lg w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-teal-400"/>
             </div>
           </div>
@@ -103,4 +108,3 @@ export default function BuildProfile() {
     </div>
   );
 }
-

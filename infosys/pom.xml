@@ -90,6 +90,11 @@
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>32.1.2-jre</version>
+        </dependency>
         
         <!-- JWT (JSON Web Token) Libraries -->
         <dependency>
@@ -148,4 +153,3 @@
     </build>
 
 </project>
-

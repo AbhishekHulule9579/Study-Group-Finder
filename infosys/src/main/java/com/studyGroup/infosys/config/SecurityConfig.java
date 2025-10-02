@@ -28,7 +28,8 @@ public class SecurityConfig {
             .cors(Customizer.withDefaults())
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/users/signup", "/api/users/signin", "/api/users/forgot-password", "/api/courses/**").permitAll()
+                // Allow access to signin, password recovery, courses, and the new registration flow endpoints
+                .requestMatchers("/api/users/signin", "/api/users/forgot-password", "/api/courses/**", "/api/users/register/**").permitAll()
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -50,4 +51,3 @@ public class SecurityConfig {
         return source;
     }
 }
-

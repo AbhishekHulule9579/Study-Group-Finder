@@ -39,6 +39,10 @@ public class UserService implements UserDetailsService {
         return new org.springframework.security.core.userdetails.User(user.getEmail(), user.getPassword(), new ArrayList<>());
     }
 
+    public boolean userExists(String email) {
+        return usersRepository.existsByEmail(email);
+    }
+
     public String registerUser(User user) {
         if (usersRepository.existsByEmail(user.getEmail())) {
             return "401::Email Id already exists";
@@ -57,9 +61,13 @@ public class UserService implements UserDetailsService {
             if (passwordEncoder.matches(password, user.getPassword())) {
                 String token = jwtService.generateToken(email);
                 return "200::" + token;
+            } else {
+                // Password was incorrect
+                return "401::Invalid Credentials";
             }
         }
-        return "401::Invalid Credentials";
+        // User's email was not found in the database
+        return "404::User not found";
     }
 
    
@@ -103,4 +111,5 @@ public class UserService implements UserDetailsService {
         return null;
     }
 }
+
 
