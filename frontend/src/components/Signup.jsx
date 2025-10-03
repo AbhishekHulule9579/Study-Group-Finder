@@ -50,8 +50,8 @@ export default function Signup() {
     setLoading(true);
 
     // *** THIS IS THE CORRECTED AND FINAL VALIDATION LOGIC ***
-    if (!form.name || !form.password) {
-      setError("Please fill in your name and password.");
+    if (!form.name || !form.password || !form.email) {
+      setError("Please fill in all required fields.");
       setLoading(false);
       return;
     }
