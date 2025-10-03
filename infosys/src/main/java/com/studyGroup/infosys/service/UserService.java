@@ -21,7 +21,7 @@ public class UserService implements UserDetailsService {
     private UsersRepository usersRepository;
 
     @Autowired
-    private ProfileRepository profileRepository; // Added ProfileRepository
+    private ProfileRepository profileRepository;
 
     @Autowired
     private EmailService emailService;
@@ -55,8 +55,6 @@ public class UserService implements UserDetailsService {
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         usersRepository.save(user);
 
-        // *** THIS IS THE FIX ***
-        // Create a new, empty profile for the user at the same time.
         Profile profile = new Profile();
         profile.setEmail(user.getEmail());
         profile.setFullname(user.getName());
@@ -75,11 +73,9 @@ public class UserService implements UserDetailsService {
                 String token = jwtService.generateToken(email);
                 return "200::" + token;
             } else {
-                // Password was incorrect
                 return "401::Invalid Credentials";
             }
         }
-        // User's email was not found in the database
         return "404::User not found";
     }
 
@@ -122,6 +118,26 @@ public class UserService implements UserDetailsService {
             return usersRepository.save(existingUser);
         }
         return null;
+    }
+
+    public boolean verifyPassword(String email, String currentPassword) {
+        Optional<User> userOptional = usersRepository.findByEmail(email);
+        if (userOptional.isPresent()) {
+            User user = userOptional.get();
+            return passwordEncoder.matches(currentPassword, user.getPassword());
+        }
+        return false;
+    }
+
+    public void changePassword(String email, String newPassword) {
+        Optional<User> userOptional = usersRepository.findByEmail(email);
+        if (userOptional.isPresent()) {
+            User user = userOptional.get();
+            user.setPassword(passwordEncoder.encode(newPassword));
+            usersRepository.save(user);
+        } else {
+            throw new UsernameNotFoundException("User not found with email: " + email);
+        }
     }
 }
 

@@ -1,6 +1,7 @@
 package com.studyGroup.infosys.controller;
 
 import com.studyGroup.infosys.dto.LoginRequest;
+import com.studyGroup.infosys.dto.PasswordChangeRequest;
 import com.studyGroup.infosys.model.User;
 import com.studyGroup.infosys.service.EmailService;
 import com.studyGroup.infosys.service.JWTService;
@@ -156,5 +157,39 @@ public class UserController {
         }
         return ResponseEntity.ok(updatedUser);
     }
-}
 
+    @PostMapping("/verify-password")
+    public ResponseEntity<?> verifyPassword(@RequestHeader("Authorization") String authHeader, @RequestBody PasswordChangeRequest request) {
+        String token = authHeader.substring(7);
+        String email = jwtService.validateToken(token);
+
+        if ("401".equals(email)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or expired token.");
+        }
+
+        boolean isCorrect = userService.verifyPassword(email, request.getCurrentPassword());
+
+        if (isCorrect) {
+            return ResponseEntity.ok(Map.of("message", "Password verified."));
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Current password does not match."));
+        }
+    }
+
+    @PutMapping("/change-password")
+    public ResponseEntity<?> changePassword(@RequestHeader("Authorization") String authHeader, @RequestBody PasswordChangeRequest request) {
+        String token = authHeader.substring(7);
+        String email = jwtService.validateToken(token);
+
+        if ("401".equals(email)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or expired token.");
+        }
+
+        if (request.getNewPassword() == null || request.getNewPassword().length() < 6) {
+             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "New password must be at least 6 characters long."));
+        }
+
+        userService.changePassword(email, request.getNewPassword());
+        return ResponseEntity.ok(Map.of("message", "Password changed successfully."));
+    }
+}

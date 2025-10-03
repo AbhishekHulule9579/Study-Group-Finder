@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-// A reusable input component with a label
-function LabeledInput({ label, name, value, onChange, placeholder, type = "text", step }) {
+// A reusable input component with a label and disabled state
+function LabeledInput({ label, name, value, onChange, placeholder, type = "text", step, disabled = false }) {
     return (
         <div>
             <label htmlFor={name} className="block text-sm font-medium text-gray-600 mb-1">
@@ -16,7 +16,8 @@ function LabeledInput({ label, name, value, onChange, placeholder, type = "text"
                 placeholder={placeholder}
                 type={type}
                 step={step}
-                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-400 transition"
+                disabled={disabled}
+                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-400 transition disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
         </div>
     );
@@ -37,6 +38,18 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  // --- NEW STATE FOR PASSWORD MANAGEMENT ---
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+  });
+  const [isCurrentPasswordVerified, setIsCurrentPasswordVerified] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [isChanging, setIsChanging] = useState(false);
+  // --- END OF NEW STATE ---
 
   useEffect(() => {
     const fetchProfileData = async () => {
@@ -139,6 +152,93 @@ export default function Profile() {
     setSaving(false);
   };
 
+  // --- NEW HANDLERS FOR PASSWORD MANAGEMENT ---
+  const handlePasswordInputChange = (e) => {
+    setPasswordSuccess(""); // Clear success message on new input
+    setPasswordError(""); // Clear error message on new input
+    setPasswordData({ ...passwordData, [e.target.name]: e.target.value });
+  };
+
+  const handleValidatePassword = async () => {
+    if (!passwordData.currentPassword) {
+        setPasswordError("Please enter your current password.");
+        return;
+    }
+    setIsVerifying(true);
+    setPasswordError("");
+    setPasswordSuccess("");
+    const token = sessionStorage.getItem("token");
+
+    try {
+        const res = await fetch("http://localhost:8145/api/users/verify-password", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ currentPassword: passwordData.currentPassword }),
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            setIsCurrentPasswordVerified(true);
+            setPasswordSuccess(data.message);
+        } else {
+            throw new Error(data.message || "Verification failed.");
+        }
+    } catch (err) {
+        setPasswordError(err.message);
+        setIsCurrentPasswordVerified(false);
+    }
+    setIsVerifying(false);
+  };
+
+  const handleChangePassword = async () => {
+    if (!isCurrentPasswordVerified) {
+        setPasswordError("Please validate your current password first.");
+        return;
+    }
+    if (passwordData.newPassword.length < 6) {
+        setPasswordError("New password must be at least 6 characters long.");
+        return;
+    }
+
+    setIsChanging(true);
+    setPasswordError("");
+    setPasswordSuccess("");
+    const token = sessionStorage.getItem("token");
+
+    try {
+        const res = await fetch("http://localhost:8145/api/users/change-password", {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ newPassword: passwordData.newPassword }),
+        });
+        
+        const data = await res.json();
+
+        if (res.ok) {
+            setPasswordSuccess(data.message);
+            // Reset form after a short delay
+            setTimeout(() => {
+                setPasswordData({ currentPassword: "", newPassword: "" });
+                setIsCurrentPasswordVerified(false);
+                setPasswordSuccess("");
+            }, 2000);
+        } else {
+            throw new Error(data.message || "Failed to change password.");
+        }
+    } catch (err) {
+        setPasswordError(err.message);
+    }
+    setIsChanging(false);
+  };
+  // --- END OF NEW HANDLERS ---
+
   if (loading || !user) {
     return <div className="text-center text-xl mt-20">Loading profile...</div>;
   }
@@ -168,7 +268,6 @@ export default function Profile() {
 
                     <div className="bg-white rounded-2xl p-6 shadow-md">
                         <h3 className="font-semibold mb-4 text-lg text-purple-700">Contact Information</h3>
-                        {/* *** THIS IS THE CORRECTED CODE *** */}
                         <div className="space-y-4">
                             <LabeledInput label="Phone" name="phone" value={profile.phone} onChange={handleProfileChange} placeholder="Your phone number" />
                             <LabeledInput label="LinkedIn URL" name="linkedinUrl" value={profile.linkedinUrl} onChange={handleProfileChange} placeholder="https://linkedin.com/in/..." />
@@ -215,6 +314,59 @@ export default function Profile() {
                     <button onClick={saveChanges} disabled={saving} className="w-full py-3 px-4 rounded-lg bg-gradient-to-r from-purple-600 to-orange-500 text-lg font-bold text-white shadow-lg hover:from-purple-700 hover:to-orange-600 transition disabled:opacity-50">
                         {saving ? "Saving..." : "Save All Changes"}
                     </button>
+
+                    {/* --- NEW PASSWORD CHANGE SECTION --- */}
+                    <div className="bg-white rounded-2xl p-6 shadow-md">
+                        <h3 className="text-xl font-bold mb-6 text-purple-700">Change Password</h3>
+                        <div className="space-y-4">
+                            <div className="flex items-end gap-2">
+                                <div className="flex-grow">
+                                    <LabeledInput 
+                                        label="Current Password" 
+                                        name="currentPassword" 
+                                        value={passwordData.currentPassword} 
+                                        onChange={handlePasswordInputChange} 
+                                        placeholder="Enter your current password" 
+                                        type="password"
+                                        disabled={isCurrentPasswordVerified}
+                                    />
+                                </div>
+                                <button 
+                                    onClick={handleValidatePassword} 
+                                    disabled={isVerifying || isCurrentPasswordVerified}
+                                    className="py-3 px-4 h-fit rounded-lg bg-gray-200 text-gray-700 font-bold shadow-sm hover:bg-gray-300 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-green-100 disabled:text-green-700"
+                                >
+                                    {isVerifying ? "..." : (isCurrentPasswordVerified ? "Verified" : "Validate")}
+                                </button>
+                            </div>
+                            
+                            <div>
+                                <LabeledInput 
+                                    label="New Password" 
+                                    name="newPassword" 
+                                    value={passwordData.newPassword} 
+                                    onChange={handlePasswordInputChange} 
+                                    placeholder="Enter your new password (min 6 chars)" 
+                                    type="password"
+                                    disabled={!isCurrentPasswordVerified}
+                                />
+                            </div>
+                        </div>
+                        
+                        <div className="mt-4 text-center text-sm h-5">
+                            {passwordError && <p className="text-red-500">{passwordError}</p>}
+                            {passwordSuccess && <p className="text-green-600">{passwordSuccess}</p>}
+                        </div>
+                        
+                        <button 
+                            onClick={handleChangePassword} 
+                            disabled={!isCurrentPasswordVerified || isChanging}
+                            className="w-full mt-2 py-3 px-4 rounded-lg bg-purple-800 text-lg font-bold text-white shadow-lg hover:bg-purple-900 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isChanging ? "Changing..." : "Change Password"}
+                        </button>
+                    </div>
+                    {/* --- END OF NEW SECTION --- */}
                 </div>
             </div>
         </div>
