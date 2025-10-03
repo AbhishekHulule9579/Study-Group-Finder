@@ -6,7 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-// FIX: Changed table name from "group" to "study_group" to avoid MySQL reserved keyword error.
+
 @Table(name = "study_group") 
 @Data
 @NoArgsConstructor

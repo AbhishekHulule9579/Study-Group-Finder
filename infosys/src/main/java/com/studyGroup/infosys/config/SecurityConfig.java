@@ -28,12 +28,11 @@ public class SecurityConfig {
             .cors(Customizer.withDefaults())
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                // Allow access to all authentication endpoints:
-                // signin, register flow, and the entire forgot-password flow.
+             
                 .requestMatchers(
                     "/api/users/signin", 
                     "/api/users/register/**", 
-                    "/api/users/forgot-password/**",  // <-- CRITICAL FIX: Allow all /forgot-password/ paths
+                    "/api/users/forgot-password/**",  
                     "/api/courses/**"
                 ).permitAll()
                 .anyRequest().authenticated()

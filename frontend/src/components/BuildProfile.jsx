@@ -78,7 +78,6 @@ export default function BuildProfile() {
             </div>
           </div>
 
-          {/* Higher Secondary Section */}
           <div>
             <h3 className="text-lg font-semibold text-green-600 mb-2">Higher Secondary School</h3>
             <div className="grid md:grid-cols-3 gap-4">

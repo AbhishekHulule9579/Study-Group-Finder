@@ -30,19 +30,14 @@ public class EmailService {
             return "200::Mail Sent Successfully";
         } catch (MailException e) { 
            
-            // --- CRITICAL DEBUGGING LINE ADDED ---
-            // Log the detailed error message for debugging
             String errorMessage = "Failed to send email to " + to + ". MailException Reason: " + e.getMessage();
             System.err.println("************************************************************************");
             System.err.println("EMAIL ERROR DETECTED: " + errorMessage);
-            e.printStackTrace(); // Print stack trace to see root cause (e.g., failed authentication)
+            e.printStackTrace(); 
             System.err.println("************************************************************************");
             
-            // Return 500 status message for the controller to handle
-            // We now return the full, detailed error message to the client (for debugging purposes only)
             return "500::Error sending email. Detailed Error: " + e.getMessage();
         } catch (Exception e) {
-            // Catch any other unforeseen runtime exceptions
             String errorMessage = "An unexpected error occurred during email sending: " + e.getMessage();
             System.err.println("UNEXPECTED EMAIL ERROR: " + errorMessage);
             e.printStackTrace();

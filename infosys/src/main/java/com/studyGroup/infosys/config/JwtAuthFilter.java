@@ -37,12 +37,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             username = jwtService.validateToken(token);
         }
 
-        // *** THIS IS THE CORRECTED LOGIC ***
-        // It now correctly handles the "401" error string from the JWTService
         if (username != null && !"401".equals(username) && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = userService.loadUserByUsername(username);
 
-            // The original logic here was also slightly flawed. This is the robust way to check.
             if (userDetails != null && username.equals(userDetails.getUsername())) {
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         userDetails, null, userDetails.getAuthorities());

@@ -8,11 +8,7 @@ import org.springframework.mail.javamail.JavaMailSenderImpl;
 
 import java.util.Properties;
 
-/**
- * Explicitly configures the JavaMailSender bean by reading properties directly,
- * avoiding dependency injection conflicts with MailProperties auto-configuration
- * which sometimes fails to load correctly alongside a custom configuration.
- */
+
 @Configuration
 public class EmailConfig {
 
@@ -31,12 +27,9 @@ public class EmailConfig {
     @Value("${spring.mail.protocol}")
     private String protocol;
 
-    // Direct injection for mail properties is usually simpler than reading them manually,
-    // but reading the debug property is essential for the custom Properties object.
     @Value("${spring.mail.properties.mail.debug:false}")
     private String mailDebug;
 
-    // Use explicit configuration settings for port 465 (SMTPS)
     @Value("${spring.mail.properties.mail.smtp.auth:false}")
     private String smtpAuth;
 
@@ -54,21 +47,16 @@ public class EmailConfig {
         mailSender.setPort(this.port);
         mailSender.setUsername(this.username);
         mailSender.setPassword(this.password);
-        mailSender.setProtocol(this.protocol); // Set protocol explicitly
+        mailSender.setProtocol(this.protocol); 
 
         Properties props = mailSender.getJavaMailProperties();
         
-        // Setting mail properties explicitly
         props.put("mail.smtp.auth", this.smtpAuth);
         props.put("mail.smtp.ssl.enable", this.smtpSSLEnable);
         props.put("mail.smtp.socketFactory.class", this.socketFactoryClass);
         
-        // This is the CRITICAL DEBUGGING LINE
         props.put("mail.debug", this.mailDebug); 
         
-        // Adding timeouts directly to the properties object
-        // NOTE: These values must exist in application-local.properties
-        // If not present, they will default to 0 (no timeout)
         props.put("mail.smtp.connectiontimeout", "60000"); 
         props.put("mail.smtp.timeout", "60000");
         props.put("mail.smtp.writetimeout", "60000");
