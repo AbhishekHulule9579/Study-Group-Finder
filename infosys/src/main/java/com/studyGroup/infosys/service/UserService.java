@@ -43,6 +43,13 @@ public class UserService implements UserDetailsService {
         
         return new org.springframework.security.core.userdetails.User(user.getEmail(), user.getPassword(), new ArrayList<>());
     }
+    
+    /**
+     * Retrieves a user by their email. Used for the forgot password flow.
+     */
+    public Optional<User> getUserByEmail(String email) {
+        return usersRepository.findByEmail(email);
+    }
 
     public boolean userExists(String email) {
         return usersRepository.existsByEmail(email);
@@ -79,7 +86,7 @@ public class UserService implements UserDetailsService {
         return "404::User not found";
     }
 
-   
+    
     public User getUserProfile(String token) {
         String email = jwtService.validateToken(token);
         if ("401".equals(email)) {
@@ -88,16 +95,6 @@ public class UserService implements UserDetailsService {
         return usersRepository.findByEmail(email).orElse(null);
     }
     
- 
-    public String recoverPassword(String email) {
-        Optional<User> userOptional = usersRepository.findByEmail(email);
-        if (userOptional.isEmpty()) {
-            return "404::User not found";
-        }
-        User user = userOptional.get();
-        String message = String.format("Dear %s,\n\nA password recovery request was initiated for your account. If you did not request this, you can safely ignore this email.", user.getName());
-        return emailService.sendEmail(user.getEmail(), "Study Group Finder Password Recovery Request", message);
-    }
     
     public User updateUser(String email, User userDetails) {
         Optional<User> userOptional = usersRepository.findByEmail(email);
@@ -140,4 +137,3 @@ public class UserService implements UserDetailsService {
         }
     }
 }
-

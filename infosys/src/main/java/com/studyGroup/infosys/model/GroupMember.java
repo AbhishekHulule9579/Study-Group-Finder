@@ -17,7 +17,8 @@ public class GroupMember {
     @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("groupId")
     @JoinColumn(name = "group_id")
-    private Group group;
+    // FIX: Reference the updated target entity
+    private Group group; 
 
     @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("userId")
