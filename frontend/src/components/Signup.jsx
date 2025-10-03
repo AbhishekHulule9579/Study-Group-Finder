@@ -22,7 +22,7 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
 
   // For OTP timer
-  const [timer, setTimer] = useState(300); // 5 minutes in seconds
+  const [timer, setTimer] = useState(120); // 2 minutes (120 seconds) in seconds
   const [resendDisabled, setResendDisabled] = useState(true);
 
   useEffect(() => {
@@ -41,6 +41,16 @@ export default function Signup() {
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+  };
+  
+  // New handler to switch back to the details step
+  const handleChangeEmail = () => {
+    setStep('DETAILS');
+    setError('');
+    setMessage('');
+    setOtp(''); // Clear OTP field
+    setTimer(120); // Reset timer to 2 minutes (120 seconds)
+    setResendDisabled(true);
   };
 
   const handleSendOtp = async (e) => {
@@ -75,10 +85,17 @@ export default function Signup() {
       if (res.ok) {
         setMessage(responseText);
         setStep('OTP');
-        setTimer(300);
+        setTimer(120); // Start the timer for 2 minutes
       } else if (res.status === 409) {
         setError(<span>{responseText} <Link to="/login" className="font-bold underline">Login here.</Link></span>);
       } else {
+        // The core requirement: If a user enters a wrong email (e.g., mailinator.com but not an invalid format), 
+        // the backend sends the OTP but verification will fail later. 
+        // If the email server is misconfigured/down, you might get an error here.
+        // We ensure a general error is shown, but still advance if the backend allows it (as currently implemented).
+        // If the backend has no logic to check email server status, we assume if it responds `ok`, the OTP was generated.
+        // Since the current logic lets it pass even for wrong but *valid format* emails, we proceed to OTP. 
+        // If the response is not ok, we show the error and stay on 'DETAILS'.
         setError(responseText || "An error occurred while sending OTP.");
       }
     } catch (err) {
@@ -159,6 +176,19 @@ export default function Signup() {
         <p className="text-center text-gray-600">
             An OTP has been sent to <strong>{form.email}</strong>. Please enter it below.
         </p>
+        
+        {/* Change Email Button */}
+        <div className="text-center">
+            <button
+                type="button"
+                onClick={handleChangeEmail}
+                disabled={loading}
+                className="text-sm text-purple-600 hover:underline disabled:text-gray-400 disabled:cursor-not-allowed font-medium"
+            >
+                (Wrong email? Click to change)
+            </button>
+        </div>
+
         <input
             type="text"
             name="otp"
@@ -194,9 +224,14 @@ export default function Signup() {
 
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-tr from-pink-500 via-orange-400 to-purple-600 py-12 px-4">
-      <div className="max-w-3xl flex flex-col md:flex-row w-full bg-white rounded-3xl shadow-xl overflow-hidden">
-        <div className="hidden md:block md:w-1/2">
+    // The outer container uses padding and flex for safe centering, preventing unwanted scrollbars.
+    <div className="flex items-center justify-center bg-gradient-to-tr from-pink-500 via-orange-400 to-purple-600 py-12 px-4 w-full min-h-screen">
+      
+      {/* The main card container */}
+      <div className="max-w-3xl w-full bg-white rounded-3xl shadow-xl overflow-hidden flex flex-col md:flex-row">
+        
+        {/* Image Container (Left Side) - Height is constrained by sibling form */}
+        <div className="hidden md:block md:w-1/2 h-full">
           <div className="h-full w-full overflow-hidden">
              <img
               src="https://i.pinimg.com/1200x/c9/03/c5/c903c59083d681e959cb833816da2042.jpg"
@@ -205,6 +240,8 @@ export default function Signup() {
             />
           </div>
         </div>
+
+        {/* Form Container (Right Side) - Height determines card size */}
         <div className="w-full md:w-1/2 p-10">
           <div className="flex flex-col items-center">
             <span className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600">
@@ -236,4 +273,3 @@ export default function Signup() {
     </div>
   );
 }
-
