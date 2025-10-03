@@ -28,8 +28,14 @@ public class SecurityConfig {
             .cors(Customizer.withDefaults())
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                // Allow access to signin, password recovery, courses, and the new registration flow endpoints
-                .requestMatchers("/api/users/signin", "/api/users/forgot-password", "/api/courses/**", "/api/users/register/**").permitAll()
+                // Allow access to all authentication endpoints:
+                // signin, register flow, and the entire forgot-password flow.
+                .requestMatchers(
+                    "/api/users/signin", 
+                    "/api/users/register/**", 
+                    "/api/users/forgot-password/**",  // <-- CRITICAL FIX: Allow all /forgot-password/ paths
+                    "/api/courses/**"
+                ).permitAll()
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

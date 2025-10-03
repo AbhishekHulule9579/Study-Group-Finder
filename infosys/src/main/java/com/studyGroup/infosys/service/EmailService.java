@@ -2,7 +2,7 @@ package com.studyGroup.infosys.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.MailException; // Import specific MailException
+import org.springframework.mail.MailException; 
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
@@ -28,19 +28,25 @@ public class EmailService {
             javaMailSender.send(mailMessage);
             
             return "200::Mail Sent Successfully";
-        } catch (MailException e) { // Catch specific MailException like AuthenticationFailedException
+        } catch (MailException e) { 
            
+            // --- CRITICAL DEBUGGING LINE ADDED ---
             // Log the detailed error message for debugging
-            System.err.println("Failed to send email to " + to + ". MailException Reason: " + e.getMessage());
+            String errorMessage = "Failed to send email to " + to + ". MailException Reason: " + e.getMessage();
+            System.err.println("************************************************************************");
+            System.err.println("EMAIL ERROR DETECTED: " + errorMessage);
             e.printStackTrace(); // Print stack trace to see root cause (e.g., failed authentication)
+            System.err.println("************************************************************************");
             
             // Return 500 status message for the controller to handle
-            return "500::Error sending email. Check server logs for MailException details.";
+            // We now return the full, detailed error message to the client (for debugging purposes only)
+            return "500::Error sending email. Detailed Error: " + e.getMessage();
         } catch (Exception e) {
             // Catch any other unforeseen runtime exceptions
-            System.err.println("An unexpected error occurred during email sending: " + e.getMessage());
-            e.printStackTrace(); // Print full stack trace for deep debugging
-            return "500::Unexpected error during email sending.";
+            String errorMessage = "An unexpected error occurred during email sending: " + e.getMessage();
+            System.err.println("UNEXPECTED EMAIL ERROR: " + errorMessage);
+            e.printStackTrace();
+            return "500::Unexpected error during email sending. Detailed Error: " + e.getMessage();
         }
     }
 }
