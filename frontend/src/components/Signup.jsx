@@ -9,7 +9,7 @@ const isEmailValid = (email) => {
 
 export default function Signup() {
   const navigate = useNavigate();
-  const [step, setStep] = useState('DETAILS'); // 'DETAILS' | 'OTP'
+  const [step, setStep] = useState("DETAILS"); // 'DETAILS' | 'OTP'
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -27,7 +27,7 @@ export default function Signup() {
 
   useEffect(() => {
     let interval;
-    if (step === 'OTP' && timer > 0) {
+    if (step === "OTP" && timer > 0) {
       setResendDisabled(true);
       interval = setInterval(() => {
         setTimer((prevTimer) => prevTimer - 1);
@@ -42,13 +42,13 @@ export default function Signup() {
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
-  
+
   // New handler to switch back to the details step
   const handleChangeEmail = () => {
-    setStep('DETAILS');
-    setError('');
-    setMessage('');
-    setOtp(''); // Clear OTP field
+    setStep("DETAILS");
+    setError("");
+    setMessage("");
+    setOtp(""); // Clear OTP field
     setTimer(120); // Reset timer to 2 minutes (120 seconds)
     setResendDisabled(true);
   };
@@ -74,27 +74,37 @@ export default function Signup() {
     // *** END OF VALIDATION LOGIC ***
 
     try {
-      const res = await fetch("http://localhost:8145/api/users/register/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: form.email, name: form.name }),
-      });
+      const res = await fetch(
+        "http://localhost:8145/api/users/register/send-otp",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: form.email, name: form.name }),
+        }
+      );
 
       const responseText = await res.text();
 
       if (res.ok) {
         setMessage(responseText);
-        setStep('OTP');
+        setStep("OTP");
         setTimer(120); // Start the timer for 2 minutes
       } else if (res.status === 409) {
-        setError(<span>{responseText} <Link to="/login" className="font-bold underline">Login here.</Link></span>);
+        setError(
+          <span>
+            {responseText}{" "}
+            <Link to="/login" className="font-bold underline">
+              Login here.
+            </Link>
+          </span>
+        );
       } else {
-        // The core requirement: If a user enters a wrong email (e.g., mailinator.com but not an invalid format), 
-        // the backend sends the OTP but verification will fail later. 
+        // The core requirement: If a user enters a wrong email (e.g., mailinator.com but not an invalid format),
+        // the backend sends the OTP but verification will fail later.
         // If the email server is misconfigured/down, you might get an error here.
         // We ensure a general error is shown, but still advance if the backend allows it (as currently implemented).
         // If the backend has no logic to check email server status, we assume if it responds `ok`, the OTP was generated.
-        // Since the current logic lets it pass even for wrong but *valid format* emails, we proceed to OTP. 
+        // Since the current logic lets it pass even for wrong but *valid format* emails, we proceed to OTP.
         // If the response is not ok, we show the error and stay on 'DETAILS'.
         setError(responseText || "An error occurred while sending OTP.");
       }
@@ -103,7 +113,7 @@ export default function Signup() {
     }
     setLoading(false);
   };
-  
+
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
     setError("");
@@ -111,11 +121,14 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:8145/api/users/register/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: form.email, otp: otp }),
-      });
+      const res = await fetch(
+        "http://localhost:8145/api/users/register/verify-otp",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: form.email, otp: otp }),
+        }
+      );
 
       const responseText = await res.text();
 
@@ -123,7 +136,10 @@ export default function Signup() {
         sessionStorage.setItem("signupData", JSON.stringify(form));
         navigate("/buildprofile");
       } else {
-        setError(responseText || "Verification failed. Please check the OTP and try again.");
+        setError(
+          responseText ||
+            "Verification failed. Please check the OTP and try again."
+        );
       }
     } catch (err) {
       setError("Failed to connect to the server. Please try again.");
@@ -172,68 +188,70 @@ export default function Signup() {
   );
 
   const renderOtpStep = () => (
-     <form className="mt-8 space-y-5" onSubmit={handleVerifyOtp}>
-        <p className="text-center text-gray-600">
-            An OTP has been sent to <strong>{form.email}</strong>. Please enter it below.
-        </p>
-        
-        {/* Change Email Button */}
-        <div className="text-center">
-            <button
-                type="button"
-                onClick={handleChangeEmail}
-                disabled={loading}
-                className="text-sm text-purple-600 hover:underline disabled:text-gray-400 disabled:cursor-not-allowed font-medium"
-            >
-                (Wrong email? Click to change)
-            </button>
-        </div>
+    <form className="mt-8 space-y-5" onSubmit={handleVerifyOtp}>
+      <p className="text-center text-gray-600">
+        An OTP has been sent to <strong>{form.email}</strong>. Please enter it
+        below.
+      </p>
 
-        <input
-            type="text"
-            name="otp"
-            placeholder="6-Digit OTP"
-            required
-            maxLength="6"
-            value={otp}
-            onChange={(e) => setOtp(e.target.value)}
-            className="rounded-lg w-full px-4 py-3 border border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-transparent text-center tracking-[1em]"
-        />
-        <div className="text-center text-sm text-gray-500">
-            {timer > 0 ? `OTP expires in: ${Math.floor(timer / 60)}:${(timer % 60).toString().padStart(2, '0')}` : "OTP has expired."}
-        </div>
-         <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 px-4 rounded-lg bg-gradient-to-r from-pink-600 via-orange-400 to-purple-600 text-lg font-bold text-white shadow hover:from-pink-700 hover:to-purple-700 transition disabled:opacity-50"
+      {/* Change Email Button */}
+      <div className="text-center">
+        <button
+          type="button"
+          onClick={handleChangeEmail}
+          disabled={loading}
+          className="text-sm text-purple-600 hover:underline disabled:text-gray-400 disabled:cursor-not-allowed font-medium"
         >
-            {loading ? "Verifying..." : "Verify & Continue"}
+          (Wrong email? Click to change)
         </button>
-        <div className="text-center">
-             <button
-                type="button"
-                onClick={handleSendOtp}
-                disabled={resendDisabled || loading}
-                className="text-sm text-purple-600 hover:underline disabled:text-gray-400 disabled:cursor-not-allowed"
-            >
-                Resend OTP
-            </button>
-        </div>
-     </form>
-  );
+      </div>
 
+      <input
+        type="text"
+        name="otp"
+        placeholder="6-Digit OTP"
+        required
+        maxLength="6"
+        value={otp}
+        onChange={(e) => setOtp(e.target.value)}
+        className="rounded-lg w-full px-4 py-3 border border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-transparent text-center tracking-[1em]"
+      />
+      <div className="text-center text-sm text-gray-500">
+        {timer > 0
+          ? `OTP expires in: ${Math.floor(timer / 60)}:${(timer % 60)
+              .toString()
+              .padStart(2, "0")}`
+          : "OTP has expired."}
+      </div>
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full py-3 px-4 rounded-lg bg-gradient-to-r from-pink-600 via-orange-400 to-purple-600 text-lg font-bold text-white shadow hover:from-pink-700 hover:to-purple-700 transition disabled:opacity-50"
+      >
+        {loading ? "Verifying..." : "Verify & Continue"}
+      </button>
+      <div className="text-center">
+        <button
+          type="button"
+          onClick={handleSendOtp}
+          disabled={resendDisabled || loading}
+          className="text-sm text-purple-600 hover:underline disabled:text-gray-400 disabled:cursor-not-allowed"
+        >
+          Resend OTP
+        </button>
+      </div>
+    </form>
+  );
 
   return (
     // The outer container uses padding and flex for safe centering, preventing unwanted scrollbars.
     <div className="flex items-center justify-center bg-gradient-to-tr from-pink-500 via-orange-400 to-purple-600 py-12 px-4 w-full min-h-screen">
-      
       {/* The main card container */}
       <div className="max-w-3xl w-full bg-white rounded-3xl shadow-xl overflow-hidden flex flex-col md:flex-row">
-        
         {/* Image Container (Left Side) - Height is constrained by sibling form */}
         <div className="hidden md:block md:w-1/2 h-full">
-          <div className="h-full w-full overflow-hidden">
-             <img
+          <div className="h-150 w-100 overflow-hidden">
+            <img
               src="https://i.pinimg.com/1200x/c9/03/c5/c903c59083d681e959cb833816da2042.jpg"
               alt="signup"
               className="h-full w-full object-cover object-center"
@@ -245,18 +263,26 @@ export default function Signup() {
         <div className="w-full md:w-1/2 p-10">
           <div className="flex flex-col items-center">
             <span className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600">
-              {step === 'DETAILS' ? "Join the Community" : "Verify Your Email"}
+              {step === "DETAILS" ? "Join the Community" : "Verify Your Email"}
             </span>
             <p className="mt-2 text-md text-gray-500">
-                {step === 'DETAILS' ? "Create your account" : "One last step!"}
+              {step === "DETAILS" ? "Create your account" : "One last step!"}
             </p>
           </div>
-          
-          {error && <div className="mt-4 text-red-600 bg-red-100 p-3 rounded-lg text-center">{error}</div>}
-          {message && <div className="mt-4 text-green-600 bg-green-100 p-3 rounded-lg text-center">{message}</div>}
 
-          {step === 'DETAILS' ? renderDetailsStep() : renderOtpStep()}
-          
+          {error && (
+            <div className="mt-4 text-red-600 bg-red-100 p-3 rounded-lg text-center">
+              {error}
+            </div>
+          )}
+          {message && (
+            <div className="mt-4 text-green-600 bg-green-100 p-3 rounded-lg text-center">
+              {message}
+            </div>
+          )}
+
+          {step === "DETAILS" ? renderDetailsStep() : renderOtpStep()}
+
           <div className="text-center mt-6">
             <span className="text-sm text-gray-500">
               Already have an account?
