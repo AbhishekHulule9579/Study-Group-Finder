@@ -17,114 +17,128 @@ const GroupCreateForm = ({ onSubmit, onCancel }) => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-4 md:p-8 bg-white rounded-lg shadow">
-      <h2 className="text-3xl font-bold mb-6 text-gray-800">
-        Create a New Study Group
-      </h2>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label
-            htmlFor="name"
-            className="block text-sm font-medium text-gray-700"
-          >
-            Group Name*
-          </label>
-          <input
-            type="text"
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="mt-1 block w-full p-2 border rounded-md shadow-sm"
-            placeholder="e.g., React Ninjas"
-          />
+    <div className="bg-purple-50/50 min-h-screen flex items-center justify-center p-4">
+      <div className="max-w-3xl w-full mx-auto p-8 bg-white rounded-2xl shadow-xl space-y-8">
+        {/* Header */}
+        <div className="text-center">
+          <h2 className="text-3xl font-bold text-gray-800">
+            Create a <span className="text-purple-600">New Study Group</span>
+          </h2>
+          <p className="mt-2 text-gray-500">
+            Fill out the details below to get your group started.
+          </p>
         </div>
-        <div>
-          <label
-            htmlFor="description"
-            className="block text-sm font-medium text-gray-700"
-          >
-            Description*
-          </label>
-          <textarea
-            id="description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows="3"
-            className="mt-1 block w-full p-2 border rounded-md shadow-sm"
-            placeholder="What is this group about?"
-          ></textarea>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-6">
-          <div className="flex-1">
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
             <label
-              htmlFor="course"
-              className="block text-sm font-medium text-gray-700"
+              htmlFor="name"
+              className="block text-sm font-semibold text-gray-700 mb-1"
             >
-              Course
+              Group Name <span className="text-red-500">*</span>
             </label>
-            <select
-              id="course"
-              value={course}
-              onChange={(e) => setCourse(e.target.value)}
-              className="mt-1 block w-full p-2 border rounded-md shadow-sm"
-            >
-              <option>Computer Science</option>
-              <option>Web Development</option>
-              <option>Mathematics</option>
-              <option>Design</option>
-            </select>
+            <input
+              type="text"
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full rounded-lg border-gray-300 p-3 text-md shadow-sm focus:border-purple-500 focus:ring-purple-500 transition duration-200"
+              placeholder="e.g., Quantum Physics Crew"
+              required
+            />
           </div>
-          <div className="flex-1">
+          <div>
             <label
-              htmlFor="privacy"
-              className="block text-sm font-medium text-gray-700"
+              htmlFor="description"
+              className="block text-sm font-semibold text-gray-700 mb-1"
             >
-              Privacy
+              Description <span className="text-red-500">*</span>
             </label>
-            <select
-              id="privacy"
-              value={privacy}
-              onChange={(e) => setPrivacy(e.target.value)}
-              className="mt-1 block w-full p-2 border rounded-md shadow-sm"
-            >
-              <option value="Public">Public</option>
-              <option value="Private">Private</option>
-            </select>
+            <textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows="4"
+              className="w-full rounded-lg border-gray-300 p-3 text-md shadow-sm resize-none focus:border-purple-500 focus:ring-purple-500 transition duration-200"
+              placeholder="Describe the main goals and topics of your study group."
+              required
+            />
           </div>
-        </div>
-        <div>
-          <label
-            htmlFor="capacity"
-            className="block text-sm font-medium text-gray-700"
-          >
-            Capacity (Max Members)
-          </label>
-          <input
-            type="number"
-            id="capacity"
-            value={capacity}
-            onChange={(e) => setCapacity(parseInt(e.target.value, 10))}
-            min="2"
-            max="50"
-            className="mt-1 block w-full p-2 border rounded-md shadow-sm"
-          />
-        </div>
-        <div className="flex items-center justify-end space-x-4 pt-4">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-          >
-            Create Group
-          </button>
-        </div>
-      </form>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <label
+                htmlFor="course"
+                className="block text-sm font-semibold text-gray-700 mb-1"
+              >
+                Course
+              </label>
+              <select
+                id="course"
+                value={course}
+                onChange={(e) => setCourse(e.target.value)}
+                className="w-full rounded-lg border-gray-300 p-3 text-md shadow-sm focus:border-purple-500 focus:ring-purple-500 transition duration-200"
+              >
+                <option>Computer Science</option>
+                <option>Web Development</option>
+                <option>Mathematics</option>
+                <option>Design</option>
+              </select>
+            </div>
+            <div>
+              <label
+                htmlFor="privacy"
+                className="block text-sm font-semibold text-gray-700 mb-1"
+              >
+                Privacy
+              </label>
+              <select
+                id="privacy"
+                value={privacy}
+                onChange={(e) => setPrivacy(e.target.value)}
+                className="w-full rounded-lg border-gray-300 p-3 text-md shadow-sm focus:border-purple-500 focus:ring-purple-500 transition duration-200"
+              >
+                <option value="Public">Public</option>
+                <option value="Private">Private</option>
+              </select>
+            </div>
+            <div>
+              <label
+                htmlFor="capacity"
+                className="block text-sm font-semibold text-gray-700 mb-1"
+              >
+                Capacity
+              </label>
+              <input
+                type="number"
+                id="capacity"
+                value={capacity}
+                onChange={(e) => setCapacity(parseInt(e.target.value, 10))}
+                min="2"
+                max="50"
+                className="w-full rounded-lg border-gray-300 p-3 text-md shadow-sm focus:border-purple-500 focus:ring-purple-500 transition duration-200"
+              />
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex justify-end space-x-4 pt-4">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="text-md font-semibold text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="bg-gradient-to-r from-purple-600 to-orange-500 text-white font-semibold px-8 py-3 rounded-lg shadow-md hover:opacity-90 transition-all transform hover:scale-105"
+            >
+              Create Group
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
