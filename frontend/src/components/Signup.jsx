@@ -59,7 +59,6 @@ export default function Signup() {
     setMessage("");
     setLoading(true);
 
-    // *** THIS IS THE CORRECTED AND FINAL VALIDATION LOGIC ***
     if (!form.name || !form.password || !form.email) {
       setError("Please fill in all required fields.");
       setLoading(false);
@@ -71,7 +70,6 @@ export default function Signup() {
       setLoading(false);
       return;
     }
-    // *** END OF VALIDATION LOGIC ***
 
     try {
       const res = await fetch(
@@ -99,13 +97,6 @@ export default function Signup() {
           </span>
         );
       } else {
-        // The core requirement: If a user enters a wrong email (e.g., mailinator.com but not an invalid format),
-        // the backend sends the OTP but verification will fail later.
-        // If the email server is misconfigured/down, you might get an error here.
-        // We ensure a general error is shown, but still advance if the backend allows it (as currently implemented).
-        // If the backend has no logic to check email server status, we assume if it responds `ok`, the OTP was generated.
-        // Since the current logic lets it pass even for wrong but *valid format* emails, we proceed to OTP.
-        // If the response is not ok, we show the error and stay on 'DETAILS'.
         setError(responseText || "An error occurred while sending OTP.");
       }
     } catch (err) {
@@ -134,7 +125,9 @@ export default function Signup() {
 
       if (res.ok) {
         sessionStorage.setItem("signupData", JSON.stringify(form));
-        navigate("/buildprofile");
+        // *** THIS IS THE FIX for the 404 Error ***
+        // The path in App.jsx is "/build-profile", not "/buildprofile".
+        navigate("/build-profile");
       } else {
         setError(
           responseText ||
@@ -194,7 +187,6 @@ export default function Signup() {
         below.
       </p>
 
-      {/* Change Email Button */}
       <div className="text-center">
         <button
           type="button"
@@ -244,11 +236,8 @@ export default function Signup() {
   );
 
   return (
-    // The outer container uses padding and flex for safe centering, preventing unwanted scrollbars.
     <div className="flex items-center justify-center bg-gradient-to-tr from-pink-500 via-orange-400 to-purple-600 py-12 px-4 w-full min-h-screen">
-      {/* The main card container */}
       <div className="max-w-3xl w-full bg-white rounded-3xl shadow-xl overflow-hidden flex flex-col md:flex-row">
-        {/* Image Container (Left Side) - Height is constrained by sibling form */}
         <div className="hidden md:block md:w-1/2 h-full">
           <div className="h-150 w-100 overflow-hidden">
             <img
@@ -259,7 +248,6 @@ export default function Signup() {
           </div>
         </div>
 
-        {/* Form Container (Right Side) - Height determines card size */}
         <div className="w-full md:w-1/2 p-10">
           <div className="flex flex-col items-center">
             <span className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600">
