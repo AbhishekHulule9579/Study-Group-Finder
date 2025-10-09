@@ -6,8 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-
-@Table(name = "study_group") 
+@Table(name = "study_group")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -15,7 +14,8 @@ public class Group {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "group_id")
+    private Long groupId;
 
     private String name;
 
@@ -23,10 +23,17 @@ public class Group {
     private String description;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "course_id", nullable = false)
-    private Course course;
+    @JoinColumn(name = "associated_course_id", nullable = false)
+    private Course associatedCourse;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by_user_id", nullable = false)
+    @JoinColumn(name = "created_by_userid", nullable = false)
     private User createdBy;
+
+    private String privacy; 
+
+    private String passkey; 
+
+    @Column(name = "member_limit")
+    private Integer memberLimit;
 }
