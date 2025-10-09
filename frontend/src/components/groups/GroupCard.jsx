@@ -1,10 +1,11 @@
 import React from "react";
+import { Link } from "react-router-dom"; // Import Link
 
 const GroupCard = ({ group, isMember }) => {
   const fullness = (group.members / group.capacity) * 100;
 
   const handleJoinClick = (e) => {
-    e.stopPropagation(); // Prevent card click event from firing
+    e.stopPropagation();
     if (group.privacy === "Public") {
       alert(`You joined "${group.name}"!`);
     } else {
@@ -15,7 +16,6 @@ const GroupCard = ({ group, isMember }) => {
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col h-full hover:shadow-xl hover:border-purple-300 transition-all duration-300 cursor-pointer">
       <div className="flex-grow">
-        {/* Top section with privacy tag and member count */}
         <div className="flex justify-between items-center mb-3">
           <span
             className={`px-3 py-1 text-xs font-semibold rounded-full ${
@@ -30,13 +30,10 @@ const GroupCard = ({ group, isMember }) => {
             <span>{group.members}</span> / <span>{group.capacity}</span>
           </div>
         </div>
-
-        {/* Group details */}
         <h3 className="font-bold text-lg text-gray-800 mb-1">{group.name}</h3>
         <p className="text-sm text-gray-500">{group.course}</p>
       </div>
 
-      {/* Bottom section with progress bar and action button */}
       <div className="mt-4">
         <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
           <div
@@ -46,12 +43,13 @@ const GroupCard = ({ group, isMember }) => {
         </div>
 
         {isMember ? (
-          <button
-            disabled
-            className="w-full text-center py-2 px-4 rounded-lg bg-gray-200 text-gray-500 text-sm font-semibold cursor-not-allowed"
+          // UPDATED: This is now a Link to the details page
+          <Link
+            to={`/group/${group.id}`}
+            className="block w-full text-center py-2 px-4 rounded-lg bg-gray-200 text-gray-800 hover:bg-gray-300 text-sm font-semibold transition-colors"
           >
-            Member
-          </button>
+            View Group
+          </Link>
         ) : (
           <button
             onClick={handleJoinClick}
