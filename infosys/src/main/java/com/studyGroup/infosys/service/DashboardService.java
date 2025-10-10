@@ -32,7 +32,6 @@ public class DashboardService {
 
     public DashboardDTO getDashboardData(User currentUser) throws IOException {
 
-        // Corrected line: The variable 'joinedGroups' is now correctly typed as List<GroupDTO>
         List<GroupDTO> joinedGroups = groupService.findGroupsByUserId(currentUser.getId());
 
         List<SuggestedPeerDTO> suggestedPeers = getSuggestedPeers(currentUser);

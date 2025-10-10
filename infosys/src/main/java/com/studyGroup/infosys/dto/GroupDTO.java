@@ -16,7 +16,7 @@ public class GroupDTO {
     private UserSummaryDTO createdBy;
     private String privacy;
     private Integer memberLimit;
-    // Passkey is intentionally omitted for security
+ 
 
     public static GroupDTO fromEntity(Group group) {
         return new GroupDTO(

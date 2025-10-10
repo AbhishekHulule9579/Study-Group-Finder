@@ -44,9 +44,7 @@ public class UserService implements UserDetailsService {
         return new org.springframework.security.core.userdetails.User(user.getEmail(), user.getPassword(), new ArrayList<>());
     }
     
-    /**
-     * Retrieves a user by their email. Used for the forgot password flow.
-     */
+    
     public Optional<User> getUserByEmail(String email) {
         return usersRepository.findByEmail(email);
     }

@@ -24,12 +24,11 @@ public class GroupService {
     @Autowired
     private CourseService courseService;
 
-    // Corrected method to return List<GroupDTO>
     public List<GroupDTO> findGroupsByUserId(Integer userId) {
         List<GroupMember> memberships = groupMemberRepository.findByUserId(userId);
         return memberships.stream()
                 .map(GroupMember::getGroup)
-                .map(GroupDTO::fromEntity) // Convert each Group to a GroupDTO
+                .map(GroupDTO::fromEntity)
                 .collect(Collectors.toList());
     }
 
@@ -52,7 +51,6 @@ public class GroupService {
 
         Group savedGroup = groupRepository.save(group);
 
-        // Add the creator as the first member with the 'Owner' role
         GroupMember ownerMembership = new GroupMember();
         ownerMembership.setId(new GroupMemberId(savedGroup.getGroupId(), user.getId()));
         ownerMembership.setGroup(savedGroup);

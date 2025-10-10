@@ -33,9 +33,9 @@ public class SecurityConfig {
                     "/api/users/signin", 
                     "/api/users/register/**", 
                     "/api/users/forgot-password/**",  
-                    "/api/courses/**" // Publicly accessible course information
+                    "/api/courses/**" 
                 ).permitAll()
-                // All other requests, including group management, require authentication
+               
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
