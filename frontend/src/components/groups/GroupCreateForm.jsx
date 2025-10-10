@@ -1,19 +1,27 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
-const GroupCreateForm = ({ onSubmit, onCancel }) => {
+const GroupCreateForm = ({ courses = [], onSubmit, onCancel }) => {
   const [name, setName] = useState("");
-  const [course, setCourse] = useState("Computer Science");
+  const [associatedCourseId, setAssociatedCourseId] = useState("");
   const [description, setDescription] = useState("");
-  const [privacy, setPrivacy] = useState("Public");
-  const [capacity, setCapacity] = useState(10);
+  const [privacy, setPrivacy] = useState("public");
+  const [passkey, setPasskey] = useState("");
+  const [memberLimit, setMemberLimit] = useState(10);
+
+  // Set the default selected course when the component loads
+  useEffect(() => {
+    if (courses.length > 0) {
+      setAssociatedCourseId(courses[0].courseId);
+    }
+  }, [courses]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!name.trim() || !description.trim()) {
+    if (!name.trim() || !description.trim() || !associatedCourseId) {
       alert("Please fill in all required fields.");
       return;
     }
-    onSubmit({ name, course, description, privacy, capacity });
+    onSubmit({ name, description, associatedCourseId, privacy, passkey, memberLimit });
   };
 
   return (
@@ -65,27 +73,45 @@ const GroupCreateForm = ({ onSubmit, onCancel }) => {
               required
             />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label
                 htmlFor="course"
                 className="block text-sm font-semibold text-gray-700 mb-1"
               >
-                Course
+                Associated Course <span className="text-red-500">*</span>
               </label>
               <select
                 id="course"
-                value={course}
-                onChange={(e) => setCourse(e.target.value)}
-                className="w-full rounded-lg border-gray-300 p-3 text-md shadow-sm focus:border-purple-500 focus:ring-purple-500 transition duration-200"
+                value={associatedCourseId}
+                onChange={(e) => setAssociatedCourseId(e.target.value)}
+                className="w-full rounded-lg border-gray-300 p-3 text-md shadow-sm focus:border-purple-500 focus:ring-purple-500 transition duration-200 bg-white"
               >
-                <option>Computer Science</option>
-                <option>Web Development</option>
-                <option>Mathematics</option>
-                <option>Design</option>
+                {courses.map(course => (
+                    <option key={course.courseId} value={course.courseId}>{course.courseName}</option>
+                ))}
               </select>
             </div>
             <div>
+              <label
+                htmlFor="memberLimit"
+                className="block text-sm font-semibold text-gray-700 mb-1"
+              >
+                Member Limit
+              </label>
+              <input
+                type="number"
+                id="memberLimit"
+                value={memberLimit}
+                onChange={(e) => setMemberLimit(parseInt(e.target.value, 10))}
+                min="2"
+                max="50"
+                className="w-full rounded-lg border-gray-300 p-3 text-md shadow-sm focus:border-purple-500 focus:ring-purple-500 transition duration-200"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <div>
               <label
                 htmlFor="privacy"
                 className="block text-sm font-semibold text-gray-700 mb-1"
@@ -96,29 +122,30 @@ const GroupCreateForm = ({ onSubmit, onCancel }) => {
                 id="privacy"
                 value={privacy}
                 onChange={(e) => setPrivacy(e.target.value)}
-                className="w-full rounded-lg border-gray-300 p-3 text-md shadow-sm focus:border-purple-500 focus:ring-purple-500 transition duration-200"
+                className="w-full rounded-lg border-gray-300 p-3 text-md shadow-sm focus:border-purple-500 focus:ring-purple-500 transition duration-200 bg-white"
               >
-                <option value="Public">Public</option>
-                <option value="Private">Private</option>
+                <option value="public">Public</option>
+                <option value="private">Private</option>
               </select>
             </div>
-            <div>
-              <label
-                htmlFor="capacity"
-                className="block text-sm font-semibold text-gray-700 mb-1"
-              >
-                Capacity
-              </label>
-              <input
-                type="number"
-                id="capacity"
-                value={capacity}
-                onChange={(e) => setCapacity(parseInt(e.target.value, 10))}
-                min="2"
-                max="50"
-                className="w-full rounded-lg border-gray-300 p-3 text-md shadow-sm focus:border-purple-500 focus:ring-purple-500 transition duration-200"
-              />
-            </div>
+            {privacy === 'private' && (
+                 <div>
+                    <label
+                    htmlFor="passkey"
+                    className="block text-sm font-semibold text-gray-700 mb-1"
+                    >
+                    Passkey (for private group)
+                    </label>
+                    <input
+                        type="text"
+                        id="passkey"
+                        value={passkey}
+                        onChange={(e) => setPasskey(e.target.value)}
+                        className="w-full rounded-lg border-gray-300 p-3 text-md shadow-sm focus:border-purple-500 focus:ring-purple-500 transition duration-200"
+                        placeholder="Optional passkey"
+                    />
+                 </div>
+            )}
           </div>
 
           {/* Action Buttons */}

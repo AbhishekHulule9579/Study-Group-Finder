@@ -3,8 +3,8 @@ package com.studyGroup.infosys.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.studyGroup.infosys.dto.DashboardDTO;
+import com.studyGroup.infosys.dto.GroupDTO;
 import com.studyGroup.infosys.dto.SuggestedPeerDTO;
-import com.studyGroup.infosys.model.Group;
 import com.studyGroup.infosys.model.Profile;
 import com.studyGroup.infosys.model.User;
 import com.studyGroup.infosys.repository.ProfileRepository;
@@ -31,21 +31,22 @@ public class DashboardService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public DashboardDTO getDashboardData(User currentUser) throws IOException {
-      
-        List<Group> joinedGroups = groupService.findGroupsByUserId(currentUser.getId());
+
+        // Corrected line: The variable 'joinedGroups' is now correctly typed as List<GroupDTO>
+        List<GroupDTO> joinedGroups = groupService.findGroupsByUserId(currentUser.getId());
 
         List<SuggestedPeerDTO> suggestedPeers = getSuggestedPeers(currentUser);
-        
+
         Profile currentUserProfile = profileRepository.findByEmail(currentUser.getEmail())
-                .orElse(new Profile()); 
+                .orElse(new Profile());
         Set<String> enrolledCourseIds = getEnrolledCourseIdsAsSet(currentUserProfile);
 
         return new DashboardDTO(joinedGroups, suggestedPeers, enrolledCourseIds.size());
     }
 
-    
+
     private List<SuggestedPeerDTO> getSuggestedPeers(User currentUser) throws IOException {
-        
+
         Profile currentUserProfile = profileRepository.findByEmail(currentUser.getEmail())
                 .orElseThrow(() -> new RuntimeException("Current user profile not found."));
         Set<String> currentUserCourses = getEnrolledCourseIdsAsSet(currentUserProfile);
@@ -79,7 +80,7 @@ public class DashboardService {
         return suggestions;
     }
 
-   
+
     private Set<String> getEnrolledCourseIdsAsSet(Profile profile) throws IOException {
         String enrolledCoursesJson = profile.getEnrolledCourseIds();
         if (enrolledCoursesJson == null || enrolledCoursesJson.isEmpty() || enrolledCoursesJson.equals("[]")) {
@@ -88,3 +89,4 @@ public class DashboardService {
         return objectMapper.readValue(enrolledCoursesJson, new TypeReference<>() {});
     }
 }
+
