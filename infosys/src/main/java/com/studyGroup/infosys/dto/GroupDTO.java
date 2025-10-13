@@ -1,6 +1,5 @@
 package com.studyGroup.infosys.dto;
 
-import com.studyGroup.infosys.model.Group;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -16,17 +15,7 @@ public class GroupDTO {
     private UserSummaryDTO createdBy;
     private String privacy;
     private Integer memberLimit;
- 
-
-    public static GroupDTO fromEntity(Group group) {
-        return new GroupDTO(
-                group.getGroupId(),
-                group.getName(),
-                group.getDescription(),
-                new CourseSummaryDTO(group.getAssociatedCourse().getCourseId(), group.getAssociatedCourse().getCourseName()),
-                new UserSummaryDTO(group.getCreatedBy().getId(), group.getCreatedBy().getName()),
-                group.getPrivacy(),
-                group.getMemberLimit()
-        );
-    }
+    private long memberCount;
+    private boolean hasPasskey;
 }
+

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
-import GroupCard from "./groups/GroupCard.jsx";
-import CreateGroupCard from "./groups/CreateGroupCard.jsx";
-import GroupCreateForm from "./groups/GroupCreateForm.jsx";
+import GroupCard from "./groups/GroupCard";
+import CreateGroupCard from "./groups/CreateGroupCard";
+import GroupCreateForm from "./groups/GroupCreateForm";
 import { useNavigate } from "react-router-dom";
 
 const MyGroups = () => {
@@ -117,7 +117,7 @@ const MyGroups = () => {
         <h2 className="text-2xl font-bold mb-4 text-gray-800">My Groups</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {myGroups.map((group) => (
-            <GroupCard key={group.groupId} group={group} isMember={true} />
+            <GroupCard key={group.groupId} group={group} isMember={true} onActionComplete={fetchAllData} />
           ))}
           <CreateGroupCard onClick={() => setShowCreateForm(true)} />
         </div>
@@ -152,7 +152,7 @@ const MyGroups = () => {
                 (myGroup) => myGroup.groupId === group.groupId
               );
               return (
-                <GroupCard key={group.groupId} group={group} isMember={isMember} />
+                <GroupCard key={group.groupId} group={group} isMember={isMember} onActionComplete={fetchAllData} />
               );
             })
           ) : (
