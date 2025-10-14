@@ -70,7 +70,7 @@ public class DashboardService {
                 commonCourses.retainAll(otherUserCourses);
 
                 if (!commonCourses.isEmpty()) {
-                    // This is the corrected line that uses the PeerUserDTO
+                    
                     suggestions.add(new SuggestedPeerDTO(PeerUserDTO.fromEntity(otherUser), commonCourses.size(), commonCourses));
                 }
             }
