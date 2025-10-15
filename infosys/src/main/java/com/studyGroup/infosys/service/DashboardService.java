@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.studyGroup.infosys.dto.DashboardDTO;
 import com.studyGroup.infosys.dto.GroupDTO;
+import com.studyGroup.infosys.dto.PeerUserDTO;
 import com.studyGroup.infosys.dto.SuggestedPeerDTO;
 import com.studyGroup.infosys.model.Profile;
 import com.studyGroup.infosys.model.User;
@@ -69,7 +70,8 @@ public class DashboardService {
                 commonCourses.retainAll(otherUserCourses);
 
                 if (!commonCourses.isEmpty()) {
-                    suggestions.add(new SuggestedPeerDTO(otherUser, commonCourses.size(), commonCourses));
+                    
+                    suggestions.add(new SuggestedPeerDTO(PeerUserDTO.fromEntity(otherUser), commonCourses.size(), commonCourses));
                 }
             }
         }
