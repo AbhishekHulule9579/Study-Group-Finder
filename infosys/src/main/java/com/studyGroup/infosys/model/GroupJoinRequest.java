@@ -25,5 +25,5 @@ public class GroupJoinRequest {
     private User user;
 
     @Column(nullable = false)
-    private String status; // e.g., PENDING, APPROVED, DENIED
+    private String status; //  PENDING, APPROVED, DENIED
 }

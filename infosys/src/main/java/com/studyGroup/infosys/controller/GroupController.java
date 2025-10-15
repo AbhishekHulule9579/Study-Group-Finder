@@ -82,7 +82,7 @@ public class GroupController {
             }
             String passkey = (payload != null) ? payload.get("passkey") : null;
             groupService.joinGroup(groupId, currentUser, passkey);
-            // Updated success message for clarity
+            
             String message = "Your request to join the group has been sent.";
             if (passkey != null || groupRepository.findById(groupId).map(g -> "public".equalsIgnoreCase(g.getPrivacy())).orElse(false)) {
                 message = "Successfully joined group.";
@@ -125,7 +125,7 @@ public class GroupController {
         }
     }
 
-    // Autowire GroupRepository to check group privacy in the joinGroup endpoint
+    
     @Autowired
     private GroupRepository groupRepository;
 }
