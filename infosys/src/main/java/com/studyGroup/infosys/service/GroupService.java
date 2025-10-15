@@ -27,6 +27,10 @@ public class GroupService {
     private CourseService courseService;
 
     private GroupDTO convertToDTO(Group group) {
+        return convertToDTO(group, null);
+    }
+
+    private GroupDTO convertToDTO(Group group, String userRole) {
         long memberCount = groupMemberRepository.countByGroup(group);
         boolean hasPasskey = group.getPasskey() != null && !group.getPasskey().isEmpty();
         return new GroupDTO(
@@ -38,15 +42,15 @@ public class GroupService {
                 group.getPrivacy(),
                 group.getMemberLimit(),
                 memberCount,
-                hasPasskey
+                hasPasskey,
+                userRole
         );
     }
 
     public List<GroupDTO> findGroupsByUserId(Integer userId) {
         List<GroupMember> memberships = groupMemberRepository.findByUserId(userId);
         return memberships.stream()
-                .map(GroupMember::getGroup)
-                .map(this::convertToDTO)
+                .map(membership -> convertToDTO(membership.getGroup(), membership.getRole()))
                 .collect(Collectors.toList());
     }
 
@@ -73,10 +77,10 @@ public class GroupService {
         ownerMembership.setId(new GroupMemberId(savedGroup.getGroupId(), user.getId()));
         ownerMembership.setGroup(savedGroup);
         ownerMembership.setUser(user);
-        ownerMembership.setRole("Owner");
+        ownerMembership.setRole("Admin"); // Set role to Admin for the creator
         groupMemberRepository.save(ownerMembership);
 
-        return convertToDTO(savedGroup);
+        return convertToDTO(savedGroup, "Admin");
     }
 
     public List<GroupDTO> getAllGroups() {
@@ -109,8 +113,7 @@ public class GroupService {
         newMembership.setId(new GroupMemberId(group.getGroupId(), user.getId()));
         newMembership.setGroup(group);
         newMembership.setUser(user);
-        newMembership.setRole("Member");
+        newMembership.setRole("Member"); // Set role to Member for new users
         groupMemberRepository.save(newMembership);
     }
 }
-

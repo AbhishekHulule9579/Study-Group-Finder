@@ -91,6 +91,20 @@ const GroupCard = ({ group, isMember, onActionComplete }) => {
           ></div>
         </div>
 
+        {isMember && group.userRole && (
+          <div className="text-center mb-3">
+            <span
+              className={`inline-block px-3 py-1 text-xs font-bold rounded-full ${
+                group.userRole.toLowerCase() === 'admin'
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : 'bg-sky-100 text-sky-800'
+              }`}
+            >
+              {group.userRole}
+            </span>
+          </div>
+        )}
+
         {isMember ? (
           <Link
             to={`/group/${group.groupId}`}
@@ -114,4 +128,3 @@ const GroupCard = ({ group, isMember, onActionComplete }) => {
 };
 
 export default GroupCard;
-

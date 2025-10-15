@@ -17,5 +17,5 @@ public class GroupDTO {
     private Integer memberLimit;
     private long memberCount;
     private boolean hasPasskey;
+    private String userRole; 
 }
-
