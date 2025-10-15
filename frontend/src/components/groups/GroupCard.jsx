@@ -5,7 +5,6 @@ const GroupCard = ({ group, isMember, onActionComplete }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  // Use the memberCount from the group prop and calculate the fullness percentage.
   const fullness = (group.memberCount / group.memberLimit) * 100;
 
   const handleJoinClick = async (e) => {
@@ -21,45 +20,64 @@ const GroupCard = ({ group, isMember, onActionComplete }) => {
     }
 
     let passkey = null;
-    // If the group is private and has a passkey, prompt the user.
-    if (group.privacy.toLowerCase() === 'private' && group.hasPasskey) {
-      passkey = prompt("This is a private group. Please enter the passkey to join:");
-      // If the user cancels the prompt, stop the process.
-      if (passkey === null) {
-        setIsSubmitting(false);
-        return;
+    let endpoint = `http://localhost:8145/api/groups/join/${group.groupId}`;
+
+    if (group.privacy.toLowerCase() === 'private') {
+      if (group.hasPasskey) {
+        passkey = prompt("This is a private group. Please enter the passkey to join:");
+        if (passkey === null) {
+          setIsSubmitting(false);
+          return;
+        }
+      } else {
+        // This is now a request to join
+        if (!window.confirm("This is a private group. Send a request to join?")) {
+            setIsSubmitting(false);
+            return;
+        }
       }
     }
 
     try {
-      const res = await fetch(`http://localhost:8145/api/groups/join/${group.groupId}`, {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        // Send the passkey in the body if it was provided.
         body: JSON.stringify({ passkey: passkey })
       });
 
       if (res.ok) {
-        alert(`Successfully joined "${group.name}"!`);
+        if (group.privacy.toLowerCase() === 'private' && !group.hasPasskey) {
+            alert("Your request to join has been sent to the admin.");
+        } else {
+            alert(`Successfully joined "${group.name}"!`);
+        }
         if (onActionComplete) {
-          onActionComplete(); // Trigger the data refresh
+          onActionComplete();
         }
       } else {
         const errorData = await res.json();
-        throw new Error(errorData.message || 'Failed to join group.');
+        throw new Error(errorData.message || 'Failed to process your request.');
       }
 
     } catch (err) {
-      console.error("Join group error:", err);
+      console.error("Group action error:", err);
       setError(err.message);
       alert(`Error: ${err.message}`);
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const getButtonText = () => {
+      if (isSubmitting) return 'Processing...';
+      if (group.privacy.toLowerCase() === 'private' && !group.hasPasskey) {
+          return 'Request to Join';
+      }
+      return 'Join Group';
+  }
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col h-full hover:shadow-xl hover:border-purple-300 transition-all duration-300">
@@ -75,7 +93,6 @@ const GroupCard = ({ group, isMember, onActionComplete }) => {
             {group.privacy}
           </span>
           <div className="text-sm font-semibold text-gray-600">
-            {/* Display the correct member count from the group prop */}
             <span>{group.memberCount}</span> / <span>{group.memberLimit}</span>
           </div>
         </div>
@@ -106,19 +123,29 @@ const GroupCard = ({ group, isMember, onActionComplete }) => {
         )}
 
         {isMember ? (
-          <Link
-            to={`/group/${group.groupId}`}
-            className="block w-full text-center py-2 px-4 rounded-lg bg-gray-200 text-gray-800 hover:bg-gray-300 text-sm font-semibold transition-colors"
-          >
-            View Group
-          </Link>
+           <div className="flex space-x-2">
+            <Link
+                to={`/group/${group.groupId}`}
+                className="block w-full text-center py-2 px-4 rounded-lg bg-gray-200 text-gray-800 hover:bg-gray-300 text-sm font-semibold transition-colors"
+            >
+                View Group
+            </Link>
+            {group.userRole && group.userRole.toLowerCase() === 'admin' && (
+                <Link
+                    to={`/group/${group.groupId}/manage`}
+                    className="block w-full text-center py-2 px-4 rounded-lg bg-blue-500 text-white hover:bg-blue-600 text-sm font-semibold transition-colors"
+                >
+                    Manage
+                </Link>
+            )}
+           </div>
         ) : (
           <button
             onClick={handleJoinClick}
             disabled={isSubmitting}
             className="w-full text-center py-2 px-4 rounded-lg bg-gradient-to-r from-purple-600 to-orange-500 text-white hover:opacity-90 text-sm font-semibold shadow-md transition-all transform hover:scale-105 disabled:opacity-50"
           >
-            {isSubmitting ? 'Joining...' : 'Join Group'}
+            {getButtonText()}
           </button>
         )}
         {error && <p className="text-red-500 text-xs mt-2 text-center">{error}</p>}
@@ -128,3 +155,4 @@ const GroupCard = ({ group, isMember, onActionComplete }) => {
 };
 
 export default GroupCard;
+
