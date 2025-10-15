@@ -79,6 +79,30 @@ const MyGroups = () => {
     }
   };
 
+  // --- Leave Group Handler ---
+  const handleLeaveGroup = async (groupId) => {
+    const token = sessionStorage.getItem("token");
+    try {
+      const res = await fetch(`http://localhost:8145/api/groups/leave`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ groupId }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to leave group.");
+      }
+
+      // Refresh groups after leaving
+      await fetchAllData();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   // --- Filtering Logic for Discover Section ---
   const filteredDiscoverGroups = useMemo(() => {
     return allGroups.filter((group) => {
@@ -117,7 +141,15 @@ const MyGroups = () => {
         <h2 className="text-2xl font-bold mb-4 text-gray-800">My Groups</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {myGroups.map((group) => (
-            <GroupCard key={group.groupId} group={group} isMember={true} />
+            <div key={group.groupId} className="relative">
+              <GroupCard group={group} isMember={true} />
+              <button
+                onClick={() => handleLeaveGroup(group.groupId)}
+                className="mt-2 px-4 py-1 bg-red-500 text-white rounded hover:bg-red-600 w-full"
+              >
+                Leave Group
+              </button>
+            </div>
           ))}
           <CreateGroupCard onClick={() => setShowCreateForm(true)} />
         </div>
@@ -167,4 +199,3 @@ const MyGroups = () => {
 };
 
 export default MyGroups;
-
