@@ -10,6 +10,8 @@ function GroupRequestsPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState(null);
+  const [selectedRequest, setSelectedRequest] = useState(null); // For modal
+  const [showUserModal, setShowUserModal] = useState(false);
 
   const token = sessionStorage.getItem('token');
 
@@ -62,6 +64,17 @@ function GroupRequestsPanel() {
     }
   };
 
+  // Modal handlers
+  const handleShowUserDetails = (request) => {
+    setSelectedRequest(request);
+    setShowUserModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedRequest(null);
+    setShowUserModal(false);
+  };
+
   if (loading) return <div className="p-8 text-center text-xl">Loading group requests...</div>;
   if (error) return <div className="p-8 text-center text-xl text-red-500">Error: {error}</div>;
 
@@ -81,6 +94,8 @@ function GroupRequestsPanel() {
             <div
               key={request.id}
               className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex flex-col transition hover:shadow-lg"
+              onClick={() => handleShowUserDetails(request)}
+              style={{ cursor: "pointer" }}
             >
               <h3 className="text-xl font-bold text-gray-800 mb-2">
                 {request.group?.name || 'Group'}
@@ -94,18 +109,17 @@ function GroupRequestsPanel() {
               <p className="text-sm text-gray-500 mb-1">
                 <strong>Requested At:</strong> {new Date(request.createdAt).toLocaleString()}
               </p>
-              {/* Add more user details as needed */}
               {error && <p className="text-red-500 text-sm text-center mb-2">{error}</p>}
               <div className="flex gap-2 mt-4">
                 <button
-                  onClick={() => handleAction(request.id, true)}
+                  onClick={e => { e.stopPropagation(); handleAction(request.id, true); }}
                   disabled={actionLoading === request.id}
                   className="w-full py-2 px-4 rounded-lg bg-green-100 text-green-700 font-semibold hover:bg-green-200 transition disabled:opacity-50"
                 >
                   {actionLoading === request.id ? 'Processing...' : 'Approve'}
                 </button>
                 <button
-                  onClick={() => handleAction(request.id, false)}
+                  onClick={e => { e.stopPropagation(); handleAction(request.id, false); }}
                   disabled={actionLoading === request.id}
                   className="w-full py-2 px-4 rounded-lg bg-red-100 text-red-700 font-semibold hover:bg-red-200 transition disabled:opacity-50"
                 >
@@ -116,10 +130,36 @@ function GroupRequestsPanel() {
           ))}
         </div>
       )}
+      {/* Modal for extra user details */}
+      {showUserModal && selectedRequest && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md relative">
+            <button
+              onClick={handleCloseModal}
+              className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 text-xl"
+            >
+              &times;
+            </button>
+            <h2 className="text-2xl font-bold mb-2 text-gray-800">Requester Details</h2>
+            <p><strong>Name:</strong> {selectedRequest.user?.name || 'Unknown'}</p>
+            <p><strong>Email:</strong> {selectedRequest.user?.email || 'Unknown'}</p>
+            <p><strong>Requested At:</strong> {new Date(selectedRequest.createdAt).toLocaleString()}</p>
+            <p><strong>Group:</strong> {selectedRequest.group?.name || 'Group'}</p>
+            {/* More fields if available */}
+            {selectedRequest.user?.profilePictureUrl && (
+              <img
+                src={selectedRequest.user.profilePictureUrl}
+                alt="Profile"
+                className="w-24 h-24 rounded-full mt-2 mb-2 object-cover"
+              />
+            )}
+            {/* Add more info as needed */}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
 
 
 const MyGroups = () => {
@@ -230,6 +270,9 @@ const MyGroups = () => {
 
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
+      {/* Section 0: Group Requests Panel */}
+      <GroupRequestsPanel />
+
       {/* Section 1: My Groups */}
       <div className="mb-12">
         <h2 className="text-2xl font-bold mb-4 text-gray-800">My Groups</h2>
@@ -285,4 +328,3 @@ const MyGroups = () => {
 };
 
 export default MyGroups;
-
