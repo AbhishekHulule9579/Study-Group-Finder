@@ -1,10 +1,72 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-// A simple utility function to validate email format using a regular expression
-const isEmailValid = (email) => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
+// A reusable, beautifully styled input field with an icon
+const InputField = ({ icon, ...props }) => (
+  <div className="relative">
+    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+      {icon}
+    </div>
+    <input
+      {...props}
+      className="w-full pl-10 p-3 text-md rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 transition duration-200"
+    />
+  </div>
+);
+
+// A reusable, themed authentication button
+const AuthButton = ({ children, ...props }) => (
+  <button
+    {...props}
+    className="w-full py-3 px-4 rounded-lg bg-gradient-to-r from-purple-600 to-orange-500 text-lg font-bold text-white shadow-md hover:opacity-90 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-wait"
+  >
+    {children}
+  </button>
+);
+
+// Stepper component to show progress dynamically
+const SignupStepper = ({ activeStep }) => {
+  const steps = ["Account", "Verify", "Profile"];
+  return (
+    <div className="flex items-center justify-center w-full max-w-sm mx-auto mb-8">
+      {steps.map((step, index) => {
+        const stepNumber = index + 1;
+        const isActive = stepNumber === activeStep;
+        const isCompleted = stepNumber < activeStep;
+        return (
+          <React.Fragment key={step}>
+            <div className="flex flex-col items-center">
+              <div
+                className={`rounded-full h-8 w-8 flex items-center justify-center font-bold transition-all duration-300 ${
+                  isActive
+                    ? "bg-purple-600 text-white ring-4 ring-purple-200"
+                    : isCompleted
+                    ? "bg-purple-600 text-white"
+                    : "bg-gray-200 text-gray-500"
+                }`}
+              >
+                {stepNumber}
+              </div>
+              <span
+                className={`mt-2 text-xs font-semibold ${
+                  isActive ? "text-purple-600" : "text-gray-500"
+                }`}
+              >
+                {step}
+              </span>
+            </div>
+            {stepNumber < steps.length && (
+              <div
+                className={`flex-auto border-t-2 transition-all duration-300 mx-4 mt-[-1rem] ${
+                  isCompleted ? "border-purple-600" : "border-gray-200"
+                }`}
+              ></div>
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
 };
 
 export default function Signup() {
@@ -20,18 +82,14 @@ export default function Signup() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-
-  // For OTP timer
-  const [timer, setTimer] = useState(120); // 2 minutes (120 seconds) in seconds
+  const [timer, setTimer] = useState(120);
   const [resendDisabled, setResendDisabled] = useState(true);
 
   useEffect(() => {
     let interval;
     if (step === "OTP" && timer > 0) {
       setResendDisabled(true);
-      interval = setInterval(() => {
-        setTimer((prevTimer) => prevTimer - 1);
-      }, 1000);
+      interval = setInterval(() => setTimer((prev) => prev - 1), 1000);
     } else if (timer === 0) {
       setResendDisabled(false);
       clearInterval(interval);
@@ -39,17 +97,15 @@ export default function Signup() {
     return () => clearInterval(interval);
   }, [step, timer]);
 
-  const handleChange = (e) => {
+  const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
-  };
 
-  // New handler to switch back to the details step
   const handleChangeEmail = () => {
     setStep("DETAILS");
     setError("");
     setMessage("");
-    setOtp(""); // Clear OTP field
-    setTimer(120); // Reset timer to 2 minutes (120 seconds)
+    setOtp("");
+    setTimer(120);
     setResendDisabled(true);
   };
 
@@ -57,20 +113,18 @@ export default function Signup() {
     if (e) e.preventDefault();
     setError("");
     setMessage("");
-    setLoading(true);
 
     if (!form.name || !form.password || !form.email) {
-      setError("Please fill in all required fields.");
-      setLoading(false);
-      return;
+      return setError("Please fill in all required fields.");
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      return setError("Please enter a valid email address.");
+    }
+    if (form.password.length < 6) {
+      return setError("Password must be at least 6 characters long.");
     }
 
-    if (!isEmailValid(form.email)) {
-      setError("Please enter a valid email address (e.g., name@example.com).");
-      setLoading(false);
-      return;
-    }
-
+    setLoading(true);
     try {
       const res = await fetch(
         "http://localhost:8145/api/users/register/send-otp",
@@ -80,24 +134,24 @@ export default function Signup() {
           body: JSON.stringify({ email: form.email, name: form.name }),
         }
       );
-
       const responseText = await res.text();
-
       if (res.ok) {
         setMessage(responseText);
         setStep("OTP");
-        setTimer(120); // Start the timer for 2 minutes
+        setTimer(120);
       } else if (res.status === 409) {
         setError(
-          <span>
+          <>
+            {" "}
             {responseText}{" "}
             <Link to="/login" className="font-bold underline">
-              Login here.
-            </Link>
-          </span>
+              {" "}
+              Login here.{" "}
+            </Link>{" "}
+          </>
         );
       } else {
-        setError(responseText || "An error occurred while sending OTP.");
+        setError(responseText || "An error occurred.");
       }
     } catch (err) {
       setError("Failed to connect to the server. Please try again.");
@@ -110,7 +164,6 @@ export default function Signup() {
     setError("");
     setMessage("");
     setLoading(true);
-
     try {
       const res = await fetch(
         "http://localhost:8145/api/users/register/verify-otp",
@@ -120,19 +173,12 @@ export default function Signup() {
           body: JSON.stringify({ email: form.email, otp: otp }),
         }
       );
-
-      const responseText = await res.text();
-
       if (res.ok) {
         sessionStorage.setItem("signupData", JSON.stringify(form));
-        // *** THIS IS THE FIX for the 404 Error ***
-        // The path in App.jsx is "/build-profile", not "/buildprofile".
         navigate("/build-profile");
       } else {
-        setError(
-          responseText ||
-            "Verification failed. Please check the OTP and try again."
-        );
+        const responseText = await res.text();
+        setError(responseText || "Verification failed.");
       }
     } catch (err) {
       setError("Failed to connect to the server. Please try again.");
@@ -141,64 +187,109 @@ export default function Signup() {
   };
 
   const renderDetailsStep = () => (
-    <form className="mt-8 space-y-5" onSubmit={handleSendOtp}>
-      <input
+    <form className="space-y-6" onSubmit={handleSendOtp}>
+      <InputField
+        icon={
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5 text-gray-400"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              fillRule="evenodd"
+              d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+              clipRule="evenodd"
+            />
+          </svg>
+        }
         type="text"
         name="name"
         placeholder="Full Name"
         required
         value={form.name}
         onChange={handleChange}
-        className="rounded-lg w-full px-4 py-3 border border-gray-300 focus:ring-2 focus:ring-pink-400 focus:border-transparent"
       />
-      <input
+      <InputField
+        icon={
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"
+            />
+          </svg>
+        }
         type="email"
         name="email"
         placeholder="Email"
         required
         value={form.email}
         onChange={handleChange}
-        className="rounded-lg w-full px-4 py-3 border border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-transparent"
       />
-      <input
+      <InputField
+        icon={
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+            />
+          </svg>
+        }
         type="password"
         name="password"
-        placeholder="Password"
+        placeholder="Password (min. 6 characters)"
         required
         minLength="6"
         value={form.password}
         onChange={handleChange}
-        className="rounded-lg w-full px-4 py-3 border border-gray-300 focus:ring-2 focus:ring-orange-400 focus:border-transparent"
       />
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full py-3 px-4 rounded-lg bg-gradient-to-r from-pink-600 via-orange-400 to-purple-600 text-lg font-bold text-white shadow hover:from-pink-700 hover:to-purple-700 transition disabled:opacity-50"
-      >
+      <AuthButton type="submit" disabled={loading}>
         {loading ? "Sending..." : "Continue"}
-      </button>
+      </AuthButton>
     </form>
   );
 
   const renderOtpStep = () => (
-    <form className="mt-8 space-y-5" onSubmit={handleVerifyOtp}>
-      <p className="text-center text-gray-600">
-        An OTP has been sent to <strong>{form.email}</strong>. Please enter it
-        below.
-      </p>
-
+    <form className="space-y-6" onSubmit={handleVerifyOtp}>
       <div className="text-center">
+        <p className="text-gray-600">Enter the 6-digit code sent to:</p>
+        <p className="font-bold text-purple-600">{form.email}</p>
         <button
           type="button"
           onClick={handleChangeEmail}
           disabled={loading}
-          className="text-sm text-purple-600 hover:underline disabled:text-gray-400 disabled:cursor-not-allowed font-medium"
+          className="text-xs text-gray-500 hover:underline mt-1"
         >
-          (Wrong email? Click to change)
+          Change email
         </button>
       </div>
-
-      <input
+      <InputField
+        icon={
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5 text-gray-400"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" />
+          </svg>
+        }
         type="text"
         name="otp"
         placeholder="6-Digit OTP"
@@ -206,28 +297,23 @@ export default function Signup() {
         maxLength="6"
         value={otp}
         onChange={(e) => setOtp(e.target.value)}
-        className="rounded-lg w-full px-4 py-3 border border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-transparent text-center tracking-[1em]"
       />
-      <div className="text-center text-sm text-gray-500">
+      <div className="text-center text-sm font-medium text-gray-500">
         {timer > 0
-          ? `OTP expires in: ${Math.floor(timer / 60)}:${(timer % 60)
+          ? `Resend OTP in: 0${Math.floor(timer / 60)}:${(timer % 60)
               .toString()
               .padStart(2, "0")}`
           : "OTP has expired."}
       </div>
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full py-3 px-4 rounded-lg bg-gradient-to-r from-pink-600 via-orange-400 to-purple-600 text-lg font-bold text-white shadow hover:from-pink-700 hover:to-purple-700 transition disabled:opacity-50"
-      >
+      <AuthButton type="submit" disabled={loading}>
         {loading ? "Verifying..." : "Verify & Continue"}
-      </button>
+      </AuthButton>
       <div className="text-center">
         <button
           type="button"
           onClick={handleSendOtp}
           disabled={resendDisabled || loading}
-          className="text-sm text-purple-600 hover:underline disabled:text-gray-400 disabled:cursor-not-allowed"
+          className="text-sm font-semibold text-purple-600 hover:underline disabled:text-gray-400 disabled:cursor-not-allowed"
         >
           Resend OTP
         </button>
@@ -236,52 +322,48 @@ export default function Signup() {
   );
 
   return (
-    <div className="flex items-center justify-center bg-gradient-to-tr from-pink-500 via-orange-400 to-purple-600 py-12 px-4 w-full min-h-screen">
-      <div className="max-w-3xl w-full bg-white rounded-3xl shadow-xl overflow-hidden flex flex-col md:flex-row">
-        <div className="hidden md:block md:w-1/2 h-full">
-          <div className="h-150 w-100 overflow-hidden">
-            <img
-              src="https://i.pinimg.com/1200x/c9/03/c5/c903c59083d681e959cb833816da2042.jpg"
-              alt="signup"
-              className="h-full w-full object-cover object-center"
-            />
-          </div>
+    <div className="min-h-screen flex items-center justify-center bg-purple-50/50 p-4">
+      <div className="max-w-md w-full mx-auto p-8 bg-white rounded-2xl shadow-xl space-y-8">
+        <div className="text-center">
+          <h2 className="text-3xl font-bold text-gray-800">
+            {step === "DETAILS" ? (
+              <>
+                Join the <span className="text-purple-600">Community</span>
+              </>
+            ) : (
+              "Verify Your Email"
+            )}
+          </h2>
+          <p className="mt-2 text-gray-500">
+            {step === "DETAILS"
+              ? "Create your account to get started."
+              : "One last step to secure your account!"}
+          </p>
         </div>
 
-        <div className="w-full md:w-1/2 p-10">
-          <div className="flex flex-col items-center">
-            <span className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600">
-              {step === "DETAILS" ? "Join the Community" : "Verify Your Email"}
-            </span>
-            <p className="mt-2 text-md text-gray-500">
-              {step === "DETAILS" ? "Create your account" : "One last step!"}
-            </p>
+        <SignupStepper activeStep={step === "DETAILS" ? 1 : 2} />
+
+        {error && (
+          <div className="text-red-600 bg-red-100 p-3 rounded-lg text-center font-semibold">
+            {error}
           </div>
-
-          {error && (
-            <div className="mt-4 text-red-600 bg-red-100 p-3 rounded-lg text-center">
-              {error}
-            </div>
-          )}
-          {message && (
-            <div className="mt-4 text-green-600 bg-green-100 p-3 rounded-lg text-center">
-              {message}
-            </div>
-          )}
-
-          {step === "DETAILS" ? renderDetailsStep() : renderOtpStep()}
-
-          <div className="text-center mt-6">
-            <span className="text-sm text-gray-500">
-              Already have an account?
-            </span>
-            <Link
-              to="/login"
-              className="text-sm text-purple-600 hover:underline ml-1"
-            >
-              Sign In
-            </Link>
+        )}
+        {message && (
+          <div className="text-green-600 bg-green-100 p-3 rounded-lg text-center font-semibold">
+            {message}
           </div>
+        )}
+
+        {step === "DETAILS" ? renderDetailsStep() : renderOtpStep()}
+
+        <div className="text-center text-sm">
+          <span className="text-gray-500">Already have an account? </span>
+          <Link
+            to="/login"
+            className="font-semibold text-purple-600 hover:underline"
+          >
+            Sign In
+          </Link>
         </div>
       </div>
     </div>
