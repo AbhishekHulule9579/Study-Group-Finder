@@ -1,178 +1,234 @@
 package com.studyGroup.infosys.service;
 
-import com.studyGroup.infosys.dto.CourseSummaryDTO;
 import com.studyGroup.infosys.dto.CreateGroupRequest;
 import com.studyGroup.infosys.dto.GroupDTO;
-import com.studyGroup.infosys.dto.GroupJoinRequestDTO;
+import com.studyGroup.infosys.dto.JoinRequestDTO;
 import com.studyGroup.infosys.dto.UserSummaryDTO;
 import com.studyGroup.infosys.model.*;
-import com.studyGroup.infosys.repository.GroupJoinRequestRepository;
-import com.studyGroup.infosys.repository.GroupMemberRepository;
-import com.studyGroup.infosys.repository.GroupRepository;
-import jakarta.transaction.Transactional;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.studyGroup.infosys.repository.*;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class GroupService {
+    private final GroupRepository groupRepository;
+    private final UsersRepository usersRepository;
+    private final GroupMemberRepository groupMemberRepository;
+    private final GroupJoinRequestRepository groupJoinRequestRepository;
+    private final NotificationService notificationService;
+    private final CourseRepository courseRepository;
 
-    @Autowired
-    private GroupMemberRepository groupMemberRepository;
-
-    @Autowired
-    private GroupRepository groupRepository;
-
-    @Autowired
-    private CourseService courseService;
-
-    @Autowired
-    private GroupJoinRequestRepository groupJoinRequestRepository;
-
-    private GroupDTO convertToDTO(Group group) {
-        return convertToDTO(group, null);
-    }
-
-    private GroupDTO convertToDTO(Group group, String userRole) {
-        long memberCount = groupMemberRepository.countByGroup(group);
-        boolean hasPasskey = group.getPasskey() != null && !group.getPasskey().isEmpty();
-        return new GroupDTO(
-                group.getGroupId(),
-                group.getName(),
-                group.getDescription(),
-                new CourseSummaryDTO(group.getAssociatedCourse().getCourseId(), group.getAssociatedCourse().getCourseName()),
-                new UserSummaryDTO(group.getCreatedBy().getId(), group.getCreatedBy().getName()),
-                group.getPrivacy(),
-                group.getMemberLimit(),
-                memberCount,
-                hasPasskey,
-                userRole
-        );
-    }
-
-    public List<GroupDTO> findGroupsByUserId(Integer userId) {
-        List<GroupMember> memberships = groupMemberRepository.findByUserId(userId);
-        return memberships.stream()
-                .map(membership -> convertToDTO(membership.getGroup(), membership.getRole()))
-                .collect(Collectors.toList());
-    }
 
     @Transactional
-    public GroupDTO createGroup(CreateGroupRequest request, User user) {
-        Course course = courseService.getCourseById(request.getAssociatedCourseId())
-                .orElseThrow(() -> new RuntimeException("Course not found with ID: " + request.getAssociatedCourseId()));
+    public Group createGroup(CreateGroupRequest createGroupRequest, String adminEmail){
+        User admin = usersRepository.findByEmail(adminEmail).orElseThrow(()->new RuntimeException("Admin not found"));
 
         Group group = new Group();
-        group.setName(request.getName());
-        group.setDescription(request.getDescription());
-        group.setAssociatedCourse(course);
-        group.setCreatedBy(user);
-        group.setPrivacy(request.getPrivacy());
-        group.setMemberLimit(request.getMemberLimit());
+        group.setName(createGroupRequest.getName());
+        group.setDescription(createGroupRequest.getDescription());
+        group.setPrivacy(createGroupRequest.getPrivacy());
+        group.setPasskey(createGroupRequest.getPasskey());
+        group.setMemberLimit(createGroupRequest.getMemberLimit());
+        group.setCreatedBy(admin);
 
-        if ("private".equalsIgnoreCase(request.getPrivacy()) && request.getPasskey() != null && !request.getPasskey().isEmpty()) {
-            group.setPasskey(request.getPasskey());
+        if (createGroupRequest.getAssociatedCourseId() != null && !createGroupRequest.getAssociatedCourseId().isEmpty()) {
+            String courseId = createGroupRequest.getAssociatedCourseId();
+            Course course = courseRepository.findById(courseId)
+                    .orElseThrow(() -> new RuntimeException("Course not found with ID: " + courseId));
+            group.setAssociatedCourse(course);
         }
 
+
         Group savedGroup = groupRepository.save(group);
+        GroupMember groupMember = new GroupMember();
+        groupMember.setId(new GroupMemberId(savedGroup.getGroupId(), admin.getId()));
+        groupMember.setGroup(savedGroup);
+        groupMember.setUser(admin);
+        groupMemberRepository.save(groupMember);
 
-        GroupMember ownerMembership = new GroupMember();
-        ownerMembership.setId(new GroupMemberId(savedGroup.getGroupId(), user.getId()));
-        ownerMembership.setGroup(savedGroup);
-        ownerMembership.setUser(user);
-        ownerMembership.setRole("Admin"); // Set role to Admin for the creator
-        groupMemberRepository.save(ownerMembership);
-
-        return convertToDTO(savedGroup, "Admin");
+        String message = "You have created a new group: '" + savedGroup.getName() + "'.";
+        notificationService.createNotification(admin, message);
+        return savedGroup;
     }
 
-    public List<GroupDTO> getAllGroups() {
-        return groupRepository.findAll().stream()
-                .map(this::convertToDTO)
+    public List<Group> getAllPublicGroups(){
+        return groupRepository.findByPrivacyIgnoreCase("public");
+    }
+
+    public List<GroupDTO> getGroupsByAdmin(String email) {
+        User user = usersRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return groupRepository.findByCreatedBy(user).stream()
+                .map(this::mapToDTO)
                 .collect(Collectors.toList());
     }
 
+    public GroupDTO getGroupDetails(Long groupId) {
+        return groupRepository.findById(groupId)
+                .map(this::mapToDTOWithMembers)
+                .orElse(null);
+    }
+
     @Transactional
-    public void joinGroup(Long groupId, User user, String passkey) {
+    public void joinGroup(Long groupId, User user) {
         Group group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new RuntimeException("Group not found with ID: " + groupId));
 
-        if (groupMemberRepository.existsByGroupAndUser(group, user)) {
-            throw new RuntimeException("You are already a member of this group.");
-        }
-
-        long currentMemberCount = groupMemberRepository.countByGroup(group);
-        if (currentMemberCount >= group.getMemberLimit()) {
-            throw new RuntimeException("This group is full and cannot accept new members.");
+        boolean isMember = groupMemberRepository.existsById(new GroupMemberId(groupId, user.getId()));
+        if (isMember) {
+            throw new IllegalStateException("You are already a member of this group.");
         }
 
         if ("private".equalsIgnoreCase(group.getPrivacy())) {
-            if (group.getPasskey() != null && !group.getPasskey().isEmpty()) {
-                if (passkey == null || !passkey.equals(group.getPasskey())) {
-                    throw new RuntimeException("Invalid passkey for this private group.");
-                }
-            } else {
-                // Private group without a passkey, so create a join request
-                if (groupJoinRequestRepository.existsByGroupAndUserAndStatus(group, user, "PENDING")) {
-                    throw new RuntimeException("You have already sent a request to join this group.");
-                }
-                GroupJoinRequest joinRequest = new GroupJoinRequest();
-                joinRequest.setGroup(group);
-                joinRequest.setUser(user);
-                joinRequest.setStatus("PENDING");
-                groupJoinRequestRepository.save(joinRequest);
-                return; // Exit after creating the request
+            // Logic for private group: create a join request
+            boolean hasRequested = groupJoinRequestRepository.existsByGroupAndUser(group, user);
+            if (hasRequested) {
+                throw new IllegalStateException("You have already sent a request to join this group.");
             }
-        }
+            GroupJoinRequest joinRequest = new GroupJoinRequest();
+            joinRequest.setGroup(group);
+            joinRequest.setUser(user);
+            joinRequest.setStatus("PENDING");
+            groupJoinRequestRepository.save(joinRequest);
 
-        // For public groups or private groups with a correct passkey
-        GroupMember newMembership = new GroupMember();
-        newMembership.setId(new GroupMemberId(group.getGroupId(), user.getId()));
-        newMembership.setGroup(group);
-        newMembership.setUser(user);
-        newMembership.setRole("Member");
-        groupMemberRepository.save(newMembership);
+            // Notify admin
+            String adminMessage = user.getName() + " has requested to join your group '" + group.getName() + "'.";
+            notificationService.createNotification(group.getCreatedBy(), adminMessage);
+
+        } else {
+            // Logic for public group: add member directly
+            GroupMember groupMember = new GroupMember();
+            groupMember.setId(new GroupMemberId(groupId, user.getId()));
+            groupMember.setGroup(group);
+            groupMember.setUser(user);
+            groupMemberRepository.save(groupMember);
+
+            String message = "You have joined the group '" + group.getName() + "'.";
+            notificationService.createNotification(user, message);
+        }
     }
 
-    public List<GroupJoinRequestDTO> getJoinRequests(Long groupId, User currentUser) {
-        Group group = groupRepository.findById(groupId)
-                .orElseThrow(() -> new RuntimeException("Group not found."));
 
-        if (!group.getCreatedBy().getId().equals(currentUser.getId())) {
-            throw new RuntimeException("You are not authorized to view join requests for this group.");
+    public List<JoinRequestDTO> getJoinRequestsForGroup(Long groupId, String adminEmail) {
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new RuntimeException("Group not found"));
+        User admin = usersRepository.findByEmail(adminEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!group.getCreatedBy().equals(admin)) {
+            throw new SecurityException("Only the group admin can view join requests.");
         }
 
-        return groupJoinRequestRepository.findByGroupAndStatus(group, "PENDING").stream()
-                .map(req -> new GroupJoinRequestDTO(req.getId(), new UserSummaryDTO(req.getUser().getId(), req.getUser().getName()), req.getStatus()))
+        return groupJoinRequestRepository.findByGroupAndStatus(group, "PENDING")
+                .stream()
+                .map(this::mapRequestToDTO)
                 .collect(Collectors.toList());
     }
 
     @Transactional
-    public void handleJoinRequest(Long requestId, String status, User currentUser) {
-        GroupJoinRequest request = groupJoinRequestRepository.findById(requestId)
-                .orElseThrow(() -> new RuntimeException("Request not found."));
+    public void acceptJoinRequest(Long requestId, String adminEmail) {
+        GroupJoinRequest joinRequest = groupJoinRequestRepository.findById(requestId)
+                .orElseThrow(() -> new RuntimeException("Join request not found"));
+        User admin = usersRepository.findByEmail(adminEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        Group group = request.getGroup();
-        if (!group.getCreatedBy().getId().equals(currentUser.getId())) {
-            throw new RuntimeException("You are not authorized to manage requests for this group.");
+        if (!joinRequest.getGroup().getCreatedBy().equals(admin)) {
+            throw new SecurityException("Only the group admin can approve requests.");
         }
 
-        if ("APPROVED".equalsIgnoreCase(status)) {
-            request.setStatus("APPROVED");
-            GroupMember newMembership = new GroupMember();
-            newMembership.setId(new GroupMemberId(group.getGroupId(), request.getUser().getId()));
-            newMembership.setGroup(group);
-            newMembership.setUser(request.getUser());
-            newMembership.setRole("Member");
-            groupMemberRepository.save(newMembership);
-        } else if ("DENIED".equalsIgnoreCase(status)) {
-            request.setStatus("DENIED");
-        } else {
-            throw new RuntimeException("Invalid status provided.");
+        joinRequest.setStatus("APPROVED");
+        groupJoinRequestRepository.delete(joinRequest); // Remove the request once handled
+
+        GroupMember groupMember = new GroupMember();
+        groupMember.setId(new GroupMemberId(joinRequest.getGroup().getGroupId(), joinRequest.getUser().getId()));
+        groupMember.setGroup(joinRequest.getGroup());
+        groupMember.setUser(joinRequest.getUser());
+        groupMemberRepository.save(groupMember);
+
+        // Notify user
+        User userToNotify = joinRequest.getUser();
+        String groupName = joinRequest.getGroup().getName();
+        String message = "Your request to join the group '" + groupName + "' has been accepted.";
+        notificationService.createNotification(userToNotify, message);
+
+    }
+
+    @Transactional
+    public void rejectJoinRequest(Long requestId, String adminEmail) {
+        GroupJoinRequest joinRequest = groupJoinRequestRepository.findById(requestId)
+                .orElseThrow(() -> new RuntimeException("Join request not found"));
+        User admin = usersRepository.findByEmail(adminEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!joinRequest.getGroup().getCreatedBy().equals(admin)) {
+            throw new SecurityException("Only the group admin can reject requests.");
         }
-        groupJoinRequestRepository.save(request);
+
+        groupJoinRequestRepository.delete(joinRequest); // Remove the request once handled
+
+        // Notify user
+        User userToNotify = joinRequest.getUser();
+        String groupName = joinRequest.getGroup().getName();
+        String message = "Your request to join the group '" + groupName + "' has been rejected.";
+        notificationService.createNotification(userToNotify, message);
+    }
+
+    @Transactional
+    public void removeAllMembersFromGroup(Long groupId, String adminEmail) {
+        User admin = usersRepository.findByEmail(adminEmail)
+                .orElseThrow(() -> new RuntimeException("Admin not found"));
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new RuntimeException("Group not found"));
+
+        if (!group.getCreatedBy().equals(admin)) {
+            throw new SecurityException("Only the admin can delete all members.");
+        }
+        List<GroupMember> members = groupMemberRepository.findByGroup(group);
+
+        for(GroupMember member: members){
+            if(!member.getUser().equals(admin)){
+                String groupName = group.getName();
+                String message = "The group '" + groupName + "' has been disbanded by the admin.";
+                notificationService.createNotification(member.getUser(), message);
+                groupMemberRepository.delete(member);
+            }
+        }
+    }
+
+
+    private GroupDTO mapToDTO(Group group) {
+        GroupDTO dto = new GroupDTO();
+        dto.setGroupId(group.getGroupId());
+        dto.setName(group.getName());
+        dto.setDescription(group.getDescription());
+        dto.setPrivacy(group.getPrivacy());
+        if (group.getCreatedBy() != null) {
+            dto.setAdminName(group.getCreatedBy().getName());
+        }
+        long memberCount = groupMemberRepository.countByGroup(group);
+        dto.setMemberCount(memberCount);
+        return dto;
+    }
+    private GroupDTO mapToDTOWithMembers(Group group) {
+        GroupDTO dto = mapToDTO(group);
+        List<UserSummaryDTO> members = groupMemberRepository.findByGroup(group)
+                .stream()
+                .map(GroupMember::getUser)
+                .map(user -> new UserSummaryDTO(user.getId(), user.getName(), user.getEmail()))
+                .collect(Collectors.toList());
+        dto.setMembers(members);
+        return dto;
+    }
+
+    private JoinRequestDTO mapRequestToDTO(GroupJoinRequest request) {
+        User user = request.getUser();
+        UserSummaryDTO userSummary = new UserSummaryDTO(user.getId(), user.getName(), user.getEmail());
+        return new JoinRequestDTO(request.getId(), userSummary);
     }
 }
 

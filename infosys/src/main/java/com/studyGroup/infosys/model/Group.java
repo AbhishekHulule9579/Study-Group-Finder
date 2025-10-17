@@ -17,23 +17,25 @@ public class Group {
     @Column(name = "group_id")
     private Long groupId;
 
+    @Column(name = "name")
     private String name;
 
     @Column(columnDefinition = "TEXT")
     private String description;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "associated_course_id", nullable = false)
+    @JoinColumn(name = "associated_course_id")
     private Course associatedCourse;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by_userid", nullable = false)
     private User createdBy;
 
-    private String privacy; 
+    private String privacy;
 
-    private String passkey; 
+    private String passkey;
 
     @Column(name = "member_limit")
     private Integer memberLimit;
 }
+

@@ -25,26 +25,23 @@ public class UserService implements UserDetailsService {
 
     @Autowired
     private EmailService emailService;
-    
+
     @Autowired
     private JWTService jwtService;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    
+
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        Optional<User> userOptional = usersRepository.findByEmail(username);
-        if (userOptional.isEmpty()) {
-            throw new UsernameNotFoundException("User not found with email: " + username);
-        }
-        User user = userOptional.get();
-        
+        User user = usersRepository.findByEmail(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + username));
+
         return new org.springframework.security.core.userdetails.User(user.getEmail(), user.getPassword(), new ArrayList<>());
     }
-    
-    
+
+
     public Optional<User> getUserByEmail(String email) {
         return usersRepository.findByEmail(email);
     }
@@ -64,11 +61,11 @@ public class UserService implements UserDetailsService {
         profile.setEmail(user.getEmail());
         profile.setFullname(user.getName());
         profileRepository.save(profile);
-        
+
         return "200::User Registered Successfully";
     }
 
- 
+
     public String validateCredentials(String email, String password) {
         Optional<User> userOptional = usersRepository.findByEmail(email);
 
@@ -84,16 +81,13 @@ public class UserService implements UserDetailsService {
         return "404::User not found";
     }
 
-    
+
     public User getUserProfile(String token) {
-        String email = jwtService.validateToken(token);
-        if ("401".equals(email)) {
-            return null;
-        }
+        String email = jwtService.extractUsername(token); // Corrected this line
         return usersRepository.findByEmail(email).orElse(null);
     }
-    
-    
+
+
     public User updateUser(String email, User userDetails) {
         Optional<User> userOptional = usersRepository.findByEmail(email);
         if (userOptional.isPresent()) {
@@ -107,7 +101,7 @@ public class UserService implements UserDetailsService {
             existingUser.setHigherSecondaryPercentage(userDetails.getHigherSecondaryPercentage());
             existingUser.setUniversityName(userDetails.getUniversityName());
             existingUser.setUniversityPassingYear(userDetails.getUniversityPassingYear());
-          
+
             existingUser.setUniversityGpa(userDetails.getUniversityGpa());
 
             return usersRepository.save(existingUser);
