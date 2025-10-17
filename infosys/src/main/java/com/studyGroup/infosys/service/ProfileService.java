@@ -2,7 +2,6 @@ package com.studyGroup.infosys.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.studyGroup.infosys.model.Course;
 import com.studyGroup.infosys.model.Profile;
 import com.studyGroup.infosys.repository.ProfileRepository;
 import org.springframework.beans.factory.annotation.Autowired;

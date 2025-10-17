@@ -5,6 +5,7 @@ import com.studyGroup.infosys.model.User;
 import com.studyGroup.infosys.repository.ProfileRepository;
 import com.studyGroup.infosys.repository.UsersRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -17,37 +18,43 @@ import java.util.Optional;
 @Service
 public class UserService implements UserDetailsService {
 
-    @Autowired
-    private UsersRepository usersRepository;
+    private final UsersRepository usersRepository;
+    private final ProfileRepository profileRepository;
+    private final EmailService emailService;
+    private final JWTService jwtService;
+    private final PasswordEncoder passwordEncoder;
 
+    // Using Constructor Injection to break the circular dependency
     @Autowired
-    private ProfileRepository profileRepository;
-
-    @Autowired
-    private EmailService emailService;
-
-    @Autowired
-    private JWTService jwtService;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
+    public UserService(UsersRepository usersRepository,
+                       ProfileRepository profileRepository,
+                       EmailService emailService,
+                       JWTService jwtService,
+                       @Lazy PasswordEncoder passwordEncoder) {
+        this.usersRepository = usersRepository;
+        this.profileRepository = profileRepository;
+        this.emailService = emailService;
+        this.jwtService = jwtService;
+        this.passwordEncoder = passwordEncoder;
+    }
 
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = usersRepository.findByEmail(username)
+        return usersRepository.findByEmail(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + username));
-
-        return new org.springframework.security.core.userdetails.User(user.getEmail(), user.getPassword(), new ArrayList<>());
     }
+
 
     public Optional<User> getUserByEmail(String email) {
         return usersRepository.findByEmail(email);
     }
-
+    
     public User findByEmail(String email) {
-        return usersRepository.findByEmail(email).orElse(null);
+        return usersRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
     }
+
 
     public boolean userExists(String email) {
         return usersRepository.existsByEmail(email);
@@ -55,8 +62,7 @@ public class UserService implements UserDetailsService {
 
     public User registerUser(User user) {
         if (usersRepository.existsByEmail(user.getEmail())) {
-            // In a real application, you'd throw a specific exception here
-            return null;
+            throw new RuntimeException("Email Id already exists");
         }
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         User savedUser = usersRepository.save(user);
@@ -65,8 +71,9 @@ public class UserService implements UserDetailsService {
         profile.setEmail(user.getEmail());
         profile.setFullname(user.getFirstName() + " " + user.getLastName());
         profileRepository.save(profile);
-        
-        emailService.sendSimpleMessage(user.getEmail(), "Welcome to Study Group Finder!", "Your account has been successfully created.");
+
+        // Send a welcome email
+        emailService.sendSimpleMessage(user.getEmail(), "Welcome to Study Group Finder!", "Thank you for registering. We're excited to have you on board!");
 
         return savedUser;
     }
@@ -89,12 +96,8 @@ public class UserService implements UserDetailsService {
 
 
     public User getUserProfile(String token) {
-        String email = jwtService.extractUsername(token); 
+        String email = jwtService.extractUsername(token);
         return usersRepository.findByEmail(email).orElse(null);
-    }
-
-    public User save(User user) {
-        return usersRepository.save(user);
     }
 
 
@@ -138,6 +141,8 @@ public class UserService implements UserDetailsService {
             throw new UsernameNotFoundException("User not found with email: " + email);
         }
     }
+     public User save(User user) {
+        return usersRepository.save(user);
+    }
 }
-
 
