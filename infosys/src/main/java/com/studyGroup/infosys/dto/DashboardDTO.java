@@ -1,16 +1,27 @@
 package com.studyGroup.infosys.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.List;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
+@Getter
+@Setter
 public class DashboardDTO {
-    private List<GroupDTO> joinedGroups;
-    private List<SuggestedPeerDTO> suggestedPeers;
-    private int enrolledCoursesCount;
+    private List<CourseSummaryDTO> myCourses;
+    private List<GroupDTO> myGroups;
+    private List<NotificationDTO> notifications;
+
+    // Manual setters to prevent compilation issues in some environments
+    public void setMyCourses(List<CourseSummaryDTO> myCourses) {
+        this.myCourses = myCourses;
+    }
+
+    public void setMyGroups(List<GroupDTO> myGroups) {
+        this.myGroups = myGroups;
+    }
+
+    public void setNotifications(List<NotificationDTO> notifications) {
+        this.notifications = notifications;
+    }
 }

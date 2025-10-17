@@ -7,224 +7,140 @@ import com.studyGroup.infosys.service.EmailService;
 import com.studyGroup.infosys.service.JWTService;
 import com.studyGroup.infosys.service.OtpService;
 import com.studyGroup.infosys.service.UserService;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
-import java.util.Collections;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.Authentication;
+
+
+import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/users")
-@CrossOrigin(origins = "*")
-@RequiredArgsConstructor
+@CrossOrigin(origins = "http://localhost:5173")
 public class UserController {
-
-    private final UserService userService;
-    private final JWTService jwtService;
-    private final OtpService otpService;
-    private final EmailService emailService;
+    @Autowired
+    private UserService userService;
+    @Autowired
+    private OtpService otpService;
+    @Autowired
+    private EmailService emailService;
+    @Autowired
+    private AuthenticationManager authenticationManager;
+    @Autowired
+    private JWTService jwtService;
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
 
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@RequestBody User user) {
-
         if (!otpService.isEmailVerified(user.getEmail())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Email has not been verified. Please complete the OTP step.");
+            return ResponseEntity.badRequest().body("Email not verified.");
         }
-
-        String response = userService.registerUser(user);
-        if (response.startsWith("401")) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body("Email ID already exists.");
+        if (userService.isUserExist(user.getEmail())) {
+            return ResponseEntity.badRequest().body("User with this email already exists.");
         }
+        User registeredUser = userService.registerUser(user.getFirstName(), user.getLastName(), user.getEmail(), user.getPassword());
 
         otpService.clearVerifiedEmail(user.getEmail());
 
-        return ResponseEntity.ok("User Registered Successfully");
+        return ResponseEntity.ok(registeredUser);
     }
-
-    @PostMapping("/register/send-otp")
-    public ResponseEntity<?> sendRegistrationOtp(@RequestBody Map<String, String> request) {
-        String email = request.get("email");
-        if (userService.userExists(email)) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body("An account with this email already exists.");
+    @PostMapping("/send-otp")
+    public ResponseEntity<?> sendOtp(@RequestParam String email) {
+        if (userService.isUserExist(email)) {
+            return ResponseEntity.badRequest().body("User with this email already exists.");
         }
         String otp = otpService.generateAndCacheOtp(email);
-
-        String emailBody = "Hello " + request.getOrDefault("name", "there") + ",\n\n"
-                + "Thank you for registering with Study Group Finder.\n\n"
-                + "Your One-Time Password (OTP) is: " + otp + "\n\n"
-                + "This OTP is valid for 5 minutes.\n\n"
-                + "If you did not request this, please ignore this email.\n\n"
-                + "Best regards,\nThe Study Group Finder Team";
-
-        emailService.sendEmail(email, "Your OTP for Study Group Finder Registration", emailBody);
-
-        return ResponseEntity.ok("OTP sent to your email address.");
+        try {
+            emailService.sendOtpEmail(email, otp);
+            return ResponseEntity.ok("OTP sent to your email.");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to send OTP.");
+        }
     }
 
-
-    @PostMapping("/register/verify-otp")
-    public ResponseEntity<?> verifyRegistrationOtp(@RequestBody Map<String, String> request) {
-        String email = request.get("email");
-        String otp = request.get("otp");
-
+    @PostMapping("/verify-otp")
+    public ResponseEntity<?> verifyOtp(@RequestParam String email, @RequestParam String otp) {
         if (otpService.verifyOtp(email, otp)) {
             otpService.markEmailVerified(email);
             return ResponseEntity.ok("Email verified successfully.");
         } else {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid or expired OTP. Please try again.");
+            return ResponseEntity.badRequest().body("Invalid OTP.");
         }
     }
 
+    @PostMapping("/login")
+    public ResponseEntity<?> loginUser(@RequestBody LoginRequest loginRequest) {
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword())
+            );
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+            String jwt = jwtService.generateToken(userDetails);
 
-    @PostMapping("/forgot-password/send-otp")
-    public ResponseEntity<String> sendForgotPasswordOtp(@RequestBody Map<String, String> body) {
-        String email = body.get("email");
+            Map<String, String> response = new HashMap<>();
+            response.put("token", jwt);
+            response.put("message", "Login successful");
 
-        Optional<User> userOptional = userService.getUserByEmail(email);
-        if (userOptional.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found or email not registered.");
+            return ResponseEntity.ok(response);
+        } catch (AuthenticationException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
         }
-
-        User user = userOptional.get();
+    }
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestParam String email) {
+        if (!userService.isUserExist(email)) {
+            return ResponseEntity.badRequest().body("No user found with this email.");
+        }
         String otp = otpService.generateAndCacheOtp(email);
-
-        String userName = Optional.ofNullable(user.getName()).orElse("there");
-
-        String emailBody = String.format(
-                "Hello %s,\n\n"
-                + "We received a request to reset your password. \n\n"
-                + "Your One-Time Password (OTP) is: %s\n\n"
-                + "This OTP is valid for 5 minutes. Do not share it with anyone.\n\n"
-                + "If you did not request this, please ignore this email.\n\n"
-                + "Best regards,\nThe Study Group Finder Team",
-                userName, otp
-        );
-
-        String emailResponse = emailService.sendEmail(email, "Password Reset OTP for Study Group Finder", emailBody);
-
-        if (emailResponse.startsWith("200")) {
+        try {
+            emailService.sendOtpEmail(email, otp);
             otpService.markResetStarted(email);
-            return ResponseEntity.ok("OTP sent to the registered email.");
-        } else {
-
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(emailResponse.substring(6));
+            return ResponseEntity.ok("OTP sent to your email for password reset.");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to send OTP.");
         }
     }
 
-
-    @PostMapping("/forgot-password/verify-otp")
-    public ResponseEntity<Map<String, String>> verifyForgotPasswordOtp(@RequestBody Map<String, String> request) {
-        String email = request.get("email");
-        String otp = request.get("otp");
-
+    @PostMapping("/verify-reset-otp")
+    public ResponseEntity<?> verifyResetOtp(@RequestParam String email, @RequestParam String otp) {
         if (!otpService.isResetStarted(email)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Password reset process not initiated or session expired."));
+            return ResponseEntity.badRequest().body("Password reset not initiated for this email.");
         }
-
         if (otpService.verifyOtp(email, otp)) {
             otpService.markPasswordChangeAuthorized(email);
-            return ResponseEntity.ok(Map.of("message", "OTP verified. You can now set a new password."));
+            return ResponseEntity.ok("OTP verified. You can now change your password.");
         } else {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Invalid or expired OTP. Please try again."));
+            return ResponseEntity.badRequest().body("Invalid OTP.");
         }
     }
 
-
-    @PostMapping("/forgot-password/reset-password")
-    public ResponseEntity<Map<String, String>> resetPassword(@RequestBody Map<String, String> request) {
-        String email = request.get("email");
-        String newPassword = request.get("newPassword");
-
-        if (!otpService.isPasswordChangeAuthorized(email)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Authorization failed. Please verify the OTP again."));
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody PasswordChangeRequest request) {
+        if (!otpService.isPasswordChangeAuthorized(request.getEmail())) {
+            return ResponseEntity.badRequest().body("Not authorized to change password. Please verify OTP first.");
+        }
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            return ResponseEntity.badRequest().body("Passwords do not match.");
         }
 
-        if (newPassword == null || newPassword.length() < 6) {
-             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "New password must be at least 6 characters long."));
-        }
+        User user = userService.findByEmail(request.getEmail());
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userService.save(user);
 
-        try {
-            userService.changePassword(email, newPassword);
+        otpService.clearPasswordChangeAuthorization(request.getEmail());
 
-            otpService.clearPasswordChangeAuthorization(email);
-
-            return ResponseEntity.ok(Map.of("message", "Password reset successfully. You can now log in with your new password."));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Failed to reset password: " + e.getMessage()));
-        }
-    }
-    @PostMapping("/signin")
-    public ResponseEntity<?> signin(@RequestBody LoginRequest loginRequest) {
-        String response = userService.validateCredentials(loginRequest.getEmail(), loginRequest.getPassword());
-
-        if (response.startsWith("404")) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Collections.singletonMap("message", "User not registered. Please register first."));
-        }
-        if (response.startsWith("401")) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Collections.singletonMap("message", "Invalid email or password."));
-        }
-
-        String token = response.substring(5);
-        return ResponseEntity.ok(Collections.singletonMap("token", token));
-    }
-
-    @GetMapping("/profile")
-    public ResponseEntity<?> getProfile() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
-        User userProfile = userService.getUserByEmail(email).orElse(null);
-
-        if (userProfile == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found.");
-        }
-        return ResponseEntity.ok(userProfile);
-    }
-
-
-    @PutMapping("/profile")
-    public ResponseEntity<?> updateUserProfile(@RequestBody User userDetails) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
-
-        User updatedUser = userService.updateUser(email, userDetails);
-
-        if (updatedUser == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found.");
-        }
-        return ResponseEntity.ok(updatedUser);
-    }
-
-    @PostMapping("/verify-password")
-    public ResponseEntity<?> verifyPassword(@RequestBody PasswordChangeRequest request) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
-
-        boolean isCorrect = userService.verifyPassword(email, request.getCurrentPassword());
-
-        if (isCorrect) {
-            return ResponseEntity.ok(Map.of("message", "Password verified."));
-        } else {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Current password does not match."));
-        }
-    }
-
-    @PutMapping("/change-password")
-    public ResponseEntity<?> changePassword(@RequestBody PasswordChangeRequest request) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
-
-        if (request.getNewPassword() == null || request.getNewPassword().length() < 6) {
-             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "New password must be at least 6 characters long."));
-        }
-
-        userService.changePassword(email, request.getNewPassword());
-        return ResponseEntity.ok(Map.of("message", "Password changed successfully."));
+        return ResponseEntity.ok("Password has been reset successfully.");
     }
 }

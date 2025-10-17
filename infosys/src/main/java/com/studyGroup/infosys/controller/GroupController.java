@@ -3,88 +3,73 @@ package com.studyGroup.infosys.controller;
 import com.studyGroup.infosys.dto.CreateGroupRequest;
 import com.studyGroup.infosys.dto.GroupDTO;
 import com.studyGroup.infosys.dto.JoinRequestDTO;
+import com.studyGroup.infosys.model.Group;
 import com.studyGroup.infosys.service.GroupService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/groups")
 @CrossOrigin(origins = "http://localhost:5173")
 public class GroupController {
 
-    private final GroupService groupService;
+    @Autowired
+    private GroupService groupService;
 
-    public GroupController(GroupService groupService) {
-        this.groupService = groupService;
+    @PostMapping
+    public ResponseEntity<Group> createGroup(@RequestBody CreateGroupRequest request, Authentication authentication) {
+        String username = authentication.getName();
+        Group newGroup = groupService.createGroup(request, username);
+        return ResponseEntity.ok(newGroup);
     }
 
-    @PostMapping("/create")
-    public ResponseEntity<GroupDTO> createGroup(@RequestBody CreateGroupRequest createGroupRequest) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String currentUserName = ((UserDetails) authentication.getPrincipal()).getUsername();
-        GroupDTO group = groupService.createGroup(createGroupRequest, currentUserName);
-        return ResponseEntity.ok(group);
+    @GetMapping
+    public ResponseEntity<List<GroupDTO>> getAllGroups() {
+        return ResponseEntity.ok(groupService.getAllGroups());
+    }
+    
+    @DeleteMapping("/{groupId}")
+    public ResponseEntity<?> deleteGroup(@PathVariable Long groupId, Authentication authentication) {
+        String currentUsername = authentication.getName();
+        groupService.deleteGroup(groupId, currentUsername);
+        return ResponseEntity.ok("Group deleted successfully.");
     }
 
-
-    @GetMapping("/my-groups")
-    public ResponseEntity<List<GroupDTO>> getMyGroups() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String currentUserName = ((UserDetails) authentication.getPrincipal()).getUsername();
-        List<GroupDTO> myGroups = groupService.getMyGroups(currentUserName);
-        return ResponseEntity.ok(myGroups);
-    }
-
-    @DeleteMapping("/{groupId}/remove-all-members")
-    public ResponseEntity<?> removeAllMembers(@PathVariable Long groupId) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String currentUserName = ((UserDetails) authentication.getPrincipal()).getUsername();
-        groupService.removeAllMembersFromGroup(groupId, currentUserName);
-        return ResponseEntity.ok(Map.of("message", "All members have been removed from the group."));
-    }
-
-
-    @GetMapping("/public")
-    public ResponseEntity<List<GroupDTO>> getAllPublicGroups() {
-        return ResponseEntity.ok(groupService.getAllPublicGroups());
+    @DeleteMapping("/{groupId}/members")
+    public ResponseEntity<?> removeAllMembers(@PathVariable Long groupId, Authentication authentication) {
+        String currentUsername = authentication.getName();
+        groupService.removeAllMembersFromGroup(groupId, currentUsername);
+        return ResponseEntity.ok("All members removed.");
     }
 
     @PostMapping("/{groupId}/join")
-    public ResponseEntity<?> joinGroup(@PathVariable Long groupId) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String currentUserName = ((UserDetails) authentication.getPrincipal()).getUsername();
-        groupService.joinGroup(groupId, currentUserName);
-        return ResponseEntity.ok(Map.of("message", "Successfully joined the group or request sent."));
+    public ResponseEntity<?> requestToJoinGroup(@PathVariable Long groupId, Authentication authentication) {
+        String username = authentication.getName();
+        groupService.requestToJoinGroup(groupId, username);
+        return ResponseEntity.ok("Join request sent.");
     }
 
     @GetMapping("/{groupId}/requests")
-    public ResponseEntity<List<JoinRequestDTO>> getJoinRequests(@PathVariable Long groupId) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String currentUserName = ((UserDetails) authentication.getPrincipal()).getUsername();
-        List<JoinRequestDTO> requests = groupService.getPendingJoinRequests(groupId, currentUserName);
-        return ResponseEntity.ok(requests);
+    public ResponseEntity<List<JoinRequestDTO>> getJoinRequests(@PathVariable Long groupId, Authentication authentication) {
+        String username = authentication.getName();
+        return ResponseEntity.ok(groupService.getPendingRequests(groupId, username));
     }
 
-
-    @PostMapping("/requests/{requestId}/accept")
-    public ResponseEntity<?> acceptJoinRequest(@PathVariable Long requestId) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String currentUserName = ((UserDetails) authentication.getPrincipal()).getUsername();
-        groupService.approveJoinRequest(requestId, currentUserName);
-        return ResponseEntity.ok(Map.of("message", "Join request accepted."));
+    @PostMapping("/requests/{requestId}/approve")
+    public ResponseEntity<?> approveRequest(@PathVariable Long requestId, Authentication authentication) {
+        String currentUsername = authentication.getName();
+        groupService.approveJoinRequest(requestId, currentUsername);
+        return ResponseEntity.ok("Request approved");
     }
 
     @PostMapping("/requests/{requestId}/reject")
-    public ResponseEntity<?> rejectJoinRequest(@PathVariable Long requestId) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String currentUserName = ((UserDetails) authentication.getPrincipal()).getUsername();
-        groupService.rejectJoinRequest(requestId, currentUserName);
-        return ResponseEntity.ok(Map.of("message", "Join request rejected."));
+    public ResponseEntity<?> rejectRequest(@PathVariable Long requestId, Authentication authentication) {
+        String currentUsername = authentication.getName();
+        groupService.rejectJoinRequest(requestId, currentUsername);
+        return ResponseEntity.ok("Request rejected");
     }
 }
