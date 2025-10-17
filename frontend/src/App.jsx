@@ -12,7 +12,8 @@ import ForgotPassword from "./components/ForgotPassword.jsx";
 import MyCourses from "./components/MyCourses.jsx";
 import MyGroups from "./components/MyGroups.jsx";
 import FindPeers from "./components/FindPeers.jsx";
-import GroupManagementPage from "./components/groups/GroupManagementPage.jsx"; // Import the new component
+import GroupManagementPage from "./components/groups/GroupManagementPage.jsx";
+import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
 import { Route, Routes } from "react-router-dom";
 
@@ -31,14 +32,13 @@ const App = () => {
           <Route path="/forgot-password" element={<ForgotPassword />} />
 
           {/* Authenticated Routes */}
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/build-profile" element={<BuildProfile />} />
-          <Route path="/my-courses" element={<MyCourses />} />
-          <Route path="/my-groups" element={<MyGroups />} />
-          <Route path="/find-peers" element={<FindPeers />} />
-          <Route path="/group/:groupId/manage" element={<GroupManagementPage />} />
-
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/build-profile" element={<ProtectedRoute><BuildProfile /></ProtectedRoute>} />
+          <Route path="/my-courses" element={<ProtectedRoute><MyCourses /></ProtectedRoute>} />
+          <Route path="/my-groups" element={<ProtectedRoute><MyGroups /></ProtectedRoute>} />
+          <Route path="/find-peers" element={<ProtectedRoute><FindPeers /></ProtectedRoute>} />
+          <Route path="/group/:groupId/manage" element={<ProtectedRoute><GroupManagementPage /></ProtectedRoute>} />
 
           {/* Optional: Add a 404 Not Found page for any unmatched URLs */}
           <Route path="*" element={<h1>404: Page Not Found</h1>} />
