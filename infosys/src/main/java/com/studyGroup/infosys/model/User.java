@@ -1,37 +1,38 @@
 package com.studyGroup.infosys.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Set;
 
 @Entity
-@Table(name = "user")
+@Table(name = "`user`") // Using backticks because 'user' can be a reserved keyword in SQL
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class User {
+public class User implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @Column(name = "name")
-    private String name;
+    private String firstName;
+    private String lastName;
 
-    @Column(name = "email", unique = true, nullable = false)
+    @Column(unique = true, nullable = false)
     private String email;
-    
-    @Column(name = "role") 
-    private int role;
 
-    @Column(name = "password")
     private String password;
+
+    @Column(name = "role")
+    private int role;
 
     @Column(name = "secondary_school")
     private String secondarySchool;
@@ -59,5 +60,52 @@ public class User {
 
     @Column(name = "university_gpa")
     private Double universityGpa;
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(name = "user_courses",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "course_id"))
+    private Set<Course> courses;
+
+    @OneToMany(mappedBy = "creator")
+    private Set<Group> createdGroups;
+
+    @OneToMany(mappedBy = "user")
+    private Set<GroupMember> groupMemberships;
+
+
+    // --- UserDetails Implementation ---
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        // Here you could map your `role` field to different authorities
+        return Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"));
+    }
+
+    @Override
+    public String getUsername() {
+        // Spring Security's "username" is our email
+        return this.email;
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return true;
+    }
 }
 

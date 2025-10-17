@@ -5,15 +5,11 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
 public class UserSummaryDTO {
     private Integer id;
-    private String username;
+    private String firstName;
+    private String lastName;
     private String email;
-
-    public UserSummaryDTO(Integer id, String username) {
-        this.id = id;
-        this.username = username;
-    }
 }

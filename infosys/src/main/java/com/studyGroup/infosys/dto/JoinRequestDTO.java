@@ -9,5 +9,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class JoinRequestDTO {
     private Long id;
-    private UserSummaryDTO user;
+    private String userName;
+    private String status;
 }

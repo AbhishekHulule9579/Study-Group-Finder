@@ -10,4 +10,5 @@ import lombok.NoArgsConstructor;
 public class CourseSummaryDTO {
     private String courseId;
     private String courseName;
+    private String description;
 }

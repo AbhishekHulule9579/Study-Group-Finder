@@ -41,28 +41,34 @@ public class UserService implements UserDetailsService {
         return new org.springframework.security.core.userdetails.User(user.getEmail(), user.getPassword(), new ArrayList<>());
     }
 
-
     public Optional<User> getUserByEmail(String email) {
         return usersRepository.findByEmail(email);
+    }
+
+    public User findByEmail(String email) {
+        return usersRepository.findByEmail(email).orElse(null);
     }
 
     public boolean userExists(String email) {
         return usersRepository.existsByEmail(email);
     }
 
-    public String registerUser(User user) {
+    public User registerUser(User user) {
         if (usersRepository.existsByEmail(user.getEmail())) {
-            return "401::Email Id already exists";
+            // In a real application, you'd throw a specific exception here
+            return null;
         }
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-        usersRepository.save(user);
+        User savedUser = usersRepository.save(user);
 
         Profile profile = new Profile();
         profile.setEmail(user.getEmail());
-        profile.setFullname(user.getName());
+        profile.setFullname(user.getFirstName() + " " + user.getLastName());
         profileRepository.save(profile);
+        
+        emailService.sendSimpleMessage(user.getEmail(), "Welcome to Study Group Finder!", "Your account has been successfully created.");
 
-        return "200::User Registered Successfully";
+        return savedUser;
     }
 
 
@@ -83,8 +89,12 @@ public class UserService implements UserDetailsService {
 
 
     public User getUserProfile(String token) {
-        String email = jwtService.extractUsername(token); // Corrected this line
+        String email = jwtService.extractUsername(token); 
         return usersRepository.findByEmail(email).orElse(null);
+    }
+
+    public User save(User user) {
+        return usersRepository.save(user);
     }
 
 
@@ -129,3 +139,5 @@ public class UserService implements UserDetailsService {
         }
     }
 }
+
+

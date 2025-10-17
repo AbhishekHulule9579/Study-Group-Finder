@@ -19,7 +19,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.Authentication;
 
-
 import java.util.HashMap;
 import java.util.Map;
 
@@ -46,18 +45,19 @@ public class UserController {
         if (!otpService.isEmailVerified(user.getEmail())) {
             return ResponseEntity.badRequest().body("Email not verified.");
         }
-        if (userService.isUserExist(user.getEmail())) {
+        if (userService.userExists(user.getEmail())) {
             return ResponseEntity.badRequest().body("User with this email already exists.");
         }
-        User registeredUser = userService.registerUser(user.getFirstName(), user.getLastName(), user.getEmail(), user.getPassword());
+        User registeredUser = userService.registerUser(user);
 
         otpService.clearVerifiedEmail(user.getEmail());
 
         return ResponseEntity.ok(registeredUser);
     }
+
     @PostMapping("/send-otp")
     public ResponseEntity<?> sendOtp(@RequestParam String email) {
-        if (userService.isUserExist(email)) {
+        if (userService.userExists(email)) {
             return ResponseEntity.badRequest().body("User with this email already exists.");
         }
         String otp = otpService.generateAndCacheOtp(email);
@@ -87,7 +87,7 @@ public class UserController {
             );
             SecurityContextHolder.getContext().setAuthentication(authentication);
             UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-            String jwt = jwtService.generateToken(userDetails);
+            String jwt = jwtService.generateToken(userDetails.getUsername());
 
             Map<String, String> response = new HashMap<>();
             response.put("token", jwt);
@@ -98,9 +98,10 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
         }
     }
+
     @PostMapping("/forgot-password")
     public ResponseEntity<?> forgotPassword(@RequestParam String email) {
-        if (!userService.isUserExist(email)) {
+        if (!userService.userExists(email)) {
             return ResponseEntity.badRequest().body("No user found with this email.");
         }
         String otp = otpService.generateAndCacheOtp(email);
@@ -136,8 +137,11 @@ public class UserController {
         }
 
         User user = userService.findByEmail(request.getEmail());
-        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
-        userService.save(user);
+        if (user == null) {
+            return ResponseEntity.badRequest().body("User not found.");
+        }
+        
+        userService.changePassword(request.getEmail(), request.getNewPassword());
 
         otpService.clearPasswordChangeAuthorization(request.getEmail());
 

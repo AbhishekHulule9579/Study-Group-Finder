@@ -19,7 +19,7 @@ public class PeerUserDTO {
         }
         return new PeerUserDTO(
                 user.getId(),
-                user.getName(),
+                user.getFirstName() + " " + user.getLastName(), // Corrected this line
                 user.getUniversityName()
         );
     }

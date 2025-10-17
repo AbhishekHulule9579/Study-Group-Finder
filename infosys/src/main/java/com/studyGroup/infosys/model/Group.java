@@ -5,8 +5,10 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Set;
+
 @Entity
-@Table(name = "study_group")
+@Table(name = "groups") // Renamed table for consistency
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -27,9 +29,10 @@ public class Group {
     @JoinColumn(name = "associated_course_id")
     private Course associatedCourse;
 
+    // Renamed for consistency with previous fixes in GroupService
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by_userid", nullable = false)
-    private User createdBy;
+    @JoinColumn(name = "creator_id", nullable = false)
+    private User creator;
 
     private String privacy;
 
@@ -37,5 +40,9 @@ public class Group {
 
     @Column(name = "member_limit")
     private Integer memberLimit;
+
+    // Added the relationship to track group members
+    @OneToMany(mappedBy = "group", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<GroupMember> members;
 }
 
