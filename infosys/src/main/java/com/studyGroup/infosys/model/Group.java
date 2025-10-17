@@ -8,8 +8,8 @@ import lombok.NoArgsConstructor;
 import java.util.Set;
 
 @Entity
-// The table name is now quoted to avoid conflict with the SQL reserved keyword 'GROUP'.
-@Table(name = "`groups`")
+// Renamed the table to 'study_groups' to avoid conflict with the SQL reserved keyword 'GROUP'.
+@Table(name = "study_groups")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

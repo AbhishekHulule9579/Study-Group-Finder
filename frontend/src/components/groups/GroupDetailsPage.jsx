@@ -1,63 +1,80 @@
-import React, { useState } from "react";
-import { Link, useParams } from "react-router-dom";
-
-// --- Mock Data (Eventually, you'll fetch this based on the ID from the URL) ---
-const mockGroupDetails = {
-  id: 1,
-  name: "Data Structures & Algos Crew",
-  course: "Computer Science",
-  description:
-    "A group for mastering algorithms, data structures, and preparing for technical interviews.",
-  members: [
-    {
-      id: 101,
-      name: "Alice",
-      role: "Owner",
-      avatar: "https://placehold.co/100x100/7E22CE/FFFFFF?text=A",
-    },
-    {
-      id: 102,
-      name: "Bob",
-      role: "Member",
-      avatar: "https://placehold.co/100x100/EA580C/FFFFFF?text=B",
-    },
-    {
-      id: 103,
-      name: "Charlie",
-      role: "Member",
-      avatar: "https://placehold.co/100x100/7E22CE/FFFFFF?text=C",
-    },
-    {
-      id: 104,
-      name: "Diana",
-      role: "Member",
-      avatar: "https://placehold.co/100x100/EA580C/FFFFFF?text=D",
-    },
-  ],
-  files: [
-    { id: 201, name: "Lecture_Notes_Week1.pdf", size: "2.3 MB" },
-    { id: 202, name: "Big-O_Cheat_Sheet.png", size: "800 KB" },
-  ],
-  chat: [
-    {
-      id: 301,
-      user: "Alice",
-      message: "Hey everyone, welcome! Let's get started with heaps.",
-    },
-    {
-      id: 302,
-      user: "Bob",
-      message: "Sounds good! I've uploaded the notes from the first lecture.",
-    },
-  ],
-};
+import React, { useState, useEffect } from "react";
+import { Link, useParams, useNavigate } from "react-router-dom";
+import axios from "axios";
 
 const GroupDetailsPage = () => {
-  const { groupId } = useParams(); // Gets the group ID from the URL
+  const { groupId } = useParams();
+  const navigate = useNavigate();
+  const [group, setGroup] = useState(null);
+  const [members, setMembers] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("members");
 
-  // In a real app, you would use groupId to fetch data. Here we just use the mock data.
-  const group = mockGroupDetails;
+  useEffect(() => {
+    const fetchGroupDetails = async () => {
+      setIsLoading(true);
+      const token = localStorage.getItem("token");
+      try {
+        // Fetch main group details
+        const groupRes = await axios.get(`http://localhost:8080/api/groups/${groupId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setGroup(groupRes.data);
+
+        // Fetch group members
+        // NOTE: You need to create this endpoint in your backend
+        const membersRes = await axios.get(`http://localhost:8080/api/groups/${groupId}/members`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        setMembers(membersRes.data);
+
+      } catch (err) {
+        setError("Failed to fetch group details. Please try again later.");
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchGroupDetails();
+  }, [groupId]);
+
+  const handleLeaveGroup = async () => {
+    if (window.confirm("Are you sure you want to leave this group?")) {
+      try {
+        const token = localStorage.getItem("token");
+        await axios.post(
+          `http://localhost:8080/api/groups/${groupId}/leave`,
+          {},
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        alert("You have successfully left the group.");
+        navigate("/my-groups");
+      } catch (error) {
+        console.error("Failed to leave group:", error);
+        const errorMessage = error.response?.data?.message || "An unexpected error occurred.";
+        alert(`Failed to leave group: ${errorMessage}`);
+      }
+    }
+  };
+
+
+  if (isLoading) {
+    return <div className="text-center p-10">Loading group details...</div>;
+  }
+
+  if (error) {
+    return <div className="text-center p-10 text-red-500">{error}</div>;
+  }
+
+  if (!group) {
+    return <div className="text-center p-10">Group not found.</div>;
+  }
 
   const TabButton = ({ tabName, children }) => (
     <button
@@ -81,82 +98,57 @@ const GroupDetailsPage = () => {
         &larr; Back to All Groups
       </Link>
       <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
-        {/* Header Section */}
-        <div className="border-b pb-6 mb-6">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-800">
-            {group.name}
-          </h1>
-          <p className="text-md text-gray-500 mt-2">{group.course}</p>
-          <p className="text-gray-700 mt-4">{group.description}</p>
+        <div className="border-b pb-6 mb-6 flex justify-between items-start">
+            <div>
+                <h1 className="text-3xl md:text-4xl font-bold text-gray-800">
+                    {group.name}
+                </h1>
+                <p className="text-gray-700 mt-4">{group.description}</p>
+            </div>
+            <button
+                onClick={handleLeaveGroup}
+                className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition-colors duration-300"
+            >
+                Leave Group
+            </button>
         </div>
 
-        {/* Tab Navigation */}
         <div className="flex space-x-2 border-b mb-6">
           <TabButton tabName="chat">Chat</TabButton>
           <TabButton tabName="files">Files</TabButton>
           <TabButton tabName="members">
-            Members ({group.members.length})
+            Members ({members.length})
           </TabButton>
         </div>
 
-        {/* Tab Content */}
         <div>
           {activeTab === "members" && (
             <div className="space-y-4">
-              {group.members.map((member) => (
+              {members.map((member) => (
                 <div
                   key={member.id}
                   className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                 >
                   <div className="flex items-center">
-                    <img
-                      src={member.avatar}
-                      alt={member.name}
+                     <img
+                      src={`https://placehold.co/100x100/7E22CE/FFFFFF?text=${member.firstName.charAt(0)}`}
+                      alt={member.firstName}
                       className="w-10 h-10 rounded-full mr-4"
                     />
                     <span className="font-semibold text-gray-700">
-                      {member.name}
+                      {member.firstName} {member.lastName}
                     </span>
                   </div>
-                  <span
-                    className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                      member.role === "Owner"
-                        ? "bg-purple-100 text-purple-800"
-                        : "bg-gray-200 text-gray-700"
-                    }`}
-                  >
-                    {member.role}
-                  </span>
+                   <span className="text-sm text-gray-500">{member.email}</span>
                 </div>
               ))}
             </div>
           )}
           {activeTab === "files" && (
-            <div className="space-y-3">
-              {group.files.map((file) => (
-                <div
-                  key={file.id}
-                  className="flex justify-between items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100"
-                >
-                  <span className="font-semibold text-gray-700">
-                    {file.name}
-                  </span>
-                  <span className="text-sm text-gray-500">{file.size}</span>
-                </div>
-              ))}
-            </div>
+             <div className="text-center p-10 text-gray-500">File sharing feature coming soon!</div>
           )}
           {activeTab === "chat" && (
-            <div className="space-y-4">
-              {group.chat.map((chat) => (
-                <div key={chat.id} className="p-3 bg-gray-50 rounded-lg">
-                  <span className="font-bold text-purple-700">
-                    {chat.user}:{" "}
-                  </span>
-                  <span className="text-gray-800">{chat.message}</span>
-                </div>
-              ))}
-            </div>
+            <div className="text-center p-10 text-gray-500">Group chat feature coming soon!</div>
           )}
         </div>
       </div>

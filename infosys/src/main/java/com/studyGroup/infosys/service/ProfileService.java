@@ -35,24 +35,26 @@ public class ProfileService {
     }
 
     
-    private Set<String> getEnrolledCourseIdsAsSet(Profile profile) throws IOException {
+    private Set<Integer> getEnrolledCourseIdsAsSet(Profile profile) throws IOException {
         String enrolledCoursesJson = profile.getEnrolledCourseIds();
         if (enrolledCoursesJson == null || enrolledCoursesJson.isEmpty() || enrolledCoursesJson.equals("[]")) {
             return new HashSet<>();
         }
-        return objectMapper.readValue(enrolledCoursesJson, new TypeReference<>() {});
+        return objectMapper.readValue(enrolledCoursesJson, new TypeReference<Set<Integer>>() {});
     }
 
 
-    public Profile enrollInCourse(String email, String courseId) {
+    public Profile enrollInCourse(String email, String courseIdStr) {
         Profile profile = profileRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User profile not found."));
+
+        Integer courseId = Integer.parseInt(courseIdStr);
 
         courseService.getCourseById(courseId)
                 .orElseThrow(() -> new RuntimeException("Course not found."));
 
         try {
-            Set<String> enrolledCourseIds = getEnrolledCourseIdsAsSet(profile);
+            Set<Integer> enrolledCourseIds = getEnrolledCourseIdsAsSet(profile);
             enrolledCourseIds.add(courseId);
             profile.setEnrolledCourseIds(objectMapper.writeValueAsString(enrolledCourseIds));
             return profileRepository.save(profile);
@@ -61,12 +63,14 @@ public class ProfileService {
         }
     }
 
-    public Profile unenrollFromCourse(String email, String courseId) {
+    public Profile unenrollFromCourse(String email, String courseIdStr) {
         Profile profile = profileRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User profile not found."));
+        
+        Integer courseId = Integer.parseInt(courseIdStr);
 
         try {
-            Set<String> enrolledCourseIds = getEnrolledCourseIdsAsSet(profile);
+            Set<Integer> enrolledCourseIds = getEnrolledCourseIdsAsSet(profile);
 
             if (enrolledCourseIds.remove(courseId)) { 
                 profile.setEnrolledCourseIds(objectMapper.writeValueAsString(enrolledCourseIds));

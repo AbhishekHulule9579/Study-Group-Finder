@@ -9,7 +9,5 @@ import java.util.List;
 
 @Repository
 public interface GroupRepository extends JpaRepository<Group, Long> {
-    List<Group> findByPrivacyIgnoreCase(String privacy);
-    List<Group> findByCreatedBy(User user);
-
+    List<Group> findByCreator(User user);
 }

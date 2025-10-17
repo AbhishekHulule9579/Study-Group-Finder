@@ -19,7 +19,7 @@ public class CourseService {
     @Autowired
     private UsersRepository usersRepository;
 
-    public void addCourseToUser(String courseId, String username) {
+    public void addCourseToUser(Integer courseId, String username) {
         Course course = courseRepository.findById(courseId).orElseThrow(() -> new RuntimeException("Course not found"));
         User user = usersRepository.findByEmail(username).orElseThrow(() -> new RuntimeException("User not found"));
         user.getCourses().add(course);
@@ -29,14 +29,14 @@ public class CourseService {
         return courseRepository.findAll();
     }
 
-    public Optional<Course> getCourseById(String courseId) {
+    public Optional<Course> getCourseById(Integer courseId) {
         return courseRepository.findById(courseId);
     }
 
     public List<CourseSummaryDTO> getCoursesByUserId(Integer userId) {
         return courseRepository.findByUsers_Id(userId)
                 .stream()
-                .map(course -> new CourseSummaryDTO(course.getCourseId(), course.getCourseName(), course.getDescription()))
+                .map(course -> new CourseSummaryDTO(course.getCourseId(), course.getCourseName(), course.getCourseDescription()))
                 .collect(Collectors.toList());
     }
 
@@ -44,16 +44,15 @@ public class CourseService {
         return courseRepository.save(course);
     }
 
-    public Course updateCourse(String courseId, Course courseDetails) {
+    public Course updateCourse(Integer courseId, Course courseDetails) {
         return courseRepository.findById(courseId).map(course -> {
             course.setCourseName(courseDetails.getCourseName());
-            course.setDescription(courseDetails.getDescription());
+            course.setCourseDescription(courseDetails.getCourseDescription());
             return courseRepository.save(course);
         }).orElse(null);
     }
 
-    public void deleteCourse(String courseId) {
+    public void deleteCourse(Integer courseId) {
         courseRepository.deleteById(courseId);
     }
 }
-

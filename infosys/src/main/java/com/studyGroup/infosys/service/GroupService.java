@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -192,15 +193,22 @@ public class GroupService {
         notificationService.createNotification(member, "You have been removed from group '" + group.getName() + "' by " + remover.getEmail(), "/groups");
     }
 
+    @Transactional
     public void leaveGroup(Long groupId, String currentUsername) {
         Group group = groupRepository.findById(groupId).orElseThrow(() -> new RuntimeException("Group not found"));
         User member = usersRepository.findByEmail(currentUsername).orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+        // If the creator tries to leave, throw an exception. They must delete the group.
+        if (group.getCreator().equals(member)) {
+            throw new RuntimeException("Group creator cannot leave the group. You must delete the group instead.");
+        }
 
         GroupMember groupMember = groupMemberRepository.findByGroupAndUser(group, member).orElseThrow(() -> new RuntimeException("You are not a member of this group"));
         groupMemberRepository.delete(groupMember);
 
         notificationService.createNotification(group.getCreator(), member.getEmail() + " has left your group '" + group.getName() + "'", "/groups/" + group.getGroupId());
     }
+
 
     public List<GroupDTO> getGroupsForUser(String username) {
         User user = usersRepository.findByEmail(username).orElseThrow(() -> new UsernameNotFoundException("User not found"));
@@ -210,6 +218,12 @@ public class GroupService {
                 .map(group -> new GroupDTO(group.getGroupId(), group.getName(), group.getDescription(), group.getCreator().getEmail()))
                 .collect(Collectors.toList());
     }
+    
+    public Optional<GroupDTO> getGroupById(Long groupId) {
+        return groupRepository.findById(groupId)
+                .map(group -> new GroupDTO(group.getGroupId(), group.getName(), group.getDescription(), group.getCreator().getEmail()));
+    }
+
 
     public List<GroupDTO> getAllGroups() {
         return groupRepository.findAll().stream()
