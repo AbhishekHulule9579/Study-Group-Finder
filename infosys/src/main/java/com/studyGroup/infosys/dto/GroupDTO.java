@@ -11,5 +11,11 @@ public class GroupDTO {
     private Long groupId;
     private String name;
     private String description;
-    private String creatorEmail;
+    private CourseSummaryDTO associatedCourse;
+    private UserSummaryDTO createdBy;
+    private String privacy;
+    private Integer memberLimit;
+    private long memberCount;
+    private boolean hasPasskey;
+    private String userRole; 
 }

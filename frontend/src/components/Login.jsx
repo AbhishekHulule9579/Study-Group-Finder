@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import axios from "axios"; // Import axios
 
 // A reusable, beautifully styled input field with an icon
 const InputField = ({ icon, ...props }) => (
@@ -74,25 +73,26 @@ export default function Login() {
     setIsSubmitting(true);
 
     try {
-      // Use axios for consistency with the rest of the project
-      const response = await axios.post("http://localhost:8145/api/users/signin", form);
-      sessionStorage.setItem("token", response.data.token);
-      navigate("/dashboard");
-    } catch (err) {
-      if (err.response) {
-        // The server responded with an error status (4xx or 5xx)
-        const { status, data } = err.response;
-        if (status === 404) {
+      const res = await fetch("http://localhost:8145/api/users/signin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        sessionStorage.setItem("token", data.token);
+        navigate("/dashboard");
+      } else {
+        if (res.status === 404) {
           setError(data.message || "User is not registered.");
           setShowModal(true);
         } else {
-          // For 401 (unauthorized) or other server errors
           setError(data.message || "Invalid email or password.");
         }
-      } else {
-        // A network error or other issue occurred
-        setError("Failed to connect to the server. Please try again.");
       }
+    } catch (err) {
+      setError("Failed to connect to the server. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -170,7 +170,7 @@ export default function Login() {
               placeholder="Password"
               icon={
                 <svg
-                  xmlns="http://www.w3.org/2000/svg"
+                  xmlns="http://www.w.org/2000/svg"
                   className="h-5 w-5 text-gray-400"
                   fill="none"
                   viewBox="0 0 24 24"
@@ -205,7 +205,7 @@ export default function Login() {
               Create an account
             </Link>
             <Link
-              to="/forgot-password"
+              to="/forgotpassword"
               className="font-semibold text-gray-500 hover:underline"
             >
               Forgot password?
@@ -216,4 +216,3 @@ export default function Login() {
     </>
   );
 }
-

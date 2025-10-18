@@ -2,10 +2,10 @@ import React, { useState, useMemo, useEffect, useCallback } from "react";
 import GroupCard from "./groups/GroupCard.jsx";
 import CreateGroupCard from "./groups/CreateGroupCard.jsx";
 import GroupCreateForm from "./groups/GroupCreateForm.jsx";
-import JoinGroupModal from "./groups/JoinGroupModal.jsx"; // Import the new modal
+import JoinGroupModal from "./groups/JoinGroupModal.jsx";
 import { useNavigate } from "react-router-dom";
 
-// --- Requests Panel Component (no changes needed here) ---
+// --- REDESIGNED Requests Panel Component ---
 function GroupRequestsPanel() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,7 +51,8 @@ function GroupRequestsPanel() {
         body: JSON.stringify({ requestId }),
       });
       if (!res.ok) throw new Error("Action failed.");
-      await fetchRequests();
+      // Remove the handled request from the list for a faster UI update
+      setRequests((prev) => prev.filter((req) => req.id !== requestId));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -64,138 +65,87 @@ function GroupRequestsPanel() {
       <div className="p-8 text-center text-xl">Loading group requests...</div>
     );
   if (error)
-    return (
-      <div className="p-8 text-center text-xl text-red-500">Error: {error}</div>
-    );
+    return <div className="p-8 text-center text-xl text-red-500">{error}</div>;
 
   return (
-    <div className="mb-12">
-      <h1 className="text-3xl font-bold text-gray-800 mb-2">
-        Pending Group Join Requests
-      </h1>
-      <p className="text-lg text-gray-500 mb-4">
-        Approve or reject requests to join your private groups. Click a request
-        for user details.
-      </p>
+    <div className="animate-fade-in">
       {requests.length === 0 ? (
-        <div className="text-center py-12 px-6 bg-white rounded-lg shadow-sm border mt-6">
-          <p className="text-gray-500">No pending requests.</p>
+        <div className="text-center py-16 px-6 bg-white rounded-2xl shadow-lg border mt-6">
+          <h3 className="text-2xl font-semibold text-gray-700">All Clear!</h3>
+          <p className="text-gray-500 mt-2">
+            There are no pending join requests for the groups you manage.
+          </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+        <div className="space-y-4">
           {requests.map((request) => (
             <div
               key={request.id}
-              className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex flex-col transition hover:shadow-lg"
-              onClick={() => handleShowUserDetails(request)}
-              style={{ cursor: "pointer" }}
+              className="bg-white p-4 sm:p-6 rounded-2xl shadow-lg border border-gray-200 flex flex-col sm:flex-row justify-between items-center transition-all duration-300 hover:shadow-2xl hover:-translate-y-1"
             >
-              <h3 className="text-xl font-bold text-gray-800 mb-2">
-                {request.group?.name || "Group"}
-              </h3>
-              <p className="text-sm text-gray-500 font-medium mb-1">
-                <strong>Requester:</strong> {request.user?.name || "Unknown"}
-              </p>
-              <p className="text-sm text-gray-500 mb-1">
-                <strong>Email:</strong> {request.user?.email || "Unknown"}
-              </p>
-              <p className="text-sm text-gray-500 mb-1">
-                <strong>Requested At:</strong>{" "}
-                {new Date(request.createdAt).toLocaleString()}
-              </p>
-              {error && (
-                <p className="text-red-500 text-sm text-center mb-2">{error}</p>
-              )}
-              <div className="flex gap-2 mt-4">
+              <div className="flex items-center mb-4 sm:mb-0 text-center sm:text-left">
+                <div className="w-12 h-12 rounded-full bg-purple-200 flex items-center justify-center font-bold text-purple-700 text-xl mr-4 flex-shrink-0">
+                  {request.user?.name?.charAt(0).toUpperCase() || "?"}
+                </div>
+                <div>
+                  <p className="font-bold text-lg text-gray-800">
+                    {request.user?.name || "Unknown User"}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Wants to join{" "}
+                    <span className="font-semibold text-purple-600">
+                      {request.group?.name || "a group"}
+                    </span>
+                  </p>
+                </div>
+              </div>
+              <div className="flex space-x-3 flex-shrink-0">
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleAction(request.id, true);
-                  }}
+                  onClick={() => handleAction(request.id, true)}
                   disabled={actionLoading === request.id}
-                  className="w-full py-2 px-4 rounded-lg bg-green-100 text-green-700 font-semibold hover:bg-green-200 transition disabled:opacity-50"
+                  className="flex items-center gap-2 px-5 py-2 rounded-lg bg-green-100 text-green-800 font-semibold hover:bg-green-200 transition disabled:opacity-50 disabled:cursor-wait"
                 >
-                  {actionLoading === request.id ? "Processing..." : "Approve"}
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  {actionLoading === request.id ? "..." : "Approve"}
                 </button>
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleAction(request.id, false);
-                  }}
+                  onClick={() => handleAction(request.id, false)}
                   disabled={actionLoading === request.id}
-                  className="w-full py-2 px-4 rounded-lg bg-red-100 text-red-700 font-semibold hover:bg-red-200 transition disabled:opacity-50"
+                  className="flex items-center gap-2 px-5 py-2 rounded-lg bg-red-100 text-red-800 font-semibold hover:bg-red-200 transition disabled:opacity-50 disabled:cursor-wait"
                 >
-                  {actionLoading === request.id ? "Processing..." : "Reject"}
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  {actionLoading === request.id ? "..." : "Deny"}
                 </button>
               </div>
             </div>
           ))}
         </div>
       )}
-      {/* Modal for extra user details */}
-      {showUserModal && selectedRequest && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md relative">
-            <button
-              onClick={handleCloseModal}
-              className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 text-xl"
-            >
-              &times;
-            </button>
-            <h2 className="text-2xl font-bold mb-2 text-gray-800">
-              Requester Details
-            </h2>
-            <p>
-              <strong>Name:</strong> {selectedRequest.user?.name || "Unknown"}
-            </p>
-            <p>
-              <strong>Email:</strong> {selectedRequest.user?.email || "Unknown"}
-            </p>
-            <p>
-              <strong>Requested At:</strong>{" "}
-              {new Date(selectedRequest.createdAt).toLocaleString()}
-            </p>
-            <p>
-              <strong>Group:</strong> {selectedRequest.group?.name || "Group"}
-            </p>
-            {/* More fields if available */}
-            {selectedRequest.user?.profilePictureUrl && (
-              <img
-                src={selectedRequest.user.profilePictureUrl}
-                alt="Profile"
-                className="w-24 h-24 rounded-full mt-2 mb-2 object-cover"
-              />
-            )}
-            {/* Add more info as needed */}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
-
-const getUserIdFromToken = () => {
-  const token = sessionStorage.getItem("token");
-  if (!token) return null;
-  try {
-    const base64Url = token.split(".")[1];
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    const jsonPayload = decodeURIComponent(
-      window
-        .atob(base64)
-        .split("")
-        .map(function (c) {
-          return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
-        })
-        .join("")
-    );
-    const payload = JSON.parse(jsonPayload);
-    return payload.sub;
-  } catch (error) {
-    console.error("Invalid token:", error);
-    return null;
-  }
-};
 
 const MyGroups = () => {
   const navigate = useNavigate();
@@ -205,22 +155,17 @@ const MyGroups = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState("owned");
-
-  // State for modal and join logic
+  const [activeTab, setActiveTab] = useState("joined");
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [groupToJoin, setGroupToJoin] = useState(null);
   const [joiningGroupId, setJoiningGroupId] = useState(null);
-
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCourse, setSelectedCourse] = useState("All");
   const [memberFilter, setMemberFilter] = useState("any");
   const [ratingFilter, setRatingFilter] = useState("any");
 
-  const userId = useMemo(() => getUserIdFromToken(), []);
-
   const fetchAllData = useCallback(async () => {
-    // ... (Your existing fetchAllData function - no changes needed)
+    // ... (No changes to data fetching logic)
     const token = sessionStorage.getItem("token");
     if (!token) {
       navigate("/login");
@@ -263,7 +208,7 @@ const MyGroups = () => {
   }, [fetchAllData]);
 
   const handleCreateGroup = async (newGroupData) => {
-    // ... (Your existing handleCreateGroup function - no changes needed)
+    // ... (No changes to create group logic)
     const token = sessionStorage.getItem("token");
     try {
       const res = await fetch("http://localhost:8145/api/groups/create", {
@@ -282,14 +227,23 @@ const MyGroups = () => {
     }
   };
 
-  // --- NEW: All logic for joining groups now lives here! ---
-  const handleOpenJoinModal = (group) => {
-    setGroupToJoin(group);
-    setShowJoinModal(true);
+  const handleJoinClick = (group) => {
+    // ... (No changes to join click logic)
+    const isPrivate = group.privacy.toLowerCase() === "private";
+    if (isPrivate && group.hasPasskey) {
+      setGroupToJoin(group);
+      setShowJoinModal(true);
+    } else if (isPrivate && !group.hasPasskey) {
+      if (window.confirm("This is a private group. Send a request to join?")) {
+        handleJoinAction(group);
+      }
+    } else {
+      handleJoinAction(group);
+    }
   };
-  const handleCloseJoinModal = () => setGroupToJoin(null);
 
   const handleJoinAction = async (group, passkey = null) => {
+    // ... (No changes to join action logic)
     setJoiningGroupId(group.groupId);
     const token = sessionStorage.getItem("token");
     try {
@@ -304,12 +258,10 @@ const MyGroups = () => {
           body: JSON.stringify({ passkey }),
         }
       );
-
       if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.message || "Failed to process request.");
       }
-
       if (group.privacy.toLowerCase() === "private" && !group.hasPasskey) {
         alert("Your request to join has been sent!");
       } else {
@@ -317,7 +269,6 @@ const MyGroups = () => {
       }
       await fetchAllData();
     } catch (err) {
-      console.error("Join action failed:", err);
       alert(`Error: ${err.message}`);
     } finally {
       setJoiningGroupId(null);
@@ -325,36 +276,31 @@ const MyGroups = () => {
   };
 
   const handlePrivateJoinSubmit = async (groupId, passkey) => {
+    // ... (No changes to private join submit logic)
     const group = allGroups.find((g) => g.groupId === groupId);
-    // Re-throw errors to be displayed in the modal
     try {
       await handleJoinAction(group, passkey);
-      handleCloseJoinModal(); // Close modal on success
+      setShowJoinModal(false);
     } catch (error) {
       throw error;
     }
   };
 
-  const handleJoinClick = (group) => {
-    const isPrivate = group.privacy.toLowerCase() === "private";
-    if (isPrivate && group.hasPasskey) {
-      handleOpenJoinModal(group); // Open modal for passkey
-    } else if (isPrivate && !group.hasPasskey) {
-      if (window.confirm("This is a private group. Send a request to join?")) {
-        handleJoinAction(group); // Request to join
-      }
-    } else {
-      handleJoinAction(group); // Join public group directly
-    }
-  };
-
   const ownedGroups = useMemo(
-    () => myGroups.filter((group) => String(group.ownerId) === String(userId)),
-    [myGroups, userId]
+    () =>
+      myGroups.filter((group) => {
+        const role = group.userRole?.toLowerCase();
+        return role === "owner" || role === "admin";
+      }),
+    [myGroups]
   );
   const joinedGroups = useMemo(
-    () => myGroups.filter((group) => String(group.ownerId) !== String(userId)),
-    [myGroups, userId]
+    () =>
+      myGroups.filter((group) => {
+        const role = group.userRole?.toLowerCase();
+        return role !== "owner" && role !== "admin";
+      }),
+    [myGroups]
   );
 
   const filteredDiscoverGroups = useMemo(() => {
@@ -384,7 +330,7 @@ const MyGroups = () => {
 
   if (loading) return <div className="text-center p-8">Loading groups...</div>;
   if (error) return <div className="text-center p-8 text-red-500">{error}</div>;
-  if (showCreateForm) {
+  if (showCreateForm)
     return (
       <GroupCreateForm
         courses={courses}
@@ -392,58 +338,63 @@ const MyGroups = () => {
         onCancel={() => setShowCreateForm(false)}
       />
     );
-  }
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
-      {/* My Groups Section */}
-      <div className="mb-12">
-        <h2 className="text-2xl font-bold mb-4 text-gray-800">My Groups</h2>
-        <div className="flex border-b border-gray-200">
-          <button
-            onClick={() => setActiveTab("owned")}
-            className={`py-2 px-4 text-sm font-medium focus:outline-none transition-colors duration-150 ${
-              activeTab === "owned"
-                ? "border-b-2 border-purple-600 text-purple-600"
-                : "text-gray-500 hover:text-purple-500"
-            }`}
-          >
-            My Groups
-          </button>
-          <button
-            onClick={() => setActiveTab("joined")}
-            className={`py-2 px-4 text-sm font-medium focus:outline-none transition-colors duration-150 ${
-              activeTab === "joined"
-                ? "border-b-2 border-purple-600 text-purple-600"
-                : "text-gray-500 hover:text-purple-500"
-            }`}
-          >
-            Joined Groups
-          </button>
-          <button
-            onClick={() => setActiveTab("requests")}
-            className={`py-2 px-4 text-sm font-medium focus:outline-none transition-colors duration-150 ${
-              activeTab === "requests"
-                ? "border-b-2 border-purple-600 text-purple-600"
-                : "text-gray-500 hover:text-purple-500"
-            }`}
-          >
-            Requests
-          </button>
-        </div>
-        <div className="mt-6">
-          {activeTab === "owned" && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {ownedGroups.map((group) => (
-                <GroupCard key={group.groupId} group={group} isMember={true} />
-              ))}
-              <CreateGroupCard onClick={() => setShowCreateForm(true)} />
-            </div>
-          )}
-          {activeTab === "joined" && (
-            <div>
-              {joinedGroups.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    <div className="min-h-screen bg-purple-50/50 p-4 sm:p-8">
+      <div className="max-w-7xl mx-auto">
+        {/* My Groups Section */}
+        <div className="mb-12">
+          <h1 className="text-4xl font-bold text-gray-800 mb-6">
+            My <span className="text-purple-600">Groups</span>
+          </h1>
+          <div className="flex border-b border-gray-200">
+            <button
+              onClick={() => setActiveTab("joined")}
+              className={`py-3 px-5 text-md font-semibold focus:outline-none transition-colors duration-200 ${
+                activeTab === "joined"
+                  ? "border-b-2 border-purple-600 text-purple-600"
+                  : "text-gray-500 hover:text-purple-500"
+              }`}
+            >
+              Joined Groups
+            </button>
+            <button
+              onClick={() => setActiveTab("owned")}
+              className={`py-3 px-5 text-md font-semibold focus:outline-none transition-colors duration-200 ${
+                activeTab === "owned"
+                  ? "border-b-2 border-purple-600 text-purple-600"
+                  : "text-gray-500 hover:text-purple-500"
+              }`}
+            >
+              My Groups
+            </button>
+            <button
+              onClick={() => setActiveTab("requests")}
+              className={`py-3 px-5 text-md font-semibold focus:outline-none transition-colors duration-200 ${
+                activeTab === "requests"
+                  ? "border-b-2 border-purple-600 text-purple-600"
+                  : "text-gray-500 hover:text-purple-500"
+              }`}
+            >
+              Requests
+            </button>
+          </div>
+          <div className="mt-8">
+            {activeTab === "owned" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-fade-in">
+                {ownedGroups.map((group) => (
+                  <GroupCard
+                    key={group.groupId}
+                    group={group}
+                    isMember={true}
+                  />
+                ))}
+                <CreateGroupCard onClick={() => setShowCreateForm(true)} />
+              </div>
+            )}
+            {activeTab === "joined" &&
+              (joinedGroups.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-fade-in">
                   {joinedGroups.map((group) => (
                     <GroupCard
                       key={group.groupId}
@@ -453,97 +404,108 @@ const MyGroups = () => {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12 px-6 bg-white rounded-lg shadow-sm border">
-                  <p className="text-gray-500">
-                    You haven't joined any other groups yet.
+                <div className="text-center py-16 px-6 bg-white rounded-2xl shadow-lg border animate-fade-in">
+                  <h3 className="text-xl font-semibold text-gray-700">
+                    You haven't joined any groups yet.
+                  </h3>
+                  <p className="text-gray-500 mt-2">
+                    Find a group to collaborate with in the 'Discover' section
+                    below!
                   </p>
                 </div>
-              )}
+              ))}
+            {activeTab === "requests" && <GroupRequestsPanel />}
+          </div>
+        </div>
+
+        <hr className="my-12" />
+
+        {/* Discover Groups Section */}
+        <div>
+          <h2 className="text-3xl font-bold text-gray-800 mb-6">
+            Discover <span className="text-orange-500">Groups</span>
+          </h2>
+          <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <input
+                type="text"
+                placeholder="Search by name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-400 transition"
+              />
+              <select
+                value={selectedCourse}
+                onChange={(e) => setSelectedCourse(e.target.value)}
+                className="w-full p-3 border rounded-lg bg-white focus:ring-2 focus:ring-purple-400 transition"
+              >
+                <option value="All">All Courses</option>
+                {courses.map((course) => (
+                  <option key={course.courseId} value={course.courseId}>
+                    {course.courseName}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={memberFilter}
+                onChange={(e) => setMemberFilter(e.target.value)}
+                className="w-full p-3 border rounded-lg bg-white focus:ring-2 focus:ring-purple-400 transition"
+              >
+                <option value="any">Any Group Size</option>
+                <option value="1-25">1-25 Members</option>
+                <option value="26-50">26-50 Members</option>
+                <option value="51-100">51-100 Members</option>
+                <option value="101+">100+ Members</option>
+              </select>
+              <select
+                value={ratingFilter}
+                onChange={(e) => setRatingFilter(e.target.value)}
+                className="w-full p-3 border rounded-lg bg-white focus:ring-2 focus:ring-purple-400 transition"
+              >
+                <option value="any">Any Rating</option>
+                <option value="4">4+ Stars</option>
+                <option value="3">3+ Stars</option>
+                <option value="2">2+ Stars</option>
+                <option value="1">1+ Star</option>
+              </select>
             </div>
-          )}
-          {activeTab === "requests" && <GroupRequestsPanel />}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredDiscoverGroups.length > 0 ? (
+              filteredDiscoverGroups.map((group) => {
+                const isMember = myGroups.some(
+                  (myGroup) => myGroup.groupId === group.groupId
+                );
+                return (
+                  <GroupCard
+                    key={group.groupId}
+                    group={group}
+                    isMember={isMember}
+                    isJoining={joiningGroupId === group.groupId}
+                    onJoinClick={() => handleJoinClick(group)}
+                  />
+                );
+              })
+            ) : (
+              <div className="col-span-full text-center py-16 px-6 bg-white rounded-2xl shadow-lg border">
+                <h3 className="text-xl font-semibold text-gray-700">
+                  No Groups Found
+                </h3>
+                <p className="text-gray-500 mt-2">
+                  Try adjusting your filters or search term to find more groups.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
-      <hr className="my-12" />
-      {/* Discover Groups Section */}
-      <div>
-        <h2 className="text-2xl font-bold mb-4 text-gray-800">
-          Discover Groups
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <input
-            type="text"
-            placeholder="Search by name..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+        {showJoinModal && groupToJoin && (
+          <JoinGroupModal
+            group={groupToJoin}
+            onClose={() => setShowJoinModal(false)}
+            onSubmit={handlePrivateJoinSubmit}
           />
-          <select
-            value={selectedCourse}
-            onChange={(e) => setSelectedCourse(e.target.value)}
-            className="w-full p-2 border rounded-md bg-white"
-          >
-            <option value="All">All Courses</option>
-            {courses.map((course) => (
-              <option key={course.courseId} value={course.courseId}>
-                {course.courseName}
-              </option>
-            ))}
-          </select>
-          <select
-            value={memberFilter}
-            onChange={(e) => setMemberFilter(e.target.value)}
-            className="w-full p-2 border rounded-md bg-white"
-          >
-            <option value="any">Any Group Size</option>
-            <option value="1-25">1-25 Members</option>
-            <option value="26-50">26-50 Members</option>
-            <option value="51-100">51-100 Members</option>
-            <option value="101+">100+ Members</option>
-          </select>
-          <select
-            value={ratingFilter}
-            onChange={(e) => setRatingFilter(e.target.value)}
-            className="w-full p-2 border rounded-md bg-white"
-          >
-            <option value="any">Any Rating</option>
-            <option value="4">4+ Stars</option>
-            <option value="3">3+ Stars</option>
-            <option value="2">2+ Stars</option>
-            <option value="1">1+ Star</option>
-          </select>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredDiscoverGroups.length > 0 ? (
-            filteredDiscoverGroups.map((group) => {
-              const isMember = myGroups.some(
-                (myGroup) => myGroup.groupId === group.groupId
-              );
-              return (
-                <GroupCard
-                  key={group.groupId}
-                  group={group}
-                  isMember={isMember}
-                  isJoining={joiningGroupId === group.groupId}
-                  onJoinClick={() => handleJoinClick(group)}
-                />
-              );
-            })
-          ) : (
-            <p className="col-span-full text-center text-gray-500 mt-8">
-              No groups found. Try adjusting your filters!
-            </p>
-          )}
-        </div>
+        )}
       </div>
-      {/* Render the modal conditionally */}
-      {showJoinModal && groupToJoin && (
-        <JoinGroupModal
-          group={groupToJoin}
-          onClose={() => setShowJoinModal(false)}
-          onSubmit={handlePrivateJoinSubmit}
-        />
-      )}
     </div>
   );
 };

@@ -1,22 +1,22 @@
 package com.studyGroup.infosys.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.*;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
 import lombok.Data;
-
-import java.util.HashSet;
-import java.util.Set;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
+@Table(name = "course")
 public class Course {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer courseId;
-    private String courseName;
-    private String courseDescription;
 
-    @ManyToMany(mappedBy = "courses")
-    @JsonIgnore // Prevents infinite recursion when serializing
-    private Set<User> users = new HashSet<>();
+    @Id
+    private String courseId;
+    
+    private String courseName;
+    private String description;
 }

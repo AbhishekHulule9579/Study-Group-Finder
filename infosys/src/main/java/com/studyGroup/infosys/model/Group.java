@@ -5,11 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.Set;
-
 @Entity
-// Renamed the table to 'study_groups' to avoid conflict with the SQL reserved keyword 'GROUP'.
-@Table(name = "study_groups")
+@Table(name = "study_group")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -20,28 +17,23 @@ public class Group {
     @Column(name = "group_id")
     private Long groupId;
 
-    @Column(name = "name")
     private String name;
 
     @Column(columnDefinition = "TEXT")
     private String description;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "associated_course_id")
+    @JoinColumn(name = "associated_course_id", nullable = false)
     private Course associatedCourse;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "creator_id", nullable = false)
-    private User creator;
+    @JoinColumn(name = "created_by_userid", nullable = false)
+    private User createdBy;
 
-    private String privacy;
+    private String privacy; 
 
-    private String passkey;
+    private String passkey; 
 
     @Column(name = "member_limit")
     private Integer memberLimit;
-
-    @OneToMany(mappedBy = "group", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<GroupMember> members;
 }
-

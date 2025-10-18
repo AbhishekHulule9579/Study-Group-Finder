@@ -1,46 +1,58 @@
 package com.studyGroup.infosys.controller;
 
 import com.studyGroup.infosys.dto.DashboardDTO;
+import com.studyGroup.infosys.model.User;
 import com.studyGroup.infosys.service.DashboardService;
+import com.studyGroup.infosys.service.JWTService;
+import com.studyGroup.infosys.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api")
-@CrossOrigin(origins = "http://localhost:5173")
+@RequestMapping("/api/dashboard")
+@CrossOrigin(origins = "*")
 public class DashboardController {
 
     @Autowired
     private DashboardService dashboardService;
 
-    @GetMapping("/dashboard")
-    public ResponseEntity<?> getDashboard() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated() || authentication.getPrincipal().equals("anonymousUser")) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
+    @Autowired
+    private JWTService jwtService;
+
+    @Autowired
+    private UserService userService;
+
+   
+    @GetMapping
+    public ResponseEntity<?> getDashboardData(@RequestHeader("Authorization") String authHeader) {
+     
+        String token = authHeader.substring(7);
+        String email = jwtService.validateToken(token);
+
+        if ("401".equals(email)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or expired token.");
         }
 
-        String userEmail;
-        Object principal = authentication.getPrincipal();
+        try {
+            User currentUser = userService.getUserProfile(token);
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User associated with token not found.");
+            }
 
-        if (principal instanceof UserDetails) {
-            // This is the standard Spring Security principal
-            userEmail = ((UserDetails) principal).getUsername();
-        } else {
-             // Fallback if the principal is just the username string
-            userEmail = principal.toString();
+            DashboardDTO dashboardData = dashboardService.getDashboardData(currentUser);
+
+            return ResponseEntity.ok(dashboardData);
+
+        } catch (Exception e) {
+           
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("An error occurred while fetching dashboard data: " + e.getMessage());
         }
-        
-        // Pass the username (which is the email in our case) to the service layer
-        DashboardDTO dashboardData = dashboardService.getDashboardData(userEmail);
-        return ResponseEntity.ok(dashboardData);
     }
 }

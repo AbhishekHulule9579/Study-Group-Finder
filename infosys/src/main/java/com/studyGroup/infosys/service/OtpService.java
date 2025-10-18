@@ -1,96 +1,108 @@
 package com.studyGroup.infosys.service;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
-import java.util.Map;
 import java.util.Random;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+
 
 @Service
 public class OtpService {
 
-    private static final int EXPIRE_MINS = 5;
+    private static final Integer EXPIRE_MINUTES = 5;
+   
+    private static final Integer AUTH_EXPIRE_MINUTES = 30; 
+    
+    private final Cache<String, String> otpCache; 
+    private final Cache<String, Boolean> verifiedEmailCache; 
+    
+    private final Cache<String, Boolean> resetStartedCache;
+    
+   
+    private final Cache<String, Boolean> passwordChangeAuthorizedCache; 
 
-    private static class OtpData {
-        String otp;
-        LocalDateTime expiryTime;
-
-        OtpData(String otp) {
-            this.otp = otp;
-            this.expiryTime = LocalDateTime.now().plusMinutes(EXPIRE_MINS);
-        }
-
-        boolean isExpired() {
-            return LocalDateTime.now().isAfter(expiryTime);
-        }
+    public OtpService() {
+       
+        otpCache = CacheBuilder.newBuilder()
+                .expireAfterWrite(EXPIRE_MINUTES, TimeUnit.MINUTES)
+                .build();
+        verifiedEmailCache = CacheBuilder.newBuilder()
+                .expireAfterWrite(AUTH_EXPIRE_MINUTES, TimeUnit.MINUTES)
+                .build();
+                
+        resetStartedCache = CacheBuilder.newBuilder()
+                .expireAfterWrite(AUTH_EXPIRE_MINUTES, TimeUnit.MINUTES)
+                .build();
+        
+        passwordChangeAuthorizedCache = CacheBuilder.newBuilder()
+                .expireAfterWrite(EXPIRE_MINUTES, TimeUnit.MINUTES)
+                .build();
     }
 
-    private final Map<String, OtpData> otpCache = new ConcurrentHashMap<>();
-    private final Set<String> verifiedEmailsCache = ConcurrentHashMap.newKeySet();
-    private final Set<String> passwordResetStartedCache = ConcurrentHashMap.newKeySet();
-    private final Set<String> passwordChangeAuthorizedCache = ConcurrentHashMap.newKeySet();
-
+   
     public String generateAndCacheOtp(String key) {
-        Random random = new Random();
-        String otp = String.valueOf(100000 + random.nextInt(900000));
-        otpCache.put(key, new OtpData(otp));
+        String otp = String.format("%06d", new Random().nextInt(999999));
+        otpCache.put(key, otp);
         return otp;
     }
 
     public String getOtp(String key) {
-        OtpData otpData = otpCache.get(key);
-        if (otpData != null && !otpData.isExpired()) {
-            return otpData.otp;
-        }
-        otpCache.remove(key); // remove expired or null
-        return null;
+        return otpCache.getIfPresent(key);
     }
 
-    public void clearOTP(String key) {
-        otpCache.remove(key);
+    public void clearOtp(String key) {
+        otpCache.invalidate(key);
     }
 
+    
     public boolean verifyOtp(String email, String otp) {
         String cachedOtp = getOtp(email);
         if (cachedOtp != null && cachedOtp.equals(otp)) {
-            clearOTP(email);
+            clearOtp(email);
             return true;
         }
         return false;
     }
+    
+  
+     public void markEmailVerified(String email) {
+        verifiedEmailCache.put(email, true);
+     }
 
-    public void markEmailVerified(String email) {
-        verifiedEmailsCache.add(email);
-    }
-
+  
     public boolean isEmailVerified(String email) {
-        return verifiedEmailsCache.contains(email);
+        return Boolean.TRUE.equals(verifiedEmailCache.getIfPresent(email));
     }
 
+  
     public void clearVerifiedEmail(String email) {
-        verifiedEmailsCache.remove(email);
+        verifiedEmailCache.invalidate(email);
     }
-
+    
+    
     public void markResetStarted(String email) {
-        passwordResetStartedCache.add(email);
+        resetStartedCache.put(email, true);
     }
-
+    
+  
     public boolean isResetStarted(String email) {
-        return passwordResetStartedCache.contains(email);
+        return Boolean.TRUE.equals(resetStartedCache.getIfPresent(email));
     }
-
+    
+    
     public void markPasswordChangeAuthorized(String email) {
-        passwordChangeAuthorizedCache.add(email);
-        passwordResetStartedCache.remove(email);
+        passwordChangeAuthorizedCache.put(email, true);
+        resetStartedCache.invalidate(email); 
     }
-
+   
     public boolean isPasswordChangeAuthorized(String email) {
-        return passwordChangeAuthorizedCache.contains(email);
+        return Boolean.TRUE.equals(passwordChangeAuthorizedCache.getIfPresent(email));
     }
-
+    
+    
     public void clearPasswordChangeAuthorization(String email) {
-        passwordChangeAuthorizedCache.remove(email);
+        passwordChangeAuthorizedCache.invalidate(email);
     }
 }

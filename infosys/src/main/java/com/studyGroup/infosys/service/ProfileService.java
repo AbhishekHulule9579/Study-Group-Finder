@@ -2,6 +2,7 @@ package com.studyGroup.infosys.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.studyGroup.infosys.model.Course;
 import com.studyGroup.infosys.model.Profile;
 import com.studyGroup.infosys.repository.ProfileRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,26 +36,24 @@ public class ProfileService {
     }
 
     
-    private Set<Integer> getEnrolledCourseIdsAsSet(Profile profile) throws IOException {
+    private Set<String> getEnrolledCourseIdsAsSet(Profile profile) throws IOException {
         String enrolledCoursesJson = profile.getEnrolledCourseIds();
         if (enrolledCoursesJson == null || enrolledCoursesJson.isEmpty() || enrolledCoursesJson.equals("[]")) {
             return new HashSet<>();
         }
-        return objectMapper.readValue(enrolledCoursesJson, new TypeReference<Set<Integer>>() {});
+        return objectMapper.readValue(enrolledCoursesJson, new TypeReference<>() {});
     }
 
 
-    public Profile enrollInCourse(String email, String courseIdStr) {
+    public Profile enrollInCourse(String email, String courseId) {
         Profile profile = profileRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User profile not found."));
-
-        Integer courseId = Integer.parseInt(courseIdStr);
 
         courseService.getCourseById(courseId)
                 .orElseThrow(() -> new RuntimeException("Course not found."));
 
         try {
-            Set<Integer> enrolledCourseIds = getEnrolledCourseIdsAsSet(profile);
+            Set<String> enrolledCourseIds = getEnrolledCourseIdsAsSet(profile);
             enrolledCourseIds.add(courseId);
             profile.setEnrolledCourseIds(objectMapper.writeValueAsString(enrolledCourseIds));
             return profileRepository.save(profile);
@@ -63,14 +62,12 @@ public class ProfileService {
         }
     }
 
-    public Profile unenrollFromCourse(String email, String courseIdStr) {
+    public Profile unenrollFromCourse(String email, String courseId) {
         Profile profile = profileRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User profile not found."));
-        
-        Integer courseId = Integer.parseInt(courseIdStr);
 
         try {
-            Set<Integer> enrolledCourseIds = getEnrolledCourseIdsAsSet(profile);
+            Set<String> enrolledCourseIds = getEnrolledCourseIdsAsSet(profile);
 
             if (enrolledCourseIds.remove(courseId)) { 
                 profile.setEnrolledCourseIds(objectMapper.writeValueAsString(enrolledCourseIds));

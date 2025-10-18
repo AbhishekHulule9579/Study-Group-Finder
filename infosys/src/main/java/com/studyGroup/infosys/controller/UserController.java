@@ -10,141 +10,241 @@ import com.studyGroup.infosys.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.Authentication;
-
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/users")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "*")
 public class UserController {
+
     @Autowired
     private UserService userService;
-    @Autowired
-    private OtpService otpService;
-    @Autowired
-    private EmailService emailService;
-    @Autowired
-    private AuthenticationManager authenticationManager;
+    
     @Autowired
     private JWTService jwtService;
+
     @Autowired
-    private PasswordEncoder passwordEncoder;
+    private OtpService otpService;
 
+    @Autowired
+    private EmailService emailService;
 
+    
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@RequestBody User user) {
+    
         if (!otpService.isEmailVerified(user.getEmail())) {
-            return ResponseEntity.badRequest().body("Email not verified.");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Email has not been verified. Please complete the OTP step.");
         }
-        if (userService.userExists(user.getEmail())) {
-            return ResponseEntity.badRequest().body("User with this email already exists.");
+
+        String response = userService.registerUser(user);
+        if (response.startsWith("401")) { 
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("Email ID already exists.");
         }
-        User registeredUser = userService.registerUser(user);
 
         otpService.clearVerifiedEmail(user.getEmail());
 
-        return ResponseEntity.ok(registeredUser);
+        return ResponseEntity.ok("User Registered Successfully");
     }
 
-    @PostMapping("/send-otp")
-    public ResponseEntity<?> sendOtp(@RequestParam String email) {
+    @PostMapping("/register/send-otp")
+    public ResponseEntity<?> sendRegistrationOtp(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
         if (userService.userExists(email)) {
-            return ResponseEntity.badRequest().body("User with this email already exists.");
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("An account with this email already exists.");
         }
         String otp = otpService.generateAndCacheOtp(email);
-        try {
-            emailService.sendOtpEmail(email, otp);
-            return ResponseEntity.ok("OTP sent to your email.");
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to send OTP.");
-        }
+
+        String emailBody = "Hello " + request.getOrDefault("name", "there") + ",\n\n"
+                + "Thank you for registering with Study Group Finder.\n\n"
+                + "Your One-Time Password (OTP) is: " + otp + "\n\n"
+                + "This OTP is valid for 5 minutes.\n\n"
+                + "If you did not request this, please ignore this email.\n\n"
+                + "Best regards,\nThe Study Group Finder Team";
+
+        emailService.sendEmail(email, "Your OTP for Study Group Finder Registration", emailBody);
+
+        return ResponseEntity.ok("OTP sent to your email address.");
     }
 
-    @PostMapping("/verify-otp")
-    public ResponseEntity<?> verifyOtp(@RequestParam String email, @RequestParam String otp) {
+   
+    @PostMapping("/register/verify-otp")
+    public ResponseEntity<?> verifyRegistrationOtp(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        String otp = request.get("otp");
+
         if (otpService.verifyOtp(email, otp)) {
-            otpService.markEmailVerified(email);
+            otpService.markEmailVerified(email); 
             return ResponseEntity.ok("Email verified successfully.");
         } else {
-            return ResponseEntity.badRequest().body("Invalid OTP.");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid or expired OTP. Please try again.");
         }
     }
-
-    @PostMapping("/login")
-    public ResponseEntity<?> loginUser(@RequestBody LoginRequest loginRequest) {
-        try {
-            Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword())
-            );
-            SecurityContextHolder.getContext().setAuthentication(authentication);
-            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-            String jwt = jwtService.generateToken(userDetails.getUsername());
-
-            Map<String, String> response = new HashMap<>();
-            response.put("token", jwt);
-            response.put("message", "Login successful");
-
-            return ResponseEntity.ok(response);
-        } catch (AuthenticationException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
-        }
-    }
-
-    @PostMapping("/forgot-password")
-    public ResponseEntity<?> forgotPassword(@RequestParam String email) {
-        if (!userService.userExists(email)) {
-            return ResponseEntity.badRequest().body("No user found with this email.");
-        }
-        String otp = otpService.generateAndCacheOtp(email);
-        try {
-            emailService.sendOtpEmail(email, otp);
-            otpService.markResetStarted(email);
-            return ResponseEntity.ok("OTP sent to your email for password reset.");
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to send OTP.");
-        }
-    }
-
-    @PostMapping("/verify-reset-otp")
-    public ResponseEntity<?> verifyResetOtp(@RequestParam String email, @RequestParam String otp) {
-        if (!otpService.isResetStarted(email)) {
-            return ResponseEntity.badRequest().body("Password reset not initiated for this email.");
-        }
-        if (otpService.verifyOtp(email, otp)) {
-            otpService.markPasswordChangeAuthorized(email);
-            return ResponseEntity.ok("OTP verified. You can now change your password.");
-        } else {
-            return ResponseEntity.badRequest().body("Invalid OTP.");
-        }
-    }
-
-    @PostMapping("/reset-password")
-    public ResponseEntity<?> resetPassword(@RequestBody PasswordChangeRequest request) {
-        if (!otpService.isPasswordChangeAuthorized(request.getEmail())) {
-            return ResponseEntity.badRequest().body("Not authorized to change password. Please verify OTP first.");
-        }
-        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
-            return ResponseEntity.badRequest().body("Passwords do not match.");
-        }
-
-        User user = userService.findByEmail(request.getEmail());
-        if (user == null) {
-            return ResponseEntity.badRequest().body("User not found.");
+    
+    
+    @PostMapping("/forgot-password/send-otp")
+    public ResponseEntity<String> sendForgotPasswordOtp(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        
+        Optional<User> userOptional = userService.getUserByEmail(email);
+        if (userOptional.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found or email not registered.");
         }
         
-        userService.changePassword(request.getEmail(), request.getNewPassword());
+        User user = userOptional.get();
+        String otp = otpService.generateAndCacheOtp(email);
+        
+        String userName = Optional.ofNullable(user.getName()).orElse("there");
 
-        otpService.clearPasswordChangeAuthorization(request.getEmail());
+        String emailBody = String.format(
+            "Hello %s,\n\n"
+            + "We received a request to reset your password. \n\n"
+            + "Your One-Time Password (OTP) is: %s\n\n"
+            + "This OTP is valid for 5 minutes. Do not share it with anyone.\n\n"
+            + "If you did not request this, please ignore this email.\n\n"
+            + "Best regards,\nThe Study Group Finder Team",
+            userName, otp
+        );
+        
+        String emailResponse = emailService.sendEmail(email, "Password Reset OTP for Study Group Finder", emailBody);
+        
+        if (emailResponse.startsWith("200")) {
+            otpService.markResetStarted(email); 
+            return ResponseEntity.ok("OTP sent to the registered email.");
+        } else {
+            
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(emailResponse.substring(6)); 
+        }
+    }
 
-        return ResponseEntity.ok("Password has been reset successfully.");
+ 
+    @PostMapping("/forgot-password/verify-otp")
+    public ResponseEntity<Map<String, String>> verifyForgotPasswordOtp(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        String otp = request.get("otp");
+        
+        if (!otpService.isResetStarted(email)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Password reset process not initiated or session expired."));
+        }
+
+        if (otpService.verifyOtp(email, otp)) {
+            otpService.markPasswordChangeAuthorized(email); 
+            return ResponseEntity.ok(Map.of("message", "OTP verified. You can now set a new password."));
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Invalid or expired OTP. Please try again."));
+        }
+    }
+
+    
+    @PostMapping("/forgot-password/reset-password")
+    public ResponseEntity<Map<String, String>> resetPassword(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        String newPassword = request.get("newPassword");
+        
+        if (!otpService.isPasswordChangeAuthorized(email)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Authorization failed. Please verify the OTP again."));
+        }
+
+        if (newPassword == null || newPassword.length() < 6) {
+             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "New password must be at least 6 characters long."));
+        }
+
+        try {
+            userService.changePassword(email, newPassword);
+            
+            otpService.clearPasswordChangeAuthorization(email);
+            
+            return ResponseEntity.ok(Map.of("message", "Password reset successfully. You can now log in with your new password."));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Failed to reset password: " + e.getMessage()));
+        }
+    }
+    @PostMapping("/signin")
+    public ResponseEntity<?> signin(@RequestBody LoginRequest loginRequest) {
+        String response = userService.validateCredentials(loginRequest.getEmail(), loginRequest.getPassword());
+        
+        if (response.startsWith("404")) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Collections.singletonMap("message", "User not registered. Please register first."));
+        }
+        if (response.startsWith("401")) { 
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Collections.singletonMap("message", "Invalid email or password."));
+        }
+
+        String token = response.substring(5);
+        return ResponseEntity.ok(Collections.singletonMap("token", token));
+    }
+    
+    @GetMapping("/profile")
+    public ResponseEntity<?> getProfile(@RequestHeader("Authorization") String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or missing Authorization header.");
+        }
+        String token = authHeader.substring(7);
+        User userProfile = userService.getUserProfile(token);
+        if (userProfile == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or expired token.");
+        }
+        return ResponseEntity.ok(userProfile);
+    }
+    
+
+    @PutMapping("/profile")
+    public ResponseEntity<?> updateUserProfile(@RequestHeader("Authorization") String authHeader, @RequestBody User userDetails) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or missing Authorization header.");
+        }
+        String token = authHeader.substring(7);
+        String email = jwtService.validateToken(token);
+        
+        if ("401".equals(email)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or expired token.");
+        }
+
+        User updatedUser = userService.updateUser(email, userDetails);
+
+        if (updatedUser == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found.");
+        }
+        return ResponseEntity.ok(updatedUser);
+    }
+
+    @PostMapping("/verify-password")
+    public ResponseEntity<?> verifyPassword(@RequestHeader("Authorization") String authHeader, @RequestBody PasswordChangeRequest request) {
+        String token = authHeader.substring(7);
+        String email = jwtService.validateToken(token);
+
+        if ("401".equals(email)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or expired token.");
+        }
+
+        boolean isCorrect = userService.verifyPassword(email, request.getCurrentPassword());
+
+        if (isCorrect) {
+            return ResponseEntity.ok(Map.of("message", "Password verified."));
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Current password does not match."));
+        }
+    }
+
+    @PutMapping("/change-password")
+    public ResponseEntity<?> changePassword(@RequestHeader("Authorization") String authHeader, @RequestBody PasswordChangeRequest request) {
+        String token = authHeader.substring(7);
+        String email = jwtService.validateToken(token);
+
+        if ("401".equals(email)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or expired token.");
+        }
+
+        if (request.getNewPassword() == null || request.getNewPassword().length() < 6) {
+             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "New password must be at least 6 characters long."));
+        }
+
+        userService.changePassword(email, request.getNewPassword());
+        return ResponseEntity.ok(Map.of("message", "Password changed successfully."));
     }
 }
