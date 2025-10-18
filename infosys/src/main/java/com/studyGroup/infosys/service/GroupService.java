@@ -174,5 +174,30 @@ public class GroupService {
         }
         groupJoinRequestRepository.save(request);
     }
-}
 
+    @Transactional
+    public void leaveGroup(Long groupId, User user) {
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new RuntimeException("Group not found with ID: " + groupId));
+
+        GroupMember membership = groupMemberRepository.findByGroupAndUser(group, user)
+                .orElseThrow(() -> new RuntimeException("You are not a member of this group."));
+
+        // Prevent owner from leaving if they are not the last member.
+        if (group.getCreatedBy().getId().equals(user.getId())) {
+            long memberCount = groupMemberRepository.countByGroup(group);
+            if (memberCount > 1) {
+                throw new RuntimeException("As the owner, you must delete the group or transfer ownership before leaving.");
+            }
+        }
+
+        groupMemberRepository.delete(membership);
+
+        // If the group becomes empty after the member leaves, delete the group.
+        if (groupMemberRepository.countByGroup(group) == 0) {
+            // Also delete pending join requests for this group
+            groupJoinRequestRepository.deleteByGroup(group);
+            groupRepository.delete(group);
+        }
+    }
+}

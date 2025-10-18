@@ -125,9 +125,22 @@ public class GroupController {
         }
     }
 
+    @DeleteMapping("/leave/{groupId}")
+    public ResponseEntity<?> leaveGroup(@PathVariable Long groupId, @RequestHeader("Authorization") String authHeader) {
+        try {
+            String token = authHeader.substring(7);
+            User currentUser = userService.getUserProfile(token);
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Invalid or expired token."));
+            }
+            groupService.leaveGroup(groupId, currentUser);
+            return ResponseEntity.ok(Map.of("message", "Successfully left the group."));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
+        }
+    }
+
     
     @Autowired
     private GroupRepository groupRepository;
 }
-
-

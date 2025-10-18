@@ -80,41 +80,51 @@ export default function GroupDetailPage() {
     // Integrate logic from MyGroups join (check privacy, show modal?)
     alert("Join group logic needs implementation (API call).");
   };
+
   const handleLeaveGroup = async () => {
     if (
-      window.confirm(
+      !window.confirm(
         `Are you sure you want to leave "${group?.name || "this group"}"?`
       )
     ) {
-      // Add fetch DELETE to `/api/groups/leave/${groupId}` logic here
-      try {
-        const res = await fetch(
-          `http://localhost:8145/api/groups/leave/${groupId}`,
-          {
-            method: "DELETE", // Or POST depending on your API design
-            headers: { Authorization: `Bearer ${token}` },
-          }
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        `http://localhost:8145/api/groups/leave/${groupId}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({})); // try to parse json, but don't fail if it's not json
+        throw new Error(
+          errorData.message || `Failed to leave group. Status: ${res.status}`
         );
-        if (!res.ok) throw new Error("Failed to leave group.");
-        alert("Successfully left the group.");
-        navigate("/my-groups"); // Redirect after leaving
-      } catch (leaveError) {
-        setError(leaveError.message || "Could not leave group.");
       }
+
+      alert("Successfully left the group.");
+      navigate("/my-groups"); // Redirect after leaving
+    } catch (leaveError) {
+      setError(leaveError.message || "Could not leave the group.");
     }
   };
+
 
   // --- Loading and Error States ---
   if (loading) {
     return <div className="p-8 text-center text-xl">Loading group...</div>;
   }
 
-  // Show error prominently if fetching failed
+  // Show error prominently if fetching failed or an action fails
   if (error) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-8">
         <h2 className="text-2xl font-bold text-red-600 mb-4">
-          Access Denied or Not Found
+          An Error Occurred
         </h2>
         <p className="text-gray-600 max-w-md">{error}</p>
         <Link
@@ -142,6 +152,7 @@ export default function GroupDetailPage() {
   const renderActionButton = () => {
     switch (userRole) {
       case "owner":
+      case "Admin":
         return (
           <Link
             to={`/group/${groupId}/manage`}
@@ -160,11 +171,6 @@ export default function GroupDetailPage() {
           </button>
         );
       default: // non-member
-        // Check group privacy before showing join button (optional but good UX)
-        // You might need to add a 'privacy' field to your groupDetails from the backend
-        // if (group.privacy === 'private' && !group.requiresPasskey) {
-        //     return <button onClick={handleRequestToJoin} className="...">Request to Join</button>;
-        // }
         return (
           <button
             onClick={handleJoinGroup}
@@ -240,9 +246,6 @@ export default function GroupDetailPage() {
             {activeTab === "chat" && <GroupChat chatMessages={chatMessages} />}
           </div>
         </div>
-
-        {/* Optional: You could add the "About" section back as a separate card if desired */}
-        {/* <div className="mt-8 bg-white rounded-2xl shadow-xl border border-gray-200 p-6"> ... About Info ... </div> */}
       </div>
     </div>
   );
@@ -281,8 +284,6 @@ function GroupMembers({ members, ownerId }) {
               Owner
             </span>
           )}
-          {/* You could add a 'role' field from backend if members can have other roles */}
-          {/* {member.role && member.userId !== ownerId && (<span className="..."> {member.role} </span>)} */}
         </div>
       ))}
     </div>
@@ -312,10 +313,8 @@ function GroupFiles({ files }) {
         >
           <div>
             <span className="font-semibold text-gray-700">{file.name}</span>
-            {/* Add uploader info or date if available */}
           </div>
           <span className="text-sm text-gray-500">{file.size}</span>
-          {/* Add Download/Delete buttons */}
         </div>
       ))}
     </div>
@@ -344,10 +343,8 @@ function GroupChat({ chatMessages }) {
               {chat.user}:{" "}
             </span>
             <span className="text-gray-800">{chat.message}</span>
-            {/* Add timestamp */}
           </div>
         ))}
-        {/* Add more messages for scrolling demo if needed */}
       </div>
       {/* Input Area */}
       <div className="mt-auto pt-4 border-t">
