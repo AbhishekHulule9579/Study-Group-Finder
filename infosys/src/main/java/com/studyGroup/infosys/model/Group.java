@@ -1,46 +1,39 @@
 package com.studyGroup.infosys.model;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
-import java.util.Objects;
-
-@Data
 @Entity
-@Table(name = "study_groups")
+@Table(name = "study_group")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class Group {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "group_id")
     private Long groupId;
 
     private String name;
+
+    @Column(columnDefinition = "TEXT")
     private String description;
 
-    @ManyToOne
-    @JoinColumn(name = "course_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "associated_course_id", nullable = false)
     private Course associatedCourse;
 
-    @ManyToOne
-    @JoinColumn(name = "created_by_user_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by_userid", nullable = false)
     private User createdBy;
 
-    private String privacy;
-    private int memberLimit;
-    private String passkey;
+    private String privacy; 
 
-    // --- Critical Methods for Object Comparison ---
+    private String passkey; 
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Group group = (Group) o;
-        return Objects.equals(groupId, group.groupId);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(groupId);
-    }
+    @Column(name = "member_limit")
+    private Integer memberLimit;
 }
-
