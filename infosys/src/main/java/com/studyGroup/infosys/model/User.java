@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Objects;
 
 @Entity
-@Table(name = "users") // Changed from "user" to avoid SQL keyword conflicts
+@Table(name = "`user`") // Using backticks to handle the reserved 'user' keyword in SQL
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -60,7 +60,7 @@ public class User implements UserDetails {
 
     @Column(name = "university_gpa")
     private Double universityGpa;
-
+    
     private boolean isVerified = false;
 
     // --- Spring Security UserDetails Implementation ---
@@ -92,7 +92,7 @@ public class User implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return isVerified; // Use the isVerified flag
+        return this.isVerified;
     }
 
     // --- Critical Methods for Object Comparison ---

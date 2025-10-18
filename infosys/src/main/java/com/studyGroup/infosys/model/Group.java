@@ -28,6 +28,8 @@ public class Group {
     private int memberLimit;
     private String passkey;
 
+    // --- Critical Methods for Object Comparison ---
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -41,3 +43,4 @@ public class Group {
         return Objects.hash(groupId);
     }
 }
+
