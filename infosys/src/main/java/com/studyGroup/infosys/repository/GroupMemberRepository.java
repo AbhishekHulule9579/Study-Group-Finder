@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional; 
 
 @Repository
 public interface GroupMemberRepository extends JpaRepository<GroupMember, GroupMemberId> {
@@ -17,4 +18,14 @@ public interface GroupMemberRepository extends JpaRepository<GroupMember, GroupM
     long countByGroup(Group group);
 
     boolean existsByGroupAndUser(Group group, User user);
+    
+    /**
+     * FIX: Correct method naming to traverse to the Group entity (group) 
+     * and use its specific primary key name (GroupId).
+     * Assuming the User primary key is 'id' (User_Id).
+     */
+    Optional<GroupMember> findByGroupGroupIdAndUser_Id(Long groupId, Integer userId); 
+
+    // Used by GroupService.getGroupMembers
+    List<GroupMember> findByGroup(Group group);
 }

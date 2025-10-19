@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -30,6 +31,16 @@ public class GroupService {
 
     @Autowired
     private GroupJoinRequestRepository groupJoinRequestRepository;
+
+    // Helper to get UserSummaryDTO for a GroupMember
+    private UserSummaryDTO convertToUserSummaryDTO(GroupMember member) {
+        return new UserSummaryDTO(member.getUser().getId(), member.getUser().getName());
+    }
+
+    // FIX: Updated method call to match the new repository method name
+    private Optional<GroupMember> getMembership(Long groupId, User user) {
+        return groupMemberRepository.findByGroupGroupIdAndUser_Id(groupId, user.getId());
+    }
 
     private GroupDTO convertToDTO(Group group) {
         return convertToDTO(group, null);
@@ -51,6 +62,52 @@ public class GroupService {
                 userRole
         );
     }
+
+    /**
+     * Fetches group details, performing authorization check.
+     * @throws RuntimeException if the group is private and the user is not a member.
+     */
+    public GroupDTO getGroupDetails(Long groupId, User currentUser) {
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new RuntimeException("Group not found with ID: " + groupId));
+
+        Optional<GroupMember> membership = getMembership(groupId, currentUser);
+        String userRole = membership.map(GroupMember::getRole).orElse("non-member");
+        boolean isMember = membership.isPresent();
+        
+        // Authorization check: If group is private AND user is not a member, forbid access.
+        if ("PRIVATE".equalsIgnoreCase(group.getPrivacy()) && !isMember) {
+            throw new RuntimeException("You are not authorized to view this private group's details.");
+        }
+
+        // For public groups or for members of private groups, return the details.
+        return convertToDTO(group, userRole);
+    }
+
+    /**
+     * Fetches group members, performing authorization check.
+     * @throws RuntimeException if the user is not a member.
+     */
+    public List<UserSummaryDTO> getGroupMembers(Long groupId, User currentUser) {
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new RuntimeException("Group not found with ID: " + groupId));
+
+        Optional<GroupMember> membership = getMembership(groupId, currentUser);
+        
+        // Authorization check: Only members can see the full member list.
+        if (!membership.isPresent()) {
+            throw new RuntimeException("You must be a member of this group to view the member list.");
+        }
+        
+        // Fetch GroupMember entities and convert them to UserSummaryDTO
+        List<GroupMember> members = groupMemberRepository.findByGroup(group);
+        
+        return members.stream()
+                // Convert to a DTO suitable for member list display
+                .map(this::convertToUserSummaryDTO)
+                .collect(Collectors.toList());
+    }
+
 
     public List<GroupDTO> findGroupsByUserId(Integer userId) {
         List<GroupMember> memberships = groupMemberRepository.findByUserId(userId);
@@ -140,8 +197,14 @@ public class GroupService {
         Group group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new RuntimeException("Group not found."));
 
-        if (!group.getCreatedBy().getId().equals(currentUser.getId())) {
-            throw new RuntimeException("You are not authorized to view join requests for this group.");
+        // Only the owner (Admin in your case) can view requests.
+        // Check if the current user is the creator OR an Admin member.
+        boolean isAdmin = groupMemberRepository.findByGroupGroupIdAndUser_Id(groupId, currentUser.getId())
+                            .map(m -> "Admin".equalsIgnoreCase(m.getRole()))
+                            .orElse(false);
+        
+        if (!group.getCreatedBy().getId().equals(currentUser.getId()) && !isAdmin) {
+             throw new RuntimeException("You are not authorized to view join requests for this group.");
         }
 
         return groupJoinRequestRepository.findByGroupAndStatus(group, "PENDING").stream()
@@ -155,7 +218,13 @@ public class GroupService {
                 .orElseThrow(() -> new RuntimeException("Request not found."));
 
         Group group = request.getGroup();
-        if (!group.getCreatedBy().getId().equals(currentUser.getId())) {
+        
+        // Authorization check: Must be the group owner/admin to manage requests.
+        boolean isAdmin = groupMemberRepository.findByGroupGroupIdAndUser_Id(group.getGroupId(), currentUser.getId())
+                            .map(m -> "Admin".equalsIgnoreCase(m.getRole()))
+                            .orElse(false);
+
+        if (!group.getCreatedBy().getId().equals(currentUser.getId()) && !isAdmin) {
             throw new RuntimeException("You are not authorized to manage requests for this group.");
         }
 
@@ -175,4 +244,3 @@ public class GroupService {
         groupJoinRequestRepository.save(request);
     }
 }
-

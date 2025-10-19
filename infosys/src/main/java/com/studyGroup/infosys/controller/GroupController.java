@@ -4,6 +4,7 @@ import com.studyGroup.infosys.dto.CreateGroupRequest;
 import com.studyGroup.infosys.dto.GroupDTO;
 import com.studyGroup.infosys.dto.GroupJoinRequestDTO;
 import com.studyGroup.infosys.dto.JoinRequestDTO;
+import com.studyGroup.infosys.dto.UserSummaryDTO;
 import com.studyGroup.infosys.model.User;
 import com.studyGroup.infosys.repository.GroupRepository;
 import com.studyGroup.infosys.service.GroupService;
@@ -26,6 +27,60 @@ public class GroupController {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private GroupRepository groupRepository; // Keep this as you use it in joinGroup method
+
+    // ********************************************
+    // *** NEW METHODS TO FIX 403 ERROR START ***
+    // ********************************************
+
+    @GetMapping("/{groupId}")
+    public ResponseEntity<?> getGroupDetails(@PathVariable Long groupId, @RequestHeader("Authorization") String authHeader) {
+        try {
+            String token = authHeader.substring(7);
+            User currentUser = userService.getUserProfile(token);
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Invalid or expired token."));
+            }
+            
+            // This calls the new method in GroupService which performs the access check
+            GroupDTO groupDetails = groupService.getGroupDetails(groupId, currentUser);
+            
+            return ResponseEntity.ok(groupDetails);
+        } catch (RuntimeException e) {
+            // This catches the "You are not authorized..." error from GroupService
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "An error occurred while fetching group details: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{groupId}/members")
+    public ResponseEntity<?> getGroupMembers(@PathVariable Long groupId, @RequestHeader("Authorization") String authHeader) {
+        try {
+            String token = authHeader.substring(7);
+            User currentUser = userService.getUserProfile(token);
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Invalid or expired token."));
+            }
+            
+            // This calls the new method in GroupService which performs the membership check
+            List<UserSummaryDTO> members = groupService.getGroupMembers(groupId, currentUser);
+            
+            return ResponseEntity.ok(members);
+        } catch (RuntimeException e) {
+            // This catches the "You must be a member..." error from GroupService
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "An error occurred while fetching group members: " + e.getMessage()));
+        }
+    }
+
+    // ********************************************
+    // *** NEW METHODS TO FIX 403 ERROR END ***
+    // ********************************************
+
 
     @PostMapping("/create")
     public ResponseEntity<?> createGroup(@RequestBody CreateGroupRequest createGroupRequest, @RequestHeader("Authorization") String authHeader) {
@@ -124,10 +179,4 @@ public class GroupController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
         }
     }
-
-    
-    @Autowired
-    private GroupRepository groupRepository;
 }
-
-

@@ -5,148 +5,6 @@ import GroupCreateForm from "./groups/GroupCreateForm.jsx";
 import JoinGroupModal from "./groups/JoinGroupModal.jsx";
 import { useNavigate } from "react-router-dom";
 
-// --- REDESIGNED Requests Panel Component ---
-function GroupRequestsPanel() {
-  const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [actionLoading, setActionLoading] = useState(null);
-  const token = sessionStorage.getItem("token");
-
-  const fetchRequests = useCallback(async () => {
-    if (!token) return;
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch("http://localhost:8145/api/group-requests", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to load group requests.");
-      const data = await res.json();
-      setRequests(data.requests || []);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
-
-  useEffect(() => {
-    fetchRequests();
-  }, [fetchRequests]);
-
-  const handleAction = async (requestId, approve) => {
-    setActionLoading(requestId);
-    setError("");
-    try {
-      const url = approve
-        ? "http://localhost:8145/api/group-requests/approve"
-        : "http://localhost:8145/api/group-requests/reject";
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ requestId }),
-      });
-      if (!res.ok) throw new Error("Action failed.");
-      // Remove the handled request from the list for a faster UI update
-      setRequests((prev) => prev.filter((req) => req.id !== requestId));
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  if (loading)
-    return (
-      <div className="p-8 text-center text-xl">Loading group requests...</div>
-    );
-  if (error)
-    return <div className="p-8 text-center text-xl text-red-500">{error}</div>;
-
-  return (
-    <div className="animate-fade-in">
-      {requests.length === 0 ? (
-        <div className="text-center py-16 px-6 bg-white rounded-2xl shadow-lg border mt-6">
-          <h3 className="text-2xl font-semibold text-gray-700">All Clear!</h3>
-          <p className="text-gray-500 mt-2">
-            There are no pending join requests for the groups you manage.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {requests.map((request) => (
-            <div
-              key={request.id}
-              className="bg-white p-4 sm:p-6 rounded-2xl shadow-lg border border-gray-200 flex flex-col sm:flex-row justify-between items-center transition-all duration-300 hover:shadow-2xl hover:-translate-y-1"
-            >
-              <div className="flex items-center mb-4 sm:mb-0 text-center sm:text-left">
-                <div className="w-12 h-12 rounded-full bg-purple-200 flex items-center justify-center font-bold text-purple-700 text-xl mr-4 flex-shrink-0">
-                  {request.user?.name?.charAt(0).toUpperCase() || "?"}
-                </div>
-                <div>
-                  <p className="font-bold text-lg text-gray-800">
-                    {request.user?.name || "Unknown User"}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Wants to join{" "}
-                    <span className="font-semibold text-purple-600">
-                      {request.group?.name || "a group"}
-                    </span>
-                  </p>
-                </div>
-              </div>
-              <div className="flex space-x-3 flex-shrink-0">
-                <button
-                  onClick={() => handleAction(request.id, true)}
-                  disabled={actionLoading === request.id}
-                  className="flex items-center gap-2 px-5 py-2 rounded-lg bg-green-100 text-green-800 font-semibold hover:bg-green-200 transition disabled:opacity-50 disabled:cursor-wait"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  {actionLoading === request.id ? "..." : "Approve"}
-                </button>
-                <button
-                  onClick={() => handleAction(request.id, false)}
-                  disabled={actionLoading === request.id}
-                  className="flex items-center gap-2 px-5 py-2 rounded-lg bg-red-100 text-red-800 font-semibold hover:bg-red-200 transition disabled:opacity-50 disabled:cursor-wait"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  {actionLoading === request.id ? "..." : "Deny"}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 const MyGroups = () => {
   const navigate = useNavigate();
   const [myGroups, setMyGroups] = useState([]);
@@ -165,7 +23,6 @@ const MyGroups = () => {
   const [ratingFilter, setRatingFilter] = useState("any");
 
   const fetchAllData = useCallback(async () => {
-    // ... (No changes to data fetching logic)
     const token = sessionStorage.getItem("token");
     if (!token) {
       navigate("/login");
@@ -208,7 +65,6 @@ const MyGroups = () => {
   }, [fetchAllData]);
 
   const handleCreateGroup = async (newGroupData) => {
-    // ... (No changes to create group logic)
     const token = sessionStorage.getItem("token");
     try {
       const res = await fetch("http://localhost:8145/api/groups/create", {
@@ -228,7 +84,6 @@ const MyGroups = () => {
   };
 
   const handleJoinClick = (group) => {
-    // ... (No changes to join click logic)
     const isPrivate = group.privacy.toLowerCase() === "private";
     if (isPrivate && group.hasPasskey) {
       setGroupToJoin(group);
@@ -243,7 +98,6 @@ const MyGroups = () => {
   };
 
   const handleJoinAction = async (group, passkey = null) => {
-    // ... (No changes to join action logic)
     setJoiningGroupId(group.groupId);
     const token = sessionStorage.getItem("token");
     try {
@@ -276,7 +130,6 @@ const MyGroups = () => {
   };
 
   const handlePrivateJoinSubmit = async (groupId, passkey) => {
-    // ... (No changes to private join submit logic)
     const group = allGroups.find((g) => g.groupId === groupId);
     try {
       await handleJoinAction(group, passkey);
@@ -294,6 +147,7 @@ const MyGroups = () => {
       }),
     [myGroups]
   );
+
   const joinedGroups = useMemo(
     () =>
       myGroups.filter((group) => {
@@ -368,26 +222,13 @@ const MyGroups = () => {
             >
               My Groups
             </button>
-            <button
-              onClick={() => setActiveTab("requests")}
-              className={`py-3 px-5 text-md font-semibold focus:outline-none transition-colors duration-200 ${
-                activeTab === "requests"
-                  ? "border-b-2 border-purple-600 text-purple-600"
-                  : "text-gray-500 hover:text-purple-500"
-              }`}
-            >
-              Requests
-            </button>
           </div>
+
           <div className="mt-8">
             {activeTab === "owned" && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-fade-in">
                 {ownedGroups.map((group) => (
-                  <GroupCard
-                    key={group.groupId}
-                    group={group}
-                    isMember={true}
-                  />
+                  <GroupCard key={group.groupId} group={group} isMember={true} />
                 ))}
                 <CreateGroupCard onClick={() => setShowCreateForm(true)} />
               </div>
@@ -396,11 +237,7 @@ const MyGroups = () => {
               (joinedGroups.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-fade-in">
                   {joinedGroups.map((group) => (
-                    <GroupCard
-                      key={group.groupId}
-                      group={group}
-                      isMember={true}
-                    />
+                    <GroupCard key={group.groupId} group={group} isMember={true} />
                   ))}
                 </div>
               ) : (
@@ -414,7 +251,6 @@ const MyGroups = () => {
                   </p>
                 </div>
               ))}
-            {activeTab === "requests" && <GroupRequestsPanel />}
           </div>
         </div>
 
@@ -470,6 +306,7 @@ const MyGroups = () => {
               </select>
             </div>
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredDiscoverGroups.length > 0 ? (
               filteredDiscoverGroups.map((group) => {
@@ -498,6 +335,7 @@ const MyGroups = () => {
             )}
           </div>
         </div>
+
         {showJoinModal && groupToJoin && (
           <JoinGroupModal
             group={groupToJoin}
