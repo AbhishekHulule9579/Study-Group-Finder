@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 
-// --- MAIN GROUP DETAIL PAGE COMPONENT (Refactored) ---
+// --- MAIN GROUP DETAIL PAGE COMPONENT ---
 export default function GroupDetailPage() {
   const { groupId } = useParams();
   const navigate = useNavigate();
@@ -20,6 +20,18 @@ export default function GroupDetailPage() {
   const [files, setFiles] = useState([]);
   const [chatMessages, setChatMessages] = useState([]);
   const [pinnedMessages, setPinnedMessages] = useState([]); // For the "About" page
+
+  const getUserIdFromToken = () => {
+    if (!token) return null;
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      // Ensure the ID from the token is returned as a Number for consistent comparison
+      return Number(payload.userId);
+    } catch (e) {
+      console.error("Failed to decode token:", e);
+      return null;
+    }
+  };
 
   const fetchGroupData = useCallback(async () => {
     if (!token) {
@@ -60,7 +72,6 @@ export default function GroupDetailPage() {
       // --- Setting group, members, and placeholder data ---
       setGroup({
         ...groupData,
-        // Adding placeholder description for the "About" tab
         description:
           groupData.description ||
           "Welcome to the group! This is a place to share resources, ask questions, and collaborate. Please be respectful of all members.",
@@ -68,10 +79,13 @@ export default function GroupDetailPage() {
       setMembers(membersData || []);
 
       const currentUserId = getUserIdFromToken();
-      if (groupData.createdBy.userId === currentUserId) {
-        setUserRole("owner");
-      } else if (membersData.some((m) => m.userId === currentUserId)) {
-        setUserRole("member");
+      
+      // FIX: Find the current user's membership using Number(m.id) to match Number(currentUserId)
+      const currentUserMemberData = membersData.find(m => Number(m.id) === currentUserId);
+      
+      if (currentUserMemberData) {
+        // Use the explicit role from the backend
+        setUserRole(currentUserMemberData.role.toLowerCase() === 'admin' ? 'owner' : 'member');
       } else {
         setUserRole("non-member");
       }
@@ -96,16 +110,6 @@ export default function GroupDetailPage() {
     }
   }, [groupId, navigate, token]);
 
-  const getUserIdFromToken = () => {
-    if (!token) return null;
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      return payload.userId;
-    } catch (e) {
-      console.error("Failed to decode token:", e);
-      return null;
-    }
-  };
 
   useEffect(() => {
     fetchGroupData();
@@ -250,7 +254,6 @@ function GroupAbout({ group, members, pinnedMessages, ownerId }) {
     <div className="flex-1 overflow-y-auto p-8 space-y-8">
       {/* Section 1: About this Group */}
       <section>
-        {/* --- Buttons removed from here --- */}
         <h2 className="text-2xl font-bold text-gray-800 mb-3">
           About this Group
         </h2>
@@ -298,7 +301,55 @@ function GroupAbout({ group, members, pinnedMessages, ownerId }) {
   );
 }
 
-// --- NEW "Settings" Component (HEAVILY MODIFIED) ---
+// --- UPDATED GroupMembers Component: FIXES UNKNOWN USER AND ADDS ROLE TAGS ---
+function GroupMembers({ members, ownerId }) {
+  if (!members || members.length === 0) {
+    return <p className="text-center text-gray-500 py-4">No members found.</p>;
+  }
+  return (
+    <div className="space-y-4 pr-2">
+      {members.map((member) => {
+        // Normalize role for display and styling
+        const role = member.role ? member.role.toUpperCase() : "MEMBER";
+        const isOwner = role === "ADMIN";
+        const displayName = member.name || "Unknown User";
+
+        return (
+          <div
+            key={member.id} // Correctly using member.id
+            className="flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-full bg-purple-200 flex items-center justify-center font-bold text-purple-700 text-lg">
+                {/* Use member.name for avatar text */}
+                {displayName.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <p className="font-semibold text-gray-800">
+                  {/* Display member.name or fallback */}
+                  {displayName}
+                </p>
+              </div>
+            </div>
+            
+            {/* Dynamic Role Tagging */}
+            <span
+              className={`text-xs font-bold px-3 py-1 rounded-full ${
+                isOwner
+                  ? "text-red-800 bg-red-100"
+                  : "text-purple-700 bg-purple-100"
+              }`}
+            >
+              {isOwner ? "Admin" : "Member"}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// --- UPDATED GroupSettings Component: FIXES REPORT FORM MEMBER SELECTION ---
 function GroupSettings({
   userRole,
   groupId,
@@ -328,7 +379,6 @@ function GroupSettings({
       <h2 className="text-2xl font-bold text-gray-800 mb-6">Group Settings</h2>
 
       {/* --- REPORT A MEMBER MODAL/FORM --- */}
-      {/* This is a simple inline modal. You could extract this to a proper modal component. */}
       {showReportForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full">
@@ -349,11 +399,13 @@ function GroupSettings({
                   required
                 >
                   <option value="">Select a member...</option>
-                  {/* Filter out the current user? Or let them report themselves? */}
                   {members &&
                     members.map((member) => (
-                      <option key={member.userId} value={member.userName}>
-                        {member.userName}
+                      <option 
+                        key={member.id} // Use member.id from DTO
+                        value={member.name} // Use member.name for the value
+                      >
+                        {member.name || 'Unknown User'} {/* Use member.name for display */}
                       </option>
                     ))}
                 </select>
@@ -395,8 +447,9 @@ function GroupSettings({
         </div>
       )}
 
-      {/* --- SETTINGS CONTENT --- */}
+      {/* --- SETTINGS CONTENT (Conditional Rendering based on userRole) --- */}
       <div className="bg-white p-6 rounded-lg border border-gray-200 max-w-lg space-y-8">
+        
         {/* Case: Non-member */}
         {userRole === "non-member" && (
           <div>
@@ -413,7 +466,7 @@ function GroupSettings({
           </div>
         )}
 
-        {/* Case: Member */}
+        {/* Case: Member (Regular member has options 1, 2, 3, 4) */}
         {userRole === "member" && (
           <>
             {/* 1. Notification Settings */}
@@ -496,7 +549,7 @@ function GroupSettings({
           </>
         )}
 
-        {/* Case: Owner */}
+        {/* Case: Owner (Admin user has Manage Group and Leave Group options) */}
         {userRole === "owner" && (
           <>
             {/* Section 1: Manage Group */}
@@ -586,44 +639,6 @@ function GroupContactAdmin() {
           </button>
         </form>
       </div>
-    </div>
-  );
-}
-
-// --- MODIFIED Sub-components (for new layout) ---
-
-function GroupMembers({ members, ownerId }) {
-  if (!members || members.length === 0) {
-    return <p className="text-center text-gray-500 py-4">No members found.</p>;
-  }
-  return (
-    // Removed max-h constraint, parent container will scroll
-    <div className="space-y-4 pr-2">
-      {members.map((member) => (
-        <div
-          key={member.userId}
-          className="flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
-        >
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-full bg-purple-200 flex items-center justify-center font-bold text-purple-700 text-lg">
-              {member.userName ? member.userName.charAt(0).toUpperCase() : "?"}
-            </div>
-            <div>
-              <p className="font-semibold text-gray-800">
-                {member.userName || "Unknown User"}
-              </p>
-            </div>
-          </div>
-          {/* Note: Your DTO has member.role, so I'm using that. 
-              The original logic used ownerId, which is less precise if you add admins.
-              I'll use the DTO role if it exists. */}
-          {member.role === "ADMIN" && (
-            <span className="text-xs font-bold text-purple-800 bg-purple-100 px-3 py-1 rounded-full">
-              Owner
-            </span>
-          )}
-        </div>
-      ))}
     </div>
   );
 }

@@ -34,10 +34,15 @@ public class GroupService {
 
     // Helper to get UserSummaryDTO for a GroupMember
     private UserSummaryDTO convertToUserSummaryDTO(GroupMember member) {
-        return new UserSummaryDTO(member.getUser().getId(), member.getUser().getName());
+        // FIX: Explicitly convert Integer ID (from User.getId()) to Long to match UserSummaryDTO
+        return new UserSummaryDTO(
+            Long.valueOf(member.getUser().getId()),
+            member.getUser().getName(),
+            member.getRole()
+        );
     }
 
-    // FIX: Updated method call to match the new repository method name
+    // Method to check membership status
     private Optional<GroupMember> getMembership(Long groupId, User user) {
         return groupMemberRepository.findByGroupGroupIdAndUser_Id(groupId, user.getId());
     }
@@ -54,7 +59,8 @@ public class GroupService {
                 group.getName(),
                 group.getDescription(),
                 new CourseSummaryDTO(group.getAssociatedCourse().getCourseId(), group.getAssociatedCourse().getCourseName()),
-                new UserSummaryDTO(group.getCreatedBy().getId(), group.getCreatedBy().getName()),
+                // FIX: Pass Long ID and "Admin" role for the creator
+                new UserSummaryDTO(Long.valueOf(group.getCreatedBy().getId()), group.getCreatedBy().getName(), "Admin"),
                 group.getPrivacy(),
                 group.getMemberLimit(),
                 memberCount,
@@ -200,15 +206,20 @@ public class GroupService {
         // Only the owner (Admin in your case) can view requests.
         // Check if the current user is the creator OR an Admin member.
         boolean isAdmin = groupMemberRepository.findByGroupGroupIdAndUser_Id(groupId, currentUser.getId())
-                            .map(m -> "Admin".equalsIgnoreCase(m.getRole()))
-                            .orElse(false);
+                                .map(m -> "Admin".equalsIgnoreCase(m.getRole()))
+                                .orElse(false);
         
         if (!group.getCreatedBy().getId().equals(currentUser.getId()) && !isAdmin) {
              throw new RuntimeException("You are not authorized to view join requests for this group.");
         }
 
         return groupJoinRequestRepository.findByGroupAndStatus(group, "PENDING").stream()
-                .map(req -> new GroupJoinRequestDTO(req.getId(), new UserSummaryDTO(req.getUser().getId(), req.getUser().getName()), req.getStatus()))
+                .map(req -> new GroupJoinRequestDTO(
+                    req.getId(), 
+                    // FIX: Explicitly convert Integer ID to Long
+                    new UserSummaryDTO(Long.valueOf(req.getUser().getId()), req.getUser().getName(), "Pending"), 
+                    req.getStatus()
+                ))
                 .collect(Collectors.toList());
     }
 
@@ -221,8 +232,8 @@ public class GroupService {
         
         // Authorization check: Must be the group owner/admin to manage requests.
         boolean isAdmin = groupMemberRepository.findByGroupGroupIdAndUser_Id(group.getGroupId(), currentUser.getId())
-                            .map(m -> "Admin".equalsIgnoreCase(m.getRole()))
-                            .orElse(false);
+                                .map(m -> "Admin".equalsIgnoreCase(m.getRole()))
+                                .orElse(false);
 
         if (!group.getCreatedBy().getId().equals(currentUser.getId()) && !isAdmin) {
             throw new RuntimeException("You are not authorized to manage requests for this group.");

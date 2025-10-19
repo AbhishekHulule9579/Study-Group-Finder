@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserSummaryDTO {
-    private Integer id;
+    private Long id; // Must be Long
     private String name;
+    private String role; // Must be present
 }
