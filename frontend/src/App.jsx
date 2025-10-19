@@ -8,16 +8,16 @@ import Signup from "./components/Signup.jsx";
 import BuildProfile from "./components/BuildProfile.jsx";
 import Dashboard from "./components/Dashboard.jsx";
 import Profile from "./components/Profile.jsx";
-import ForgotPassword from "./components/ForgotPassword.jsx"; // Assuming you have this
+import ForgotPassword from "./components/ForgotPassword.jsx";
 import MyCourses from "./components/MyCourses.jsx";
 import MyGroups from "./components/MyGroups.jsx";
-import FindPeers from "./components/FindPeers.jsx"; // Assuming you have this
+import FindPeers from "./components/FindPeers.jsx";
 import GroupDetailPage from "./components/groups/GroupDetailPage";
 import GroupManagementPage from "./components/groups/GroupManagementPage.jsx";
 
-import { Route, Routes, Navigate } from "react-router-dom"; // Import Navigate
+import { Route, Routes, Navigate } from "react-router-dom";
 
-// --- Hypothetical Protected Route Component (you need this defined somewhere) ---
+// A simple Protected Route Component
 function ProtectedRoute({ children }) {
   const token = sessionStorage.getItem("token");
   // If no token, redirect to login, replacing the current history entry
@@ -37,8 +37,8 @@ const App = () => {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/build-profile" element={<BuildProfile />} />{" "}
-          {/* Often part of signup flow, might not need protection */}
+          <Route path="/build-profile" element={<BuildProfile />} />
+
           {/* Authenticated Routes wrapped in ProtectedRoute */}
           <Route
             path="/dashboard"
@@ -80,7 +80,8 @@ const App = () => {
               </ProtectedRoute>
             }
           />
-          {/* --- CORRECTED Group Routes --- */}
+          {/* --- Group Routes --- */}
+          {/* IMPORTANT: The more specific route must come first */}
           <Route
             path="/group/:groupId/manage"
             element={
@@ -96,8 +97,8 @@ const App = () => {
                 <GroupDetailPage />
               </ProtectedRoute>
             }
-          />{" "}
-          {/* Fixed closing tags */}
+          />
+
           {/* Optional: Add a 404 Not Found page for any unmatched URLs */}
           <Route path="*" element={<h1>404: Page Not Found</h1>} />
         </Routes>
