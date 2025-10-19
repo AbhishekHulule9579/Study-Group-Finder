@@ -39,17 +39,21 @@ export default function Profile() {
   const navigate = useNavigate();
   // State for data from the User entity (academic info)
   const [user, setUser] = useState(null);
+  
   // State for data from the Profile entity (contact info, pic, bio)
+  // RENAMED 'bio' to 'aboutMe' to match the Java Profile model
   const [profile, setProfile] = useState({
     profilePicUrl: null,
     phone: "",
     githubUrl: "",
     linkedinUrl: "",
-    bio: "", // NEW: Added bio state
+    aboutMe: "", // CORRECTED: Renamed from 'bio' to 'aboutMe'
   });
+  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const ABOUT_ME_MAX_LENGTH = 2000; // Match the VARCHAR(2000) in the backend
 
   // --- State for Password Management ---
   const [passwordData, setPasswordData] = useState({
@@ -87,15 +91,20 @@ export default function Profile() {
           const userData = await userRes.json();
           setUser(userData);
         } else {
+          // If user fetch fails, assume session is invalid
           throw new Error("Session expired. Please log in again.");
         }
 
         if (profileRes.ok) {
           const profileData = await profileRes.json();
-          // Ensure bio is not null if the backend sends it that way
-          setProfile({ ...profileData, bio: profileData.bio || "" });
+          // CORRECTED: Explicitly map 'aboutMe' from the API response
+          setProfile({ 
+            ...profileData, 
+            aboutMe: profileData.aboutMe || "", // Use aboutMe from API response
+          });
         }
       } catch (err) {
+        console.error("Fetch error:", err);
         setError(err.message);
         sessionStorage.removeItem("token");
         navigate("/login");
@@ -110,6 +119,7 @@ export default function Profile() {
   };
 
   const handleProfileChange = (e) => {
+    // This handles all fields in the 'profile' state, including the corrected 'aboutMe'
     setProfile({ ...profile, [e.target.name]: e.target.value });
   };
 
@@ -126,34 +136,45 @@ export default function Profile() {
   const saveChanges = async () => {
     setSaving(true);
     setError("");
+    // Clear success/error messages on new attempt
+    setPasswordSuccess("");
+    setPasswordError("");
+
     const token = sessionStorage.getItem("token");
 
-    // The new 'bio' field is automatically included here via the spread operator
+    // The 'aboutMe' field is correctly included here via the spread operator
     const profileToSave = {
       ...profile,
-      email: user.email,
-      fullname: user.name,
+      // Ensure we pass the fullname with the profile data for backend merging
+      fullname: user.name, 
     };
+    
+    // The email must be attached to the profile to ensure the correct entry is updated
+    // Note: The ProfileController automatically gets the email from the JWT token, 
+    // but sending it in the body often aids debugging/clarity, though not strictly required here.
+    // However, the User PUT request needs user.name/fullname updated, and the Profile POST needs 
+    // the profile fields updated.
 
     try {
-      const [userUpdateRes, profileUpdateRes] = await Promise.all([
-        fetch("http://localhost:8145/api/users/profile", {
+      // 1. Update User Details (Fullname and Academic History)
+      const userUpdateRes = await fetch("http://localhost:8145/api/users/profile", {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(user),
-        }),
-        fetch("http://localhost:8145/api/profile", {
-          method: "POST",
+        });
+
+      // 2. Update Profile Details (Pic, Phone, Socials, AboutMe)
+      const profileUpdateRes = await fetch("http://localhost:8145/api/profile", {
+          method: "POST", // Using POST as per your controller, which acts as a PUT/Merge
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(profileToSave),
-        }),
-      ]);
+        });
 
       if (!userUpdateRes.ok || !profileUpdateRes.ok) {
         const userError = !userUpdateRes.ok ? await userUpdateRes.text() : "";
@@ -161,12 +182,22 @@ export default function Profile() {
           ? await profileUpdateRes.text()
           : "";
         throw new Error(
-          `Failed to save. User: ${userError} Profile: ${profileError}`
+          `Failed to save changes. User Update Error: ${userError || 'N/A'}. Profile Update Error: ${profileError || 'N/A'}.`
         );
       }
 
-      alert("All changes saved successfully!");
+      // Re-fetch the profile data to ensure local state reflects the backend saved data 
+      // (especially helpful if the backend performs any formatting or sanitization)
+      const updatedProfileData = await profileUpdateRes.json();
+      setProfile({ ...updatedProfileData, aboutMe: updatedProfileData.aboutMe || "" });
+      
+      // Use custom message component instead of alert
+      console.log("All changes saved successfully!");
+      setError("Success: All changes saved successfully!");
+      setTimeout(() => setError(""), 3000); // Clear message after 3 seconds
+
     } catch (err) {
+      console.error("Save error:", err);
       setError(err.message);
     }
     setSaving(false);
@@ -299,30 +330,30 @@ export default function Profile() {
               <h2 className="text-2xl font-bold text-gray-800">{user.name}</h2>
               <p className="text-gray-500">{user.email}</p>
 
-              {/* --- NEW BIO SECTION --- */}
+              {/* --- CORRECTED ABOUT ME SECTION --- */}
               <hr className="w-full my-4 border-t border-gray-200" />
               <div className="w-full text-left">
                 <label
-                  htmlFor="bio"
+                  htmlFor="aboutMe"
                   className="text-sm font-semibold text-gray-700 mb-2 block"
                 >
                   About Me
                 </label>
                 <textarea
-                  id="bio"
-                  name="bio"
+                  id="aboutMe"
+                  name="aboutMe" // CORRECTED: Name attribute must be 'aboutMe'
                   rows="4"
-                  value={profile.bio}
+                  value={profile.aboutMe}
                   onChange={handleProfileChange}
-                  placeholder="Tell us a little about yourself..."
-                  maxLength="250"
+                  placeholder="Tell us a little about yourself (e.g., interests, study goals)..."
+                  maxLength={ABOUT_ME_MAX_LENGTH} // Use defined max length
                   className="w-full p-2 bg-gray-50/50 rounded-md text-sm text-gray-600 border border-transparent focus:border-purple-300 focus:ring-0 resize-none transition"
                 />
                 <p className="text-right text-xs text-gray-400 mt-1">
-                  {profile.bio.length} / 250
+                  {profile.aboutMe.length} / {ABOUT_ME_MAX_LENGTH}
                 </p>
               </div>
-              {/* --- END OF BIO SECTION --- */}
+              {/* --- END OF ABOUT ME SECTION --- */}
             </div>
 
             <div className="bg-white rounded-2xl p-6 shadow-md">
@@ -459,7 +490,14 @@ export default function Profile() {
               </div>
             </div>
 
-            {error && <p className="text-red-500 text-center">{error}</p>}
+            {/* Error/Success Message for Profile Save */}
+            {error && (
+                <p className={`text-center font-semibold p-3 rounded-lg ${
+                    error.startsWith("Success") ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                }`}>
+                    {error}
+                </p>
+            )}
 
             <button
               onClick={saveChanges}

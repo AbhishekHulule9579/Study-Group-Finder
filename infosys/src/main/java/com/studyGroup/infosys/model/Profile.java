@@ -34,8 +34,10 @@ public class Profile {
     @Column(name = "linkedin_url")
     private String linkedinUrl;
 
-   
+    // Added field for "About Me" with a large text definition (approx. 255 words)
+    @Column(name = "about_me", columnDefinition = "VARCHAR(2000)")
+    private String aboutMe;
+
     @Column(name = "enrolled_course_ids", columnDefinition = "TEXT")
     private String enrolledCourseIds = "[]"; 
 }
-

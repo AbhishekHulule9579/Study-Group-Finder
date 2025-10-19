@@ -28,10 +28,17 @@ public class ProfileService {
         return profileRepository.findByEmail(email);
     }
 
+    /**
+     * Saves or updates the provided Profile entity.
+     * This method is the persistence layer; data merging and validation (including for aboutMe) 
+     * should be handled in the calling Controller method.
+     *
+     * @param profile The Profile entity to save.
+     * @return The saved Profile entity.
+     */
     public Profile saveOrUpdateProfile(Profile profile) {
-        if (profile.getEnrolledCourseIds() == null) {
-            profile.setEnrolledCourseIds("[]");
-        }
+        // Removed redundant check for enrolledCourseIds as the Profile model initializes it 
+        // and the Controller ensures safe merging before calling this method.
         return profileRepository.save(profile);
     }
 
@@ -41,7 +48,7 @@ public class ProfileService {
         if (enrolledCoursesJson == null || enrolledCoursesJson.isEmpty() || enrolledCoursesJson.equals("[]")) {
             return new HashSet<>();
         }
-        return objectMapper.readValue(enrolledCoursesJson, new TypeReference<>() {});
+        return objectMapper.readValue(enrolledCoursesJson, new TypeReference<Set<String>>() {});
     }
 
 

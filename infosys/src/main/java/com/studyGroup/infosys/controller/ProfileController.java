@@ -14,6 +14,9 @@ import java.util.Optional;
 @CrossOrigin(origins = "*")
 public class ProfileController {
 
+    // Assuming the maximum length for aboutMe is 2000 characters based on standard practice for ~255 words.
+    private static final int ABOUT_ME_MAX_LENGTH = 2000;
+
     @Autowired
     private ProfileService profileService;
 
@@ -38,6 +41,10 @@ public class ProfileController {
         }
     }
 
+    /**
+     * Updates the user's profile information by safely merging fields 
+     * from the request body onto the existing profile entity.
+     */
     @PostMapping
     public ResponseEntity<?> updateProfile(@RequestHeader("Authorization") String authHeader, @RequestBody Profile profileDetails) {
         String token = authHeader.substring(7);
@@ -47,9 +54,47 @@ public class ProfileController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or expired token.");
         }
 
-        profileDetails.setEmail(email);
-        Profile savedProfile = profileService.saveOrUpdateProfile(profileDetails);
-        return ResponseEntity.ok(savedProfile);
+        Optional<Profile> profileOptional = profileService.getProfileByEmail(email);
+        
+        if (profileOptional.isEmpty()) {
+             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Profile not found for update.");
+        }
+
+        Profile existingProfile = profileOptional.get();
+
+        // --- SAFE MERGE LOGIC ---
+        // Only update fields if they are explicitly present (non-null) in the request body.
+        
+        if (profileDetails.getFullname() != null) {
+            existingProfile.setFullname(profileDetails.getFullname());
+        }
+        if (profileDetails.getProfilePicUrl() != null) {
+            existingProfile.setProfilePicUrl(profileDetails.getProfilePicUrl());
+        }
+        if (profileDetails.getPhone() != null) {
+            existingProfile.setPhone(profileDetails.getPhone());
+        }
+        if (profileDetails.getGithubUrl() != null) {
+            existingProfile.setGithubUrl(profileDetails.getGithubUrl());
+        }
+        if (profileDetails.getLinkedinUrl() != null) {
+            existingProfile.setLinkedinUrl(profileDetails.getLinkedinUrl());
+        }
+        
+        // NEW: Handle the 'aboutMe' field and perform server-side validation.
+        if (profileDetails.getAboutMe() != null) {
+            String aboutMe = profileDetails.getAboutMe();
+            if (aboutMe.length() > ABOUT_ME_MAX_LENGTH) {
+                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("About Me content exceeds the " + ABOUT_ME_MAX_LENGTH + " character limit.");
+            }
+            existingProfile.setAboutMe(aboutMe);
+        }
+
+        // Ensure the email remains correct before saving
+        existingProfile.setEmail(email); 
+        
+        Profile updatedProfile = profileService.saveOrUpdateProfile(existingProfile);
+        return ResponseEntity.ok(updatedProfile);
     }
 
     @PostMapping("/enroll/{courseId}")

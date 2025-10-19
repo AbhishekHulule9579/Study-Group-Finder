@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-// A reusable, beautifully styled input field component
+// Reusable, beautifully styled input field component
 const InputField = ({
   label,
   name,
@@ -29,6 +29,35 @@ const InputField = ({
       required={required}
       step={step}
       className="w-full rounded-lg border-gray-300 p-3 text-md shadow-sm focus:border-purple-500 focus:ring-purple-500 transition duration-200"
+    />
+  </div>
+);
+
+// NEW: Reusable Textarea component for About Me
+const TextareaField = ({
+  label,
+  name,
+  placeholder,
+  value,
+  onChange,
+  maxLength,
+}) => (
+  <div>
+    <label
+      htmlFor={name}
+      className="block text-sm font-semibold text-gray-700 mb-1"
+    >
+      {label}
+    </label>
+    <textarea
+      name={name}
+      id={name}
+      placeholder={placeholder}
+      value={value}
+      onChange={onChange}
+      maxLength={maxLength}
+      rows="4"
+      className="w-full rounded-lg border-gray-300 p-3 text-md shadow-sm focus:border-purple-500 focus:ring-purple-500 transition duration-200 resize-y"
     />
   </div>
 );
@@ -77,7 +106,7 @@ export default function BuildProfile() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // NEW: State to manage which step of the form is active
+  // Current step state (Profile building starts at step 3 in the context of your overall signup flow)
   const [currentStep, setCurrentStep] = useState(1);
 
   const [form, setForm] = useState({
@@ -90,6 +119,8 @@ export default function BuildProfile() {
     universityName: "",
     universityPassingYear: "",
     universityGpa: "",
+    // NEW: Added aboutMe field
+    aboutMe: "",
   });
 
   useEffect(() => {
@@ -103,7 +134,7 @@ export default function BuildProfile() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  // --- NEW: Step Navigation Logic ---
+  // --- Step Navigation Logic ---
   const handleNext = () => {
     setError("");
     // Validate current step before proceeding
@@ -139,13 +170,13 @@ export default function BuildProfile() {
     e.preventDefault();
     setError("");
 
-    // Final validation for the last step
+    // Final validation for the last step: University is mandatory
     if (
       !form.universityName ||
       !form.universityPassingYear ||
       !form.universityGpa
     ) {
-      setError("Please fill in all fields for University.");
+      setError("Please fill in all required fields for University.");
       return;
     }
 
@@ -153,6 +184,8 @@ export default function BuildProfile() {
     const savedSignup = JSON.parse(
       sessionStorage.getItem("signupData") || "{}"
     );
+    // The 'aboutMe' field is automatically included via the spread operator 
+    // as it is part of the 'form' state.
     const fullUserData = { ...savedSignup, ...form };
 
     try {
@@ -269,9 +302,9 @@ export default function BuildProfile() {
             </div>
           )}
 
-          {/* Step 3: University */}
+          {/* Step 3: University and About Me */}
           {currentStep === 3 && (
-            <div className="space-y-4 animate-fade-in">
+            <div className="space-y-6 animate-fade-in">
               <h3 className="text-xl font-bold text-gray-700">
                 University / Alma Mater
               </h3>
@@ -299,6 +332,18 @@ export default function BuildProfile() {
                   placeholder="e.g., 3.8 or 8.5"
                   type="number"
                   step="0.01"
+                />
+              </div>
+
+              {/* NEW: About Me Field */}
+              <div className="pt-4">
+                <TextareaField
+                  label="About Me (Tell us a bit about yourself, max ~255 words)"
+                  name="aboutMe"
+                  value={form.aboutMe}
+                  onChange={handleChange}
+                  maxLength={2000} 
+                  placeholder="E.g., I'm passionate about web development and looking for peers to collaborate on React and Spring Boot projects."
                 />
               </div>
             </div>
