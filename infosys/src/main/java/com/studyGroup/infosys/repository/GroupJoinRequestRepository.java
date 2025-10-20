@@ -7,7 +7,7 @@ import com.studyGroup.infosys.model.GroupJoinRequest;
 import com.studyGroup.infosys.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
-import jakarta.transaction.Transactional; // Import Transactional if it's not already there
+import jakarta.transaction.Transactional; 
 
 import java.util.List;
 
@@ -16,10 +16,13 @@ public interface GroupJoinRequestRepository extends JpaRepository<GroupJoinReque
     
     boolean existsByGroupAndUserAndStatus(Group group, User user, String status);
 
-    List<GroupJoinRequest> findByGroupAndStatus(Group group, String status);
+    // This method is CRITICAL for showing pending requests on the admin page
+    List<GroupJoinRequest> findByGroupAndStatus(Group group, String status); 
 
-    // --- NEW METHOD FOR CASCADING DELETE LOGIC ---
     @Transactional
     void deleteByGroup(Group group);
-    // ---------------------------------------------
+    
+    // 🚩 NEW: Cleans up any outstanding requests from a user being removed from a group
+    @Transactional
+    void deleteByGroupAndUser(Group group, User user); 
 }

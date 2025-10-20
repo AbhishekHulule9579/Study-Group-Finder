@@ -7,8 +7,7 @@ import java.util.Optional;
 
 @Repository
 public interface ProfileRepository extends JpaRepository<Profile, String> {
-
-  
+    
+    // This custom method will be used explicitly in the GroupService
     Optional<Profile> findByEmail(String email);
 }
-

@@ -14,7 +14,6 @@ import java.util.Optional;
 @CrossOrigin(origins = "*")
 public class ProfileController {
 
-    // Assuming the maximum length for aboutMe is 2000 characters based on standard practice for ~255 words.
     private static final int ABOUT_ME_MAX_LENGTH = 2000;
 
     @Autowired
@@ -54,16 +53,18 @@ public class ProfileController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or expired token.");
         }
 
+        // We assume getProfileByEmail fetches the existing profile based on the authenticated email
         Optional<Profile> profileOptional = profileService.getProfileByEmail(email);
         
         if (profileOptional.isEmpty()) {
+             // For POST/update, if profile doesn't exist, this might be a 'build profile' flow.
+             // However, sticking to the existing logic of throwing 404/NOT_FOUND:
              return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Profile not found for update.");
         }
 
         Profile existingProfile = profileOptional.get();
 
         // --- SAFE MERGE LOGIC ---
-        // Only update fields if they are explicitly present (non-null) in the request body.
         
         if (profileDetails.getFullname() != null) {
             existingProfile.setFullname(profileDetails.getFullname());
@@ -81,20 +82,28 @@ public class ProfileController {
             existingProfile.setLinkedinUrl(profileDetails.getLinkedinUrl());
         }
         
-        // NEW: Handle the 'aboutMe' field and perform server-side validation.
+        // 🚩 CRITICAL FIX: Handle 'aboutMe' to prevent saving null or empty strings incorrectly.
         if (profileDetails.getAboutMe() != null) {
-            String aboutMe = profileDetails.getAboutMe();
+            String aboutMe = profileDetails.getAboutMe().trim(); 
+
             if (aboutMe.length() > ABOUT_ME_MAX_LENGTH) {
                  return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("About Me content exceeds the " + ABOUT_ME_MAX_LENGTH + " character limit.");
             }
-            existingProfile.setAboutMe(aboutMe);
+            
+            // Save as null if completely empty after trimming, otherwise save the trimmed value.
+            existingProfile.setAboutMe(aboutMe.isEmpty() ? null : aboutMe);
         }
 
-        // Ensure the email remains correct before saving
+        // Ensure the email remains correct before saving (it is the @Id field)
         existingProfile.setEmail(email); 
         
-        Profile updatedProfile = profileService.saveOrUpdateProfile(existingProfile);
-        return ResponseEntity.ok(updatedProfile);
+        try {
+            // Assumes profileService.saveOrUpdateProfile calls repository.save()
+            Profile updatedProfile = profileService.saveOrUpdateProfile(existingProfile);
+            return ResponseEntity.ok(updatedProfile);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error saving profile: " + e.getMessage());
+        }
     }
 
     @PostMapping("/enroll/{courseId}")

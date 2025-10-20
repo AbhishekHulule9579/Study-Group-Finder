@@ -8,7 +8,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserSummaryDTO {
-    private Long id; // Must be Long
+    private Long id; 
     private String name;
-    private String role; // Must be present
+    private String email; // 🚩 NEW: Added for profile data
+    private String aboutMe; // 🚩 NEW: Added for profile data/bio
+    private String role; 
 }

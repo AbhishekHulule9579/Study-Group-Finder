@@ -25,24 +25,27 @@ public class ProfileService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public Optional<Profile> getProfileByEmail(String email) {
+        // This method correctly uses the repository to fetch the Profile by email.
         return profileRepository.findByEmail(email);
     }
 
     /**
      * Saves or updates the provided Profile entity.
-     * This method is the persistence layer; data merging and validation (including for aboutMe) 
-     * should be handled in the calling Controller method.
+     * This method correctly acts as the persistence layer.
      *
      * @param profile The Profile entity to save.
      * @return The saved Profile entity.
      */
     public Profile saveOrUpdateProfile(Profile profile) {
-        // Removed redundant check for enrolledCourseIds as the Profile model initializes it 
-        // and the Controller ensures safe merging before calling this method.
+        // The calling Controller (ProfileController) is responsible for ensuring 
+        // fields like 'aboutMe' are validated and cleaned before passing the entity here.
         return profileRepository.save(profile);
     }
 
     
+    /**
+     * Helper to deserialize the JSON string of enrolled course IDs into a Java Set.
+     */
     private Set<String> getEnrolledCourseIdsAsSet(Profile profile) throws IOException {
         String enrolledCoursesJson = profile.getEnrolledCourseIds();
         if (enrolledCoursesJson == null || enrolledCoursesJson.isEmpty() || enrolledCoursesJson.equals("[]")) {
@@ -56,16 +59,23 @@ public class ProfileService {
         Profile profile = profileRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User profile not found."));
 
+        // Validate that the course exists before enrolling
         courseService.getCourseById(courseId)
                 .orElseThrow(() -> new RuntimeException("Course not found."));
 
         try {
             Set<String> enrolledCourseIds = getEnrolledCourseIdsAsSet(profile);
-            enrolledCourseIds.add(courseId);
-            profile.setEnrolledCourseIds(objectMapper.writeValueAsString(enrolledCourseIds));
-            return profileRepository.save(profile);
+            
+            // Enrollment logic
+            if (!enrolledCourseIds.contains(courseId)) {
+                enrolledCourseIds.add(courseId);
+                profile.setEnrolledCourseIds(objectMapper.writeValueAsString(enrolledCourseIds));
+                return profileRepository.save(profile);
+            }
+            // Return existing profile if already enrolled
+            return profile;
         } catch (IOException e) {
-            throw new RuntimeException("Could not update enrolled courses.", e);
+            throw new RuntimeException("Could not update enrolled courses due to a data processing error.", e);
         }
     }
 
@@ -80,10 +90,11 @@ public class ProfileService {
                 profile.setEnrolledCourseIds(objectMapper.writeValueAsString(enrolledCourseIds));
                 return profileRepository.save(profile);
             } else {
+                // Return existing profile if not enrolled in that course
                 return profile;
             }
         } catch (IOException e) {
-            throw new RuntimeException("Could not update enrolled courses.", e);
+            throw new RuntimeException("Could not update enrolled courses due to a data processing error.", e);
         }
     }
 }

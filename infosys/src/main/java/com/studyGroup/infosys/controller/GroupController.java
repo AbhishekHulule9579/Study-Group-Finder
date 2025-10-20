@@ -27,6 +27,8 @@ public class GroupController {
     @Autowired
     private GroupRepository groupRepository;
 
+    // --- Existing Endpoints (Logic maintained) ---
+
     @DeleteMapping("/leave/{groupId}")
     public ResponseEntity<?> leaveGroup(@PathVariable Long groupId, @RequestHeader("Authorization") String authHeader) {
         try {
@@ -50,9 +52,6 @@ public class GroupController {
         }
     }
 
-    /**
-     * Retrieves the details of a specific group.
-     */
     @GetMapping("/{groupId}")
     public ResponseEntity<?> getGroupDetails(@PathVariable Long groupId, @RequestHeader("Authorization") String authHeader) {
         try {
@@ -76,9 +75,6 @@ public class GroupController {
         }
     }
 
-    /**
-     * Retrieves the member list for a specific group.
-     */
     @GetMapping("/{groupId}/members")
     public ResponseEntity<?> getGroupMembers(@PathVariable Long groupId, @RequestHeader("Authorization") String authHeader) {
         try {
@@ -101,10 +97,7 @@ public class GroupController {
                     .body(Map.of("message", "An error occurred while fetching group members: " + e.getMessage()));
         }
     }
-
-    /**
-     * Creates a new group.
-     */
+    
     @PostMapping("/create")
     public ResponseEntity<?> createGroup(@RequestBody CreateGroupRequest createGroupRequest,
                                          @RequestHeader("Authorization") String authHeader) {
@@ -113,7 +106,7 @@ public class GroupController {
             User currentUser = userService.getUserProfile(token);
 
             if (currentUser == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or expired token.");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Invalid or expired token."));
             }
 
             GroupDTO newGroup = groupService.createGroup(createGroupRequest, currentUser);
@@ -121,13 +114,10 @@ public class GroupController {
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("An error occurred while creating the group: " + e.getMessage());
+                    .body(Map.of("message", "An error occurred while creating the group: " + e.getMessage()));
         }
     }
-
-    /**
-     * Retrieves the groups that the current user is part of.
-     */
+    
     @GetMapping("/my-groups")
     public ResponseEntity<?> getMyGroups(@RequestHeader("Authorization") String authHeader) {
         try {
@@ -135,7 +125,7 @@ public class GroupController {
             User currentUser = userService.getUserProfile(token);
 
             if (currentUser == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or expired token.");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Invalid or expired token."));
             }
 
             List<GroupDTO> myGroups = groupService.findGroupsByUserId(currentUser.getId());
@@ -143,13 +133,10 @@ public class GroupController {
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("An error occurred while fetching your groups: " + e.getMessage());
+                    .body(Map.of("message", "An error occurred while fetching your groups: " + e.getMessage()));
         }
     }
 
-    /**
-     * Retrieves all available groups.
-     */
     @GetMapping("/all")
     public ResponseEntity<?> getAllGroups() {
         try {
@@ -158,17 +145,14 @@ public class GroupController {
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("An error occurred while fetching all groups: " + e.getMessage());
+                    .body(Map.of("message", "An error occurred while fetching all groups: " + e.getMessage()));
         }
     }
 
-    /**
-     * Handles joining a group (public or private via passkey).
-     */
     @PostMapping("/join/{groupId}")
     public ResponseEntity<?> joinGroup(@PathVariable Long groupId,
-                                       @RequestHeader("Authorization") String authHeader,
-                                       @RequestBody(required = false) Map<String, String> payload) {
+                                         @RequestHeader("Authorization") String authHeader,
+                                         @RequestBody(required = false) Map<String, String> payload) {
         try {
             String token = authHeader.substring(7);
             User currentUser = userService.getUserProfile(token);
@@ -203,34 +187,35 @@ public class GroupController {
 
     /**
      * Retrieves join requests for a specific group.
+     * 🚩 CORRECTION: Wraps the list in a map under the key "requests" as expected by frontend.
      */
     @GetMapping("/{groupId}/requests")
     public ResponseEntity<?> getGroupJoinRequests(@PathVariable Long groupId,
-                                                  @RequestHeader("Authorization") String authHeader) {
+                                                    @RequestHeader("Authorization") String authHeader) {
         try {
             String token = authHeader.substring(7);
             User currentUser = userService.getUserProfile(token);
 
             if (currentUser == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or expired token.");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Invalid or expired token."));
             }
 
             List<GroupJoinRequestDTO> requests = groupService.getJoinRequests(groupId, currentUser);
-            return ResponseEntity.ok(requests);
+            return ResponseEntity.ok(Map.of("requests", requests));
 
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "An unexpected error occurred: " + e.getMessage()));
         }
     }
 
-    /**
-     * Updates group name and description.
-     */
     @PutMapping("/{groupId}")
     public ResponseEntity<?> updateGroupDetails(@PathVariable Long groupId,
-                                                @RequestBody GroupDTO groupDetails,
-                                                @RequestHeader("Authorization") String authHeader) {
+                                                    @RequestBody GroupDTO groupDetails,
+                                                    @RequestHeader("Authorization") String authHeader) {
         try {
             String token = authHeader.substring(7);
             User currentUser = userService.getUserProfile(token);
@@ -252,26 +237,102 @@ public class GroupController {
         }
     }
 
-    /**
-     * Handles group join requests (accept/reject).
-     */
-    @PostMapping("/requests/handle")
-    public ResponseEntity<?> handleJoinRequest(@RequestBody JoinRequestDTO joinRequest,
+    // ----------------------------------------------------------------------
+    // 🚩 NEW RESTful Endpoint: Handles Group Join Request (Approve/Deny)
+    // Replaces the old @PostMapping("/requests/handle")
+    // ----------------------------------------------------------------------
+    @PutMapping("/{groupId}/requests/{requestId}")
+    public ResponseEntity<?> handleJoinRequest(@PathVariable Long groupId,
+                                               @PathVariable Long requestId,
+                                               @RequestBody Map<String, String> payload, // Expects { "action": "APPROVED" | "DENIED" }
                                                @RequestHeader("Authorization") String authHeader) {
         try {
             String token = authHeader.substring(7);
             User currentUser = userService.getUserProfile(token);
 
             if (currentUser == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or expired token.");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Invalid or expired token."));
             }
 
-            groupService.handleJoinRequest(joinRequest.getRequestId(), joinRequest.getStatus(), currentUser);
+            String status = payload.get("action");
+            if (status == null || (!"APPROVED".equalsIgnoreCase(status) && !"DENIED".equalsIgnoreCase(status))) {
+                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Invalid action status provided. Must be APPROVED or DENIED."));
+            }
+
+            groupService.handleJoinRequest(groupId, requestId, status, currentUser);
             return ResponseEntity.ok(Map.of("message", "Request handled successfully."));
 
         } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            HttpStatus status = e.getMessage().contains("authorized") ? HttpStatus.FORBIDDEN :
+                                e.getMessage().contains("not found") ? HttpStatus.NOT_FOUND :
+                                HttpStatus.BAD_REQUEST;
+            return ResponseEntity.status(status)
                     .body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "An unexpected error occurred: " + e.getMessage()));
+        }
+    }
+    
+    // ----------------------------------------------------------------------
+    // 🚩 NEW RESTful Endpoint: Remove Member (DELETE /{groupId}/members/{memberId})
+    // ----------------------------------------------------------------------
+    @DeleteMapping("/{groupId}/members/{memberId}")
+    public ResponseEntity<?> removeGroupMember(@PathVariable Long groupId, 
+                                                @PathVariable Long memberId,
+                                                @RequestHeader("Authorization") String authHeader) {
+        try {
+            String token = authHeader.substring(7);
+            User currentUser = userService.getUserProfile(token);
+
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Invalid or expired token."));
+            }
+
+            groupService.removeMember(groupId, memberId, currentUser);
+            return ResponseEntity.ok(Map.of("message", "Member removed successfully."));
+            
+        } catch (RuntimeException e) {
+            HttpStatus status = e.getMessage().contains("authorized") ? HttpStatus.FORBIDDEN : HttpStatus.BAD_REQUEST;
+            return ResponseEntity.status(status)
+                    .body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "An unexpected error occurred during member removal: " + e.getMessage()));
+        }
+    }
+    
+    // ----------------------------------------------------------------------
+    // 🚩 NEW RESTful Endpoint: Change Member Role (PUT /{groupId}/members/{memberId}/role)
+    // ----------------------------------------------------------------------
+    @PutMapping("/{groupId}/members/{memberId}/role")
+    public ResponseEntity<?> changeMemberRole(@PathVariable Long groupId, 
+                                                @PathVariable Long memberId,
+                                                @RequestBody Map<String, String> payload, // Expects { "role": "Admin" | "Member" }
+                                                @RequestHeader("Authorization") String authHeader) {
+        try {
+            String token = authHeader.substring(7);
+            User currentUser = userService.getUserProfile(token);
+
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Invalid or expired token."));
+            }
+            
+            String newRole = payload.get("role");
+            if (newRole == null || (!"Admin".equalsIgnoreCase(newRole) && !"Member".equalsIgnoreCase(newRole))) {
+                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Invalid role provided. Must be Admin or Member."));
+            }
+
+            groupService.changeMemberRole(groupId, memberId, newRole, currentUser);
+            return ResponseEntity.ok(Map.of("message", "Member role updated successfully."));
+            
+        } catch (RuntimeException e) {
+            HttpStatus status = e.getMessage().contains("authorized") ? HttpStatus.FORBIDDEN : HttpStatus.BAD_REQUEST;
+            return ResponseEntity.status(status)
+                    .body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "An unexpected error occurred during role update: " + e.getMessage()));
         }
     }
 }

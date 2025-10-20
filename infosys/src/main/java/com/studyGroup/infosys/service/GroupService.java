@@ -9,6 +9,7 @@ import com.studyGroup.infosys.model.*;
 import com.studyGroup.infosys.repository.GroupJoinRequestRepository;
 import com.studyGroup.infosys.repository.GroupMemberRepository;
 import com.studyGroup.infosys.repository.GroupRepository;
+import com.studyGroup.infosys.repository.ProfileRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -31,11 +32,44 @@ public class GroupService {
 
     @Autowired
     private GroupJoinRequestRepository groupJoinRequestRepository;
+    
+    @Autowired
+    private ProfileRepository profileRepository; 
 
+    /**
+     * Helper method to retrieve the "About Me" field from the Profile entity.
+     * Searches by email using the defined repository method.
+     */
+    private String getUserAboutMe(User user) {
+        if (user == null || user.getEmail() == null) return null;
+        
+        // Explicitly use the findByEmail method (as defined in your ProfileRepository)
+        Optional<Profile> profile = profileRepository.findByEmail(user.getEmail());
+
+        if (profile.isPresent()) {
+            String aboutMe = profile.get().getAboutMe();
+            
+            // Defensive check: Return null if the string is empty or just whitespace in the DB
+            if (aboutMe != null && !aboutMe.trim().isEmpty()) {
+                return aboutMe.trim();
+            }
+        }
+        // Returns null if no Profile is found or if the aboutMe field is empty/null
+        return null;
+    }
+
+    /**
+     * Helper to convert GroupMember to DTO, pulling 'aboutMe' from Profile.
+     */
     private UserSummaryDTO convertToUserSummaryDTO(GroupMember member) {
+        User user = member.getUser();
+        String aboutMe = getUserAboutMe(user);
+
         return new UserSummaryDTO(
-                Long.valueOf(member.getUser().getId()),
-                member.getUser().getName(),
+                Long.valueOf(user.getId()),
+                user.getName(),
+                user.getEmail(),
+                aboutMe, 
                 member.getRole()
         );
     }
@@ -48,16 +82,21 @@ public class GroupService {
         return convertToDTO(group, null);
     }
 
+    /**
+     * Helper to convert Group to DTO, pulling creator 'aboutMe' from Profile.
+     */
     private GroupDTO convertToDTO(Group group, String userRole) {
         long memberCount = groupMemberRepository.countByGroup(group);
         boolean hasPasskey = group.getPasskey() != null && !group.getPasskey().isEmpty();
+        User creator = group.getCreatedBy();
+        String creatorAboutMe = getUserAboutMe(creator);
 
         return new GroupDTO(
                 group.getGroupId(),
                 group.getName(),
                 group.getDescription(),
                 new CourseSummaryDTO(group.getAssociatedCourse().getCourseId(), group.getAssociatedCourse().getCourseName()),
-                new UserSummaryDTO(Long.valueOf(group.getCreatedBy().getId()), group.getCreatedBy().getName(), "Admin"),
+                new UserSummaryDTO(Long.valueOf(creator.getId()), creator.getName(), creator.getEmail(), creatorAboutMe, "Admin"), 
                 group.getPrivacy(),
                 group.getMemberLimit(),
                 memberCount,
@@ -66,22 +105,6 @@ public class GroupService {
         );
     }
 
-    /**
-     * Handles the logic for a user leaving a group.
-     * - Deletes the user's membership.
-     * - If the user is an Admin:
-     * - If remaining member count is 0, deletes the group.
-     * - Otherwise, transfers ownership (promotes the next oldest non-admin member) and updates group creator.
-     * - If the user is a Member:
-     * - Simply deletes the membership.
-     */
-    /**
-     * Handles the logic for a user leaving a group.
-     * - Deletes the user's membership.
-     * - If the user is an Admin:
-     * - If remaining member count is 0, deletes the group (and its join requests).
-     * - Otherwise, transfers ownership.
-     */
     @Transactional
     public String leaveGroup(Long groupId, User currentUser) {
         Group group = groupRepository.findById(groupId)
@@ -96,64 +119,45 @@ public class GroupService {
         GroupMember membership = optionalMembership.get();
         String role = membership.getRole();
 
-        // 1. Delete the current user's membership
         groupMemberRepository.delete(membership);
 
-        // 2. Handle Admin/Owner leaving logic
         if ("Admin".equalsIgnoreCase(role)) {
-            
-            // Count members AFTER deleting the current Admin's membership
             Long remainingMembers = groupMemberRepository.countByGroup(group);
 
             if (remainingMembers == 0) {
-                // Case: Admin was the last one -> Delete the whole group
-                
-                // --- FIX: DELETE RELATED FOREIGN KEY CONSTRAINTS FIRST ---
-                // Delete all outstanding join requests related to this group
                 groupJoinRequestRepository.deleteByGroup(group);
-
-                // Now, safely delete the group
                 groupRepository.delete(group);
-                // -----------------------------------------------------------
-                
+
                 return "Successfully left the group. The group has been deleted completely as you were the last member.";
             } else {
-                // Case: Admin is leaving, and there are other members -> Transfer ownership
-                
                 List<GroupMember> remainingGroupMembers = groupMemberRepository.findByGroup(group);
 
                 if (!remainingGroupMembers.isEmpty()) {
-                    // Promote the first available member to Admin (prioritizing non-admins if multi-admin is possible, otherwise just the next member).
                     Optional<GroupMember> nextAdminOptional = remainingGroupMembers.stream()
                         .filter(m -> !"Admin".equalsIgnoreCase(m.getRole()))
                         .findFirst();
 
-                    // If no non-admin members are found, pick the first remaining member.
                     if (nextAdminOptional.isEmpty()) {
                          nextAdminOptional = remainingGroupMembers.stream().findFirst();
                     }
-                    
+
                     if (nextAdminOptional.isPresent()) {
                         GroupMember nextAdmin = nextAdminOptional.get();
                         nextAdmin.setRole("Admin");
                         groupMemberRepository.save(nextAdmin);
-                        
-                        // Update the group's 'createdBy' user to the new Admin
+
                         group.setCreatedBy(nextAdmin.getUser());
                         groupRepository.save(group);
-                        
+
                         return "Successfully left the group. Ownership has been transferred to " + nextAdmin.getUser().getName() + ", who is now the new Admin.";
                     }
                 }
-                
-                // Fallback (should be rare if members > 0)
                 return "Successfully left the group. The group remains active, but ownership transfer succeeded/failed (check group status).";
             }
         }
-
-        // 3. Handle Regular Member leaving logic
         return "Successfully left the group.";
     }
+
     @Transactional
     public GroupDTO updateGroup(Long groupId, GroupDTO groupDetails, User currentUser) {
         Group group = groupRepository.findById(groupId)
@@ -291,6 +295,9 @@ public class GroupService {
         groupMemberRepository.save(newMembership);
     }
 
+    /**
+     * Retrieves join requests for a specific group.
+     */
     public List<GroupJoinRequestDTO> getJoinRequests(Long groupId, User currentUser) {
         Group group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new RuntimeException("Group not found."));
@@ -299,48 +306,141 @@ public class GroupService {
                 .map(m -> "Admin".equalsIgnoreCase(m.getRole()))
                 .orElse(false);
 
-        if (!group.getCreatedBy().getId().equals(currentUser.getId()) && !isAdmin) {
+        if (!isAdmin) {
             throw new RuntimeException("You are not authorized to view join requests for this group.");
         }
 
+        // Fetch PENDING requests only
         return groupJoinRequestRepository.findByGroupAndStatus(group, "PENDING").stream()
                 .map(req -> new GroupJoinRequestDTO(
                         req.getId(),
-                        new UserSummaryDTO(Long.valueOf(req.getUser().getId()), req.getUser().getName(), "Pending"),
+                        new UserSummaryDTO(
+                                Long.valueOf(req.getUser().getId()), 
+                                req.getUser().getName(), 
+                                req.getUser().getEmail(), 
+                                getUserAboutMe(req.getUser()), // Correctly fetching bio from Profile
+                                "Pending"
+                        ),
                         req.getStatus()
                 ))
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Handles group join requests (accept/reject).
+     */
     @Transactional
-    public void handleJoinRequest(Long requestId, String status, User currentUser) {
-        GroupJoinRequest request = groupJoinRequestRepository.findById(requestId)
-                .orElseThrow(() -> new RuntimeException("Request not found."));
+    public void handleJoinRequest(Long groupId, Long requestId, String status, User currentUser) {
+        // 1. Authorization Check (Admin of this specific group)
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new RuntimeException("Group not found."));
 
-        Group group = request.getGroup();
-
-        boolean isAdmin = groupMemberRepository.findByGroupGroupIdAndUser_Id(group.getGroupId(), currentUser.getId())
+        boolean isAdmin = groupMemberRepository.findByGroupGroupIdAndUser_Id(groupId, currentUser.getId())
                 .map(m -> "Admin".equalsIgnoreCase(m.getRole()))
                 .orElse(false);
 
-        if (!group.getCreatedBy().getId().equals(currentUser.getId()) && !isAdmin) {
+        if (!isAdmin) {
             throw new RuntimeException("You are not authorized to manage requests for this group.");
+        }
+        
+        // 2. Find and Validate Request
+        GroupJoinRequest request = groupJoinRequestRepository.findById(requestId)
+                .orElseThrow(() -> new RuntimeException("Request not found."));
+                
+        if (!request.getGroup().getGroupId().equals(groupId)) {
+             throw new RuntimeException("Request ID does not belong to the provided Group ID.");
         }
 
         if ("APPROVED".equalsIgnoreCase(status)) {
-            request.setStatus("APPROVED");
+            // 3. Check member limit before adding
+            long currentMemberCount = groupMemberRepository.countByGroup(group);
+            if (currentMemberCount >= group.getMemberLimit()) {
+                groupJoinRequestRepository.delete(request); 
+                throw new RuntimeException("Group is full. Cannot approve this request.");
+            }
+            
+            // Add member
             GroupMember newMembership = new GroupMember();
             newMembership.setId(new GroupMemberId(group.getGroupId(), request.getUser().getId()));
             newMembership.setGroup(group);
             newMembership.setUser(request.getUser());
             newMembership.setRole("Member");
             groupMemberRepository.save(newMembership);
-        } else if ("DENIED".equalsIgnoreCase(status)) {
-            request.setStatus("DENIED");
-        } else {
-            throw new RuntimeException("Invalid status provided.");
+        } else if (!"DENIED".equalsIgnoreCase(status)) {
+             throw new RuntimeException("Invalid status provided. Must be APPROVED or DENIED.");
         }
 
-        groupJoinRequestRepository.save(request);
+        // 4. Delete the request after handling to clear it from the pending list
+        groupJoinRequestRepository.delete(request);
+    }
+    
+    /**
+     * NEW METHOD: Allows an Admin to remove a member.
+     */
+    @Transactional
+    public void removeMember(Long groupId, Long memberIdToRemove, User currentUser) {
+        // 1. Authorization Check: Current user must be an Admin
+        GroupMember adminMembership = groupMemberRepository.findByGroupGroupIdAndUser_Id(groupId, currentUser.getId())
+                .orElseThrow(() -> new RuntimeException("Group not found or you are not a member."));
+
+        if (!"Admin".equalsIgnoreCase(adminMembership.getRole())) {
+            throw new RuntimeException("You are not authorized to remove members from this group.");
+        }
+        
+        // 2. Prevent self-removal
+        if (currentUser.getId().equals(memberIdToRemove.intValue())) {
+             throw new RuntimeException("You cannot remove yourself. Use the leave group button instead.");
+        }
+
+        // 3. Find group and member
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new RuntimeException("Group not found."));
+                
+        GroupMember memberToRemove = groupMemberRepository.findByGroupGroupIdAndUser_Id(groupId, memberIdToRemove.intValue())
+                .orElseThrow(() -> new RuntimeException("Member not found in this group."));
+        
+        // 4. Cannot remove the original creator
+        if (memberToRemove.getUser().getId().equals(group.getCreatedBy().getId())) {
+             throw new RuntimeException("The original group creator cannot be removed by other admins.");
+        }
+        
+        // 5. Remove the member
+        groupMemberRepository.delete(memberToRemove);
+        
+        // 6. Clean up any related join requests (Requires deleteByGroupAndUser in repository)
+        groupJoinRequestRepository.deleteByGroupAndUser(group, memberToRemove.getUser()); 
+    }
+    
+    /**
+     * NEW METHOD: Allows an Admin to change a non-creator/non-self member's role.
+     */
+    @Transactional
+    public void changeMemberRole(Long groupId, Long memberIdToUpdate, String newRole, User currentUser) {
+        // 1. Authorization Check (Admin)
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new RuntimeException("Group not found."));
+
+        boolean isAdmin = groupMemberRepository.findByGroupGroupIdAndUser_Id(groupId, currentUser.getId())
+                .map(m -> "Admin".equalsIgnoreCase(m.getRole()))
+                .orElse(false);
+
+        if (!isAdmin) {
+            throw new RuntimeException("You are not authorized to change member roles.");
+        }
+        
+        // 2. Cannot change role for yourself or the group creator
+        if (currentUser.getId().equals(memberIdToUpdate.intValue())) {
+             throw new RuntimeException("You cannot change your own role through this management tool.");
+        }
+        if (memberIdToUpdate.intValue() == group.getCreatedBy().getId()) {
+             throw new RuntimeException("The original group creator's role cannot be modified.");
+        }
+
+        // 3. Find and update the member's role
+        GroupMember memberToUpdate = groupMemberRepository.findByGroupGroupIdAndUser_Id(groupId, memberIdToUpdate.intValue())
+                .orElseThrow(() -> new RuntimeException("Member not found in this group."));
+        
+        memberToUpdate.setRole(newRole);
+        groupMemberRepository.save(memberToUpdate);
     }
 }
