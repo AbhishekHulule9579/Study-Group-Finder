@@ -75,6 +75,13 @@ public class GroupService {
      * - If the user is a Member:
      * - Simply deletes the membership.
      */
+    /**
+     * Handles the logic for a user leaving a group.
+     * - Deletes the user's membership.
+     * - If the user is an Admin:
+     * - If remaining member count is 0, deletes the group (and its join requests).
+     * - Otherwise, transfers ownership.
+     */
     @Transactional
     public String leaveGroup(Long groupId, User currentUser) {
         Group group = groupRepository.findById(groupId)
@@ -100,7 +107,15 @@ public class GroupService {
 
             if (remainingMembers == 0) {
                 // Case: Admin was the last one -> Delete the whole group
+                
+                // --- FIX: DELETE RELATED FOREIGN KEY CONSTRAINTS FIRST ---
+                // Delete all outstanding join requests related to this group
+                groupJoinRequestRepository.deleteByGroup(group);
+
+                // Now, safely delete the group
                 groupRepository.delete(group);
+                // -----------------------------------------------------------
+                
                 return "Successfully left the group. The group has been deleted completely as you were the last member.";
             } else {
                 // Case: Admin is leaving, and there are other members -> Transfer ownership
@@ -108,35 +123,37 @@ public class GroupService {
                 List<GroupMember> remainingGroupMembers = groupMemberRepository.findByGroup(group);
 
                 if (!remainingGroupMembers.isEmpty()) {
-                    // Promote the first available member to Admin.
+                    // Promote the first available member to Admin (prioritizing non-admins if multi-admin is possible, otherwise just the next member).
                     Optional<GroupMember> nextAdminOptional = remainingGroupMembers.stream()
                         .filter(m -> !"Admin".equalsIgnoreCase(m.getRole()))
                         .findFirst();
 
+                    // If no non-admin members are found, pick the first remaining member.
+                    if (nextAdminOptional.isEmpty()) {
+                         nextAdminOptional = remainingGroupMembers.stream().findFirst();
+                    }
+                    
                     if (nextAdminOptional.isPresent()) {
                         GroupMember nextAdmin = nextAdminOptional.get();
                         nextAdmin.setRole("Admin");
                         groupMemberRepository.save(nextAdmin);
                         
-                        // If the user leaving was the original creator, update the group's 'createdBy' to the new Admin
-                        if (group.getCreatedBy().getId().equals(currentUser.getId())) {
-                             group.setCreatedBy(nextAdmin.getUser());
-                             groupRepository.save(group);
-                        }
+                        // Update the group's 'createdBy' user to the new Admin
+                        group.setCreatedBy(nextAdmin.getUser());
+                        groupRepository.save(group);
                         
                         return "Successfully left the group. Ownership has been transferred to " + nextAdmin.getUser().getName() + ", who is now the new Admin.";
                     }
                 }
-                // Fallback: This should ideally not be reached if the list isn't empty, 
-                // but ensures a clean message even if the role promotion logic is complex.
-                return "Successfully left the group. The group remains active, but ownership transfer failed to determine a single admin.";
+                
+                // Fallback (should be rare if members > 0)
+                return "Successfully left the group. The group remains active, but ownership transfer succeeded/failed (check group status).";
             }
         }
 
         // 3. Handle Regular Member leaving logic
         return "Successfully left the group.";
     }
-    
     @Transactional
     public GroupDTO updateGroup(Long groupId, GroupDTO groupDetails, User currentUser) {
         Group group = groupRepository.findById(groupId)
