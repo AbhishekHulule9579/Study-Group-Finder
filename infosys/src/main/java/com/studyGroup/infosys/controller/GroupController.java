@@ -27,6 +27,29 @@ public class GroupController {
     @Autowired
     private GroupRepository groupRepository;
 
+    @DeleteMapping("/leave/{groupId}")
+    public ResponseEntity<?> leaveGroup(@PathVariable Long groupId, @RequestHeader("Authorization") String authHeader) {
+        try {
+            String token = authHeader.substring(7);
+            User currentUser = userService.getUserProfile(token);
+
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "Invalid or expired token."));
+            }
+
+            String resultMessage = groupService.leaveGroup(groupId, currentUser);
+            return ResponseEntity.ok(Map.of("message", resultMessage));
+
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "An error occurred while leaving the group: " + e.getMessage()));
+        }
+    }
+
     /**
      * Retrieves the details of a specific group.
      */

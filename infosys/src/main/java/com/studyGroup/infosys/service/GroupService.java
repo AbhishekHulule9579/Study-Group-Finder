@@ -66,6 +66,77 @@ public class GroupService {
         );
     }
 
+    /**
+     * Handles the logic for a user leaving a group.
+     * - Deletes the user's membership.
+     * - If the user is an Admin:
+     * - If remaining member count is 0, deletes the group.
+     * - Otherwise, transfers ownership (promotes the next oldest non-admin member) and updates group creator.
+     * - If the user is a Member:
+     * - Simply deletes the membership.
+     */
+    @Transactional
+    public String leaveGroup(Long groupId, User currentUser) {
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new RuntimeException("Group not found with ID: " + groupId));
+
+        Optional<GroupMember> optionalMembership = groupMemberRepository.findByGroupGroupIdAndUser_Id(groupId, currentUser.getId());
+
+        if (optionalMembership.isEmpty()) {
+            throw new RuntimeException("You are not a member of this group.");
+        }
+
+        GroupMember membership = optionalMembership.get();
+        String role = membership.getRole();
+
+        // 1. Delete the current user's membership
+        groupMemberRepository.delete(membership);
+
+        // 2. Handle Admin/Owner leaving logic
+        if ("Admin".equalsIgnoreCase(role)) {
+            
+            // Count members AFTER deleting the current Admin's membership
+            Long remainingMembers = groupMemberRepository.countByGroup(group);
+
+            if (remainingMembers == 0) {
+                // Case: Admin was the last one -> Delete the whole group
+                groupRepository.delete(group);
+                return "Successfully left the group. The group has been deleted completely as you were the last member.";
+            } else {
+                // Case: Admin is leaving, and there are other members -> Transfer ownership
+                
+                List<GroupMember> remainingGroupMembers = groupMemberRepository.findByGroup(group);
+
+                if (!remainingGroupMembers.isEmpty()) {
+                    // Promote the first available member to Admin.
+                    Optional<GroupMember> nextAdminOptional = remainingGroupMembers.stream()
+                        .filter(m -> !"Admin".equalsIgnoreCase(m.getRole()))
+                        .findFirst();
+
+                    if (nextAdminOptional.isPresent()) {
+                        GroupMember nextAdmin = nextAdminOptional.get();
+                        nextAdmin.setRole("Admin");
+                        groupMemberRepository.save(nextAdmin);
+                        
+                        // If the user leaving was the original creator, update the group's 'createdBy' to the new Admin
+                        if (group.getCreatedBy().getId().equals(currentUser.getId())) {
+                             group.setCreatedBy(nextAdmin.getUser());
+                             groupRepository.save(group);
+                        }
+                        
+                        return "Successfully left the group. Ownership has been transferred to " + nextAdmin.getUser().getName() + ", who is now the new Admin.";
+                    }
+                }
+                // Fallback: This should ideally not be reached if the list isn't empty, 
+                // but ensures a clean message even if the role promotion logic is complex.
+                return "Successfully left the group. The group remains active, but ownership transfer failed to determine a single admin.";
+            }
+        }
+
+        // 3. Handle Regular Member leaving logic
+        return "Successfully left the group.";
+    }
+    
     @Transactional
     public GroupDTO updateGroup(Long groupId, GroupDTO groupDetails, User currentUser) {
         Group group = groupRepository.findById(groupId)
