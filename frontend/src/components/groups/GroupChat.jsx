@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
-import "../../Chat.css"; // Use global styles if you have
+import "../../Chat.css";
+
+
 
 export default function GroupChat({ group, onClose }) {
   const [messages, setMessages] = useState([
