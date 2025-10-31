@@ -13,8 +13,6 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(name = "user")
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class User {
 
     @Id
@@ -59,5 +57,147 @@ public class User {
 
     @Column(name = "university_gpa")
     private Double universityGpa;
+
+	public Integer getId() {
+		return id;
+	}
+
+	public void setId(Integer id) {
+		this.id = id;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public String getEmail() {
+		return email;
+	}
+
+	public void setEmail(String email) {
+		this.email = email;
+	}
+
+	public int getRole() {
+		return role;
+	}
+
+	public void setRole(int role) {
+		this.role = role;
+	}
+
+	public String getPassword() {
+		return password;
+	}
+
+	public void setPassword(String password) {
+		this.password = password;
+	}
+
+	public String getSecondarySchool() {
+		return secondarySchool;
+	}
+
+	public void setSecondarySchool(String secondarySchool) {
+		this.secondarySchool = secondarySchool;
+	}
+
+	public Integer getSecondarySchoolPassingYear() {
+		return secondarySchoolPassingYear;
+	}
+
+	public void setSecondarySchoolPassingYear(Integer secondarySchoolPassingYear) {
+		this.secondarySchoolPassingYear = secondarySchoolPassingYear;
+	}
+
+	public Double getSecondarySchoolPercentage() {
+		return secondarySchoolPercentage;
+	}
+
+	public void setSecondarySchoolPercentage(Double secondarySchoolPercentage) {
+		this.secondarySchoolPercentage = secondarySchoolPercentage;
+	}
+
+	public String getHigherSecondarySchool() {
+		return higherSecondarySchool;
+	}
+
+	public void setHigherSecondarySchool(String higherSecondarySchool) {
+		this.higherSecondarySchool = higherSecondarySchool;
+	}
+
+	public Integer getHigherSecondaryPassingYear() {
+		return higherSecondaryPassingYear;
+	}
+
+	public void setHigherSecondaryPassingYear(Integer higherSecondaryPassingYear) {
+		this.higherSecondaryPassingYear = higherSecondaryPassingYear;
+	}
+
+	public Double getHigherSecondaryPercentage() {
+		return higherSecondaryPercentage;
+	}
+
+	public void setHigherSecondaryPercentage(Double higherSecondaryPercentage) {
+		this.higherSecondaryPercentage = higherSecondaryPercentage;
+	}
+
+	public String getUniversityName() {
+		return universityName;
+	}
+
+	public void setUniversityName(String universityName) {
+		this.universityName = universityName;
+	}
+
+	public Integer getUniversityPassingYear() {
+		return universityPassingYear;
+	}
+
+	public void setUniversityPassingYear(Integer universityPassingYear) {
+		this.universityPassingYear = universityPassingYear;
+	}
+
+	public Double getUniversityGpa() {
+		return universityGpa;
+	}
+
+	public void setUniversityGpa(Double universityGpa) {
+		this.universityGpa = universityGpa;
+	}
+
+	public User(Integer id, String name, String email, int role, String password, String secondarySchool,
+			Integer secondarySchoolPassingYear, Double secondarySchoolPercentage, String higherSecondarySchool,
+			Integer higherSecondaryPassingYear, Double higherSecondaryPercentage, String universityName,
+			Integer universityPassingYear, Double universityGpa) {
+		super();
+		this.id = id;
+		this.name = name;
+		this.email = email;
+		this.role = role;
+		this.password = password;
+		this.secondarySchool = secondarySchool;
+		this.secondarySchoolPassingYear = secondarySchoolPassingYear;
+		this.secondarySchoolPercentage = secondarySchoolPercentage;
+		this.higherSecondarySchool = higherSecondarySchool;
+		this.higherSecondaryPassingYear = higherSecondaryPassingYear;
+		this.higherSecondaryPercentage = higherSecondaryPercentage;
+		this.universityName = universityName;
+		this.universityPassingYear = universityPassingYear;
+		this.universityGpa = universityGpa;
+	}
+
+	public User() {
+		super();
+	}
+    
+	
+	
+	
+    
 }
 

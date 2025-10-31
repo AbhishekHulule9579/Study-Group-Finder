@@ -11,8 +11,6 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(name = "profile")
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class Profile {
 
     @Id
@@ -39,5 +37,87 @@ public class Profile {
     private String aboutMe;
 
     @Column(name = "enrolled_course_ids", columnDefinition = "TEXT")
-    private String enrolledCourseIds = "[]"; 
+    private String enrolledCourseIds = "[]";
+
+	public String getEmail() {
+		return email;
+	}
+
+	public void setEmail(String email) {
+		this.email = email;
+	}
+
+	public String getFullname() {
+		return fullname;
+	}
+
+	public void setFullname(String fullname) {
+		this.fullname = fullname;
+	}
+
+	public String getProfilePicUrl() {
+		return profilePicUrl;
+	}
+
+	public void setProfilePicUrl(String profilePicUrl) {
+		this.profilePicUrl = profilePicUrl;
+	}
+
+	public String getPhone() {
+		return phone;
+	}
+
+	public void setPhone(String phone) {
+		this.phone = phone;
+	}
+
+	public String getGithubUrl() {
+		return githubUrl;
+	}
+
+	public void setGithubUrl(String githubUrl) {
+		this.githubUrl = githubUrl;
+	}
+
+	public String getLinkedinUrl() {
+		return linkedinUrl;
+	}
+
+	public void setLinkedinUrl(String linkedinUrl) {
+		this.linkedinUrl = linkedinUrl;
+	}
+
+	public String getAboutMe() {
+		return aboutMe;
+	}
+
+	public void setAboutMe(String aboutMe) {
+		this.aboutMe = aboutMe;
+	}
+
+	public String getEnrolledCourseIds() {
+		return enrolledCourseIds;
+	}
+
+	public void setEnrolledCourseIds(String enrolledCourseIds) {
+		this.enrolledCourseIds = enrolledCourseIds;
+	}
+
+	public Profile() {
+		super();
+		this.email = email;
+		this.fullname = fullname;
+		this.profilePicUrl = profilePicUrl;
+		this.phone = phone;
+		this.githubUrl = githubUrl;
+		this.linkedinUrl = linkedinUrl;
+		this.aboutMe = aboutMe;
+		this.enrolledCourseIds = enrolledCourseIds;
+	}
+
+
+	
+	
+    
+    
 }

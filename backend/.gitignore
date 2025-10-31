@@ -34,3 +34,4 @@ build/
 
 ### Creating separate application-local.properties ###
 src/main/resources/application-local.properties
+/.apt_generated_tests/

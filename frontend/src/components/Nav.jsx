@@ -4,7 +4,9 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 export default function Nav() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [isLoggedIn, setIsLoggedIn] = useState(!!sessionStorage.getItem("token"));
+  const [isLoggedIn, setIsLoggedIn] = useState(
+    !!sessionStorage.getItem("token")
+  );
   const [profilePic, setProfilePic] = useState(null);
   const [userName, setUserName] = useState("User");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -17,7 +19,7 @@ export default function Nav() {
     setProfilePic(null);
     // This check is important to prevent re-navigating to the same page.
     if (location.pathname !== "/login") {
-        navigate("/login");
+      navigate("/login");
     }
   }, [navigate, location.pathname]);
 
@@ -27,12 +29,19 @@ export default function Nav() {
 
     // ***** THIS IS THE CRUCIAL FIX *****
     // Define public pages where we should NOT attempt to fetch user data.
-    const publicPages = ["/", "/about", "/collab", "/login", "/signup", "/forgotpassword"];
-    
+    const publicPages = [
+      "/",
+      "/about",
+      "/collab",
+      "/login",
+      "/signup",
+      "/forgotpassword",
+    ];
+
     // If we are on a public page OR if there is no token, do not proceed.
     // This stops the Nav component from interfering with the Login page's state.
     if (publicPages.includes(location.pathname) || !token) {
-      return; 
+      return;
     }
 
     const fetchUserDataForNav = async () => {
@@ -83,16 +92,35 @@ export default function Nav() {
   return (
     <div className="w-full h-[9vh] bg-gradient-to-r from-purple-600 to-orange-500 flex items-center justify-between px-8 sticky top-0 z-50">
       <div className="flex gap-8">
-        <Link to="/" className="text-white font-extrabold hover:underline">Home</Link>
-        <Link to="/about" className="text-white font-extrabold hover:underline">About</Link>
-        <Link to="/collab" className="text-white font-extrabold hover:underline">Collab</Link>
+        <Link to="/" className="text-white font-extrabold hover:underline">
+          Home
+        </Link>
+        <Link to="/about" className="text-white font-extrabold hover:underline">
+          About
+        </Link>
+        <Link
+          to="/collab"
+          className="text-white font-extrabold hover:underline"
+        >
+          Collab
+        </Link>
       </div>
 
       <div className="relative" ref={menuRef}>
         {!isLoggedIn ? (
           <div className="flex gap-4 items-center">
-            <Link to="/login" className="text-white font-extrabold bg-purple-700 hover:bg-purple-800 px-5 py-2 rounded-lg transition">Login</Link>
-            <Link to="/signup" className="text-purple-200 font-extrabold border-2 border-purple-200 hover:border-purple-100 hover:text-white px-5 py-2 rounded-lg transition">Sign Up</Link>
+            <Link
+              to="/login"
+              className="text-white font-extrabold bg-purple-700 hover:bg-purple-800 px-5 py-2 rounded-lg transition"
+            >
+              Login
+            </Link>
+            <Link
+              to="/signup"
+              className="text-purple-200 font-extrabold border-2 border-purple-200 hover:border-purple-100 hover:text-white px-5 py-2 rounded-lg transition"
+            >
+              Sign Up
+            </Link>
           </div>
         ) : (
           <>
@@ -101,7 +129,11 @@ export default function Nav() {
               className="focus:outline-none"
             >
               {profilePic ? (
-                <img src={profilePic} alt="profile" className="w-10 h-10 rounded-full object-cover border-2 border-white" />
+                <img
+                  src={profilePic}
+                  alt="profile"
+                  className="w-10 h-10 rounded-full object-cover border-2 border-white"
+                />
               ) : (
                 <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-gray-700 font-bold">
                   {userName.charAt(0).toUpperCase()}
@@ -113,7 +145,7 @@ export default function Nav() {
                 <div className="text-xl font-bold bg-gradient-to-r from-purple-700 to-orange-400 bg-clip-text text-transparent mb-2 text-center">
                   Welcome, {userName}
                 </div>
-                
+
                 {location.pathname === "/profile" ? (
                   <button
                     className="w-full py-2 mb-2 bg-gradient-to-r from-purple-700 to-orange-400 text-white font-bold rounded-lg shadow"
@@ -150,4 +182,3 @@ export default function Nav() {
     </div>
   );
 }
-

@@ -112,7 +112,11 @@ public class GroupController {
 
             GroupDTO newGroup = groupService.createGroup(createGroupRequest, currentUser);
             return ResponseEntity.ok(newGroup);
-
+        
+        // 🚩 FIX: Catch RuntimeException (e.g., "Course not found") to return 400 Bad Request
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "An error occurred while creating the group: " + e.getMessage()));

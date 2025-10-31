@@ -7,12 +7,11 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
-import java.util.Objects;
 
 @Embeddable
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
+@Data // Provides getters, setters, equals, hashCode, and toString
+@NoArgsConstructor // 🚩 FIX: Generates the required public no-argument constructor for JPA
+@AllArgsConstructor // Generates the parameterized constructor (Long groupId, Integer userId)
 public class GroupMemberId implements Serializable {
 
     @Column(name = "group_id")
@@ -21,16 +20,8 @@ public class GroupMemberId implements Serializable {
     @Column(name = "user_id")
     private Integer userId;
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        GroupMemberId that = (GroupMemberId) o;
-        return Objects.equals(groupId, that.groupId) && Objects.equals(userId, that.userId);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(groupId, userId);
-    }
+    // All boilerplate methods (constructors, getters, setters, equals, hashCode, toString) 
+    // are now handled automatically by the Lombok annotations above.
+    // You MUST remove any manually written methods (e.g., public GroupMemberId(), @Override public boolean equals(Object o), etc.) 
+    // from this file, as they are redundant and can interfere with Lombok's generation.
 }

@@ -8,8 +8,6 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(name = "study_group")
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class Group {
 
     @Id
@@ -36,4 +34,88 @@ public class Group {
 
     @Column(name = "member_limit")
     private Integer memberLimit;
+
+	public Long getGroupId() {
+		return groupId;
+	}
+
+	public void setGroupId(Long groupId) {
+		this.groupId = groupId;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public String getDescription() {
+		return description;
+	}
+
+	public void setDescription(String description) {
+		this.description = description;
+	}
+
+	public Course getAssociatedCourse() {
+		return associatedCourse;
+	}
+
+	public void setAssociatedCourse(Course associatedCourse) {
+		this.associatedCourse = associatedCourse;
+	}
+
+	public User getCreatedBy() {
+		return createdBy;
+	}
+
+	public void setCreatedBy(User createdBy) {
+		this.createdBy = createdBy;
+	}
+
+	public String getPrivacy() {
+		return privacy;
+	}
+
+	public void setPrivacy(String privacy) {
+		this.privacy = privacy;
+	}
+
+	public String getPasskey() {
+		return passkey;
+	}
+
+	public void setPasskey(String passkey) {
+		this.passkey = passkey;
+	}
+
+	public Integer getMemberLimit() {
+		return memberLimit;
+	}
+
+	public void setMemberLimit(Integer memberLimit) {
+		this.memberLimit = memberLimit;
+	}
+
+	public Group(Long groupId, String name, String description, Course associatedCourse, User createdBy, String privacy,
+			String passkey, Integer memberLimit) {
+		super();
+		this.groupId = groupId;
+		this.name = name;
+		this.description = description;
+		this.associatedCourse = associatedCourse;
+		this.createdBy = createdBy;
+		this.privacy = privacy;
+		this.passkey = passkey;
+		this.memberLimit = memberLimit;
+	}
+
+	public Group() {
+		super();
+	}
+    
+	
+    
 }

@@ -4,7 +4,6 @@ import CreateGroupCard from "./groups/CreateGroupCard.jsx";
 import GroupCreateForm from "./groups/GroupCreateForm.jsx";
 import JoinGroupModal from "./groups/JoinGroupModal.jsx";
 import { useNavigate } from "react-router-dom";
-import GroupChat from "./groups/GroupChat.jsx";
 
 const MyGroups = () => {
   const navigate = useNavigate();
@@ -22,8 +21,6 @@ const MyGroups = () => {
   const [selectedCourse, setSelectedCourse] = useState("All");
   const [memberFilter, setMemberFilter] = useState("any");
   const [ratingFilter, setRatingFilter] = useState("any");
-  const [activeChatGroup, setActiveChatGroup] = useState(null);
-
 
   const fetchAllData = useCallback(async () => {
     const token = sessionStorage.getItem("token");
@@ -242,24 +239,6 @@ const MyGroups = () => {
                   {joinedGroups.map((group) => (
                     <GroupCard key={group.groupId} group={group} isMember={true} />
                   ))}
-                  {/* Joined Groups */}
-<div>
-  <h2 className="text-xl font-semibold mb-2">Joined Groups</h2>
-  {joinedGroups.map((group) => (
-    <div key={group.groupId} className="mb-4">
-      <GroupCard group={group} isMember={true} />
-
-      {/* Add this button just below GroupCard */}
-      <button
-        onClick={() => setActiveChatGroup(group)}
-        className="mt-2 w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 transition"
-      >
-        Open Chat
-      </button>
-    </div>
-  ))}
-</div>
-
                 </div>
               ) : (
                 <div className="text-center py-16 px-6 bg-white rounded-2xl shadow-lg border animate-fade-in">
@@ -365,13 +344,6 @@ const MyGroups = () => {
           />
         )}
       </div>
-      {activeChatGroup && (
-  <GroupChat
-    group={activeChatGroup}
-    onClose={() => setActiveChatGroup(null)}
-  />
-)}
-
     </div>
   );
 };
