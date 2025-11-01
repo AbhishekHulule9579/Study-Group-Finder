@@ -179,12 +179,16 @@ const FileIcon = ({ size = 16 }) => (
 function normalizeMessage(m) {
   // Use a combined key to reduce duplicate keys, avoid Date.now() alone
   return {
-    id: m.id ?? `${m.timestamp ?? Date.now()}_${m.senderId ?? "unknown"}`,
+    id: m.messageId ?? m.id ?? `${m.timestamp ?? Date.now()}_${m.senderId ?? "unknown"}`,
     content: m.content ?? m.message ?? m.text ?? "",
     senderId: m.senderId ?? m.userId ?? null,
     senderName: m.senderName ?? m.user ?? "Unknown",
     timestamp: m.timestamp ?? m.createdAt ?? new Date().toISOString(),
+    messageType: m.messageType ?? "TEXT",
     attachment: m.attachment ?? null,
+    replyToMessageId: m.replyToMessageId ?? null,
+    replyToSenderName: m.replyToSenderName ?? null,
+    replyToContent: m.replyToContent ?? null,
   };
 }
 const getChatDateLabel = (dateStr) => {
@@ -232,22 +236,37 @@ const GroupChat = ({
     }
   };
 
+  const loadHistory = async () => {
+    const token = sessionStorage.getItem("token");
+    try {
+      const res = await fetch(
+        `http://localhost:8145/api/groups/${groupId}/messages`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setMessages(Array.isArray(data) ? data.map(normalizeMessage) : []);
+      }
+    } catch {}
+  };
+
+  const loadPinnedMessages = async () => {
+    const token = sessionStorage.getItem("token");
+    try {
+      const res = await fetch(
+        `http://localhost:8145/api/groups/${groupId}/pins`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setPinnedIds(data.map((p) => p.messageId));
+      }
+    } catch {}
+  };
+
   useEffect(() => {
     const token = sessionStorage.getItem("token");
     let stomp = null;
-
-    const loadHistory = async () => {
-      try {
-        const res = await fetch(
-          `http://localhost:8145/api/groups/${groupId}/messages`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setMessages(Array.isArray(data) ? data.map(normalizeMessage) : []);
-        }
-      } catch {}
-    };
 
     const connect = () => {
       try {
@@ -268,6 +287,7 @@ const GroupChat = ({
               } catch {}
             });
             loadHistory();
+            loadPinnedMessages();
           },
           () => setTimeout(connect, 4000)
         );
@@ -301,6 +321,8 @@ const GroupChat = ({
       senderName: currentUser.name,
       content: input,
       replyToMessageId: replyTo?.id || null,
+      replyToSenderName: replyTo?.user || null,
+      replyToContent: replyTo?.message || null,
       messageType: "TEXT",
     };
     try {
@@ -317,10 +339,27 @@ const GroupChat = ({
     }
   };
 
-  const handleTogglePin = (id) => {
-    setPinnedIds((prev) =>
-      prev.includes(id) ? prev.filter((pid) => pid !== id) : [...prev, id]
-    );
+  const handleTogglePin = async (id) => {
+    const isPinned = pinnedIds.includes(id);
+    const token = sessionStorage.getItem("token");
+    try {
+      const res = await fetch(
+        `http://localhost:8145/api/groups/${groupId}/pins/messages/${id}`,
+        {
+          method: isPinned ? "DELETE" : "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (res.ok) {
+        setPinnedIds((prev) =>
+          prev.includes(id) ? prev.filter((pid) => pid !== id) : [...prev, id]
+        );
+      } else {
+        alert("Failed to toggle pin.");
+      }
+    } catch (e) {
+      alert("Pin toggle request failed.");
+    }
   };
 
   const scrollToMessage = (id) => {
@@ -332,7 +371,6 @@ const GroupChat = ({
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Delete this message?")) return;
     const token = sessionStorage.getItem("token");
     try {
       const res = await fetch(
@@ -359,7 +397,7 @@ const GroupChat = ({
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-br from-white via-purple-50 to-pink-50">
+    <div className="flex flex-col h-full bg-gradient-to-br from-white via-purple-50 to-pink-50 w-full max-w-full">
       <div className="w-full flex px-4 py-3 border-b bg-white shadow-sm sticky top-0 z-10 items-center gap-3">
         <button
           type="button"
@@ -369,6 +407,8 @@ const GroupChat = ({
           style={{
             background:
               groupColor || "linear-gradient(90deg, #31c5ce 0%, #9254e8 100%)",
+            border: "2px solid rgba(255,255,255,0.2)",
+            boxShadow: "0 4px 15px rgba(49, 197, 206, 0.3)",
           }}
         >
           {groupName || "Group Chat"}
@@ -532,7 +572,9 @@ const GroupChat = ({
                                   minHeight: 24,
                                   lineHeight: 0,
                                 }}
-                                onClick={() => handleDelete(m.id)}
+                                onClick={() => {
+                                  handleDelete(m.id);
+                                }}
                                 aria-label="Delete"
                               >
                                 <IconTrash size={14} />
@@ -543,6 +585,11 @@ const GroupChat = ({
                         {!isOwn && (
                           <div className="text-xs font-semibold text-purple-700 mb-1">
                             {m.senderName}
+                          </div>
+                        )}
+                        {m.replyToMessageId && (
+                          <div className="text-xs text-gray-500 mb-1 border-l-2 border-purple-300 pl-2">
+                            Replying to {m.replyToSenderName}: {m.replyToContent?.length > 50 ? m.replyToContent.slice(0, 47) + "..." : m.replyToContent}
                           </div>
                         )}
                         {isOnlyEmoji(m.content) ? (
@@ -558,19 +605,38 @@ const GroupChat = ({
                             {m.content}
                           </div>
                         )}
-                        {m.attachment && (
+                        {m.messageType === "document" && (
                           <div className="flex items-center mt-2 text-xs text-blue-700 border border-blue-100 bg-blue-50 rounded px-2 py-1">
                             <FileIcon size={13} />{" "}
-                            <span className="mx-2">{m.attachment.name}</span>
-                            <a
-                              href={m.attachment.url}
-                              className="ml-2 underline"
-                              target="_blank"
-                              rel="noopener noreferrer"
+                            <span className="mx-2">{m.content}</span>
+                            <button
+                              className="ml-2 underline text-blue-600 hover:text-blue-800"
+                              onClick={async () => {
+                                try {
+                                  const token = sessionStorage.getItem("token");
+                                  const res = await fetch(`http://localhost:8145/api/documents/${m.id}`, {
+                                    headers: { Authorization: `Bearer ${token}` },
+                                  });
+                                  if (res.ok) {
+                                    const blob = await res.blob();
+                                    const url = window.URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    a.download = m.content; // Use the filename from message content
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    window.URL.revokeObjectURL(url);
+                                    document.body.removeChild(a);
+                                  } else {
+                                    alert('Failed to download file');
+                                  }
+                                } catch (error) {
+                                  alert('Download failed');
+                                }
+                              }}
                             >
                               DOWNLOAD
-                            </a>
-                            <span className="ml-auto">{m.attachment.size}</span>
+                            </button>
                           </div>
                         )}
                         <div className="text-xs text-gray-400 text-right mt-1">
@@ -619,7 +685,35 @@ const GroupChat = ({
           </button>
           <label className="p-2 cursor-pointer rounded-full hover:bg-purple-50">
             <IconClip />
-            <input type="file" className="hidden" />
+            <input
+              type="file"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                  try {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('groupId', groupId);
+                    formData.append('senderId', currentUser.id);
+                    const token = sessionStorage.getItem("token");
+                    const res = await fetch(`http://localhost:8145/api/documents/upload`, {
+                      method: 'POST',
+                      headers: { Authorization: `Bearer ${token}` },
+                      body: formData,
+                    });
+                    if (res.ok) {
+                      loadHistory(); // Refresh messages after upload
+                    } else {
+                      alert('Failed to upload file');
+                    }
+                  } catch (error) {
+                    alert('Upload failed');
+                  }
+                }
+                e.target.value = null; // Reset input
+              }}
+            />
           </label>
           <button
             type="button"
@@ -638,15 +732,17 @@ const GroupChat = ({
           />
           <button
             type="submit"
-            className="rounded-full font-semibold text-white shadow flex items-center 
+            className="rounded-full font-semibold text-white shadow flex items-center
               px-4 py-2 sm:px-5 sm:py-2 md:px-5 md:py-[10px] lg:px-6 lg:py-[12px]
               text-base sm:text-base md:text-lg lg:text-lg
               transition-all duration-100 ease-in
               hover:opacity-90"
             style={{
               background: "linear-gradient(90deg, #31c5ce 0%, #9254e8 100%)",
-              minWidth: "44px",
+              minWidth: "60px",
               maxWidth: "180px",
+              border: "2px solid rgba(255,255,255,0.2)",
+              boxShadow: "0 4px 15px rgba(49, 197, 206, 0.3)",
             }}
             disabled={!input.trim()}
           >

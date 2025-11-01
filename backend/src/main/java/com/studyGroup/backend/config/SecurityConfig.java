@@ -36,11 +36,12 @@ public class SecurityConfig {
                     "/ws/info/**",
                     "/topic/**",
                     "/app/**",
-                    "/api/users/signin", 
-                    "/api/users/register/**", 
-                    "/api/users/forgot-password/**",  
+                    "/api/users/signin",
+                    "/api/users/register/**",
+                    "/api/users/forgot-password/**",
                     "/api/courses/**"
                 ).permitAll()
+                .requestMatchers("/api/documents/**").authenticated()
 
                 .anyRequest().authenticated()
             )

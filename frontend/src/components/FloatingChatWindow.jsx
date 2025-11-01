@@ -5,7 +5,9 @@ const FLOAT_MIN_W = 320, // Minimum width of chat window
   DEFAULT_W = 400, // Default width on open
   DEFAULT_H = 540, // Default height on open
   MINIMIZED_W = 44,
-  MINIMIZED_H = 44;
+  MINIMIZED_H = 44,
+  FLOAT_MAX_W = 800, // Maximum width
+  FLOAT_MAX_H = 800; // Maximum height
 
 const EMOJIS = [
   "💬",
