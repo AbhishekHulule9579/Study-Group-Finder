@@ -1,5 +1,0 @@
-- Load pinned messages on component mount from backend API.
-- Update handleTogglePin to call pin/unpin API and update local state.
-- Add reply context display in message bubbles if replyToMessageId exists.
-- Modify pinned messages display: show one at a time, cycle on click, scroll to message.
-- Test all features.
