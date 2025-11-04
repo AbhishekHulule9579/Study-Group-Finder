@@ -59,8 +59,6 @@ const GroupFiles = ({ groupId, userRole, onDocumentCountChange }) => {
     }
   }, [search, files]);
 
-
-
   // Handle download
   const handleDownload = async (fileId) => {
     try {
