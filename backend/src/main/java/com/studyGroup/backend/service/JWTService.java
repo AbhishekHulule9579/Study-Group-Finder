@@ -6,6 +6,7 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import com.studyGroup.backend.repository.UsersRepository;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
@@ -13,6 +14,12 @@ import java.util.function.Function;
 
 @Service
 public class JWTService {
+
+    private final UsersRepository usersRepository;
+
+    public JWTService(UsersRepository usersRepository) {
+        this.usersRepository = usersRepository;
+    }
 
     @Value("${jwt.secret}")
     private String secretKeyString;
@@ -53,6 +60,16 @@ public class JWTService {
                 .parseClaimsJws(token)
                 .getBody();
         return claimsResolver.apply(claims);
+    }
+
+    public Integer extractUserId(String token) {
+        String email = validateToken(token);
+        if ("401".equals(email)) {
+            throw new RuntimeException("Invalid token");
+        }
+        return usersRepository.findByEmail(email)
+                .map(user -> user.getId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
     }
 }
 

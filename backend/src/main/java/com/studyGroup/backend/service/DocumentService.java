@@ -17,6 +17,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -104,5 +105,9 @@ public class DocumentService {
         } catch (IOException e) {
             throw new RuntimeException("Could not delete file", e);
         }
+    }
+
+    public List<MessageDocument> getDocumentsByGroupId(Long groupId) {
+        return documentRepository.findByMessage_Group_GroupIdOrderByUploadTimeDesc(groupId);
     }
 }

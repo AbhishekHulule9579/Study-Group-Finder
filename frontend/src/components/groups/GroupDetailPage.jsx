@@ -26,6 +26,7 @@ export default function GroupDetailPage({ openFloatingChat }) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const [files, setFiles] = useState([]);
+  const [documentCount, setDocumentCount] = useState(0);
   const [chatMessages, setChatMessages] = useState([]);
   const [pinnedMessages, setPinnedMessages] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
@@ -347,7 +348,7 @@ export default function GroupDetailPage({ openFloatingChat }) {
             <SidebarButton
               tabName="files"
               label="Resources"
-              count={files.length}
+              count={documentCount}
             />
             <SidebarButton tabName="contact" label="Contact Admin" />
             <SidebarButton tabName="settings" label="Settings" />
@@ -440,7 +441,7 @@ export default function GroupDetailPage({ openFloatingChat }) {
             openFloatingChat={openFloatingChat}
           />
         )}
-        {activeTab === "files" && <GroupFiles files={files} />}
+        {activeTab === "files" && <GroupFiles groupId={groupId} userRole={userRole} onDocumentCountChange={setDocumentCount} />}
         {activeTab === "contact" && <GroupContactAdmin />}
         {activeTab === "settings" && (
           <GroupSettings
