@@ -241,7 +241,6 @@ public class GroupController {
                     .body(Map.of("message", "An error occurred while updating group details: " + e.getMessage()));
         }
     }
-
     // ----------------------------------------------------------------------
     // 🚩 NEW RESTful Endpoint: Handles Group Join Request (Approve/Deny)
     // Replaces the old @PostMapping("/requests/handle")
@@ -278,7 +277,6 @@ public class GroupController {
                     .body(Map.of("message", "An unexpected error occurred: " + e.getMessage()));
         }
     }
-    
     // ----------------------------------------------------------------------
     // 🚩 NEW RESTful Endpoint: Remove Member (DELETE /{groupId}/members/{memberId})
     // ----------------------------------------------------------------------
