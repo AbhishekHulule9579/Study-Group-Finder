@@ -7,6 +7,8 @@ import GroupFiles from "./GroupFiles";
 import GroupContactAdmin from "./GroupContactAdmin";
 import GroupSettings from "./GroupSettings";
 
+import SectionsPage from "../Calendar/SectionsPage";
+
 export default function GroupDetailPage({ openFloatingChat }) {
   const { groupId } = useParams();
   const navigate = useNavigate();
@@ -350,6 +352,7 @@ export default function GroupDetailPage({ openFloatingChat }) {
               label="Resources"
               count={documentCount}
             />
+            <SidebarButton tabName="sections" label="Sections" />
             <SidebarButton tabName="contact" label="Contact Admin" />
             <SidebarButton tabName="settings" label="Settings" />
           </nav>
@@ -422,7 +425,6 @@ export default function GroupDetailPage({ openFloatingChat }) {
           </h1>
           <div className="w-8"></div>
         </div>
-
         {/* Render active tab */}
         {activeTab === "about" && (
           <GroupAbout
@@ -441,7 +443,20 @@ export default function GroupDetailPage({ openFloatingChat }) {
             openFloatingChat={openFloatingChat}
           />
         )}
-        {activeTab === "files" && <GroupFiles groupId={groupId} userRole={userRole} onDocumentCountChange={setDocumentCount} />}
+        {activeTab === "files" && (
+          <GroupFiles
+            groupId={groupId}
+            userRole={userRole}
+            onDocumentCountChange={setDocumentCount}
+          />
+        )}
+        {activeTab === "sections" && (
+          <SectionsPage
+            groupId={groupId}
+            userRole={userRole}
+            currentUser={currentUser}
+          />
+        )}
         {activeTab === "contact" && <GroupContactAdmin />}
         {activeTab === "settings" && (
           <GroupSettings

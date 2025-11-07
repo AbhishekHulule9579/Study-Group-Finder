@@ -1,6 +1,8 @@
 {
   "dependencies": {
     "axios": "^1.12.2",
-    "lucide-react": "^0.548.0"
+    "date-fns": "^4.1.0",
+    "lucide-react": "^0.548.0",
+    "react-big-calendar": "^1.19.4"
   }
 }
