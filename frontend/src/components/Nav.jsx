@@ -35,7 +35,7 @@ export default function Nav() {
       "/collab",
       "/login",
       "/signup",
-      "/forgotpassword",
+      "/forgot-password",
     ];
 
     // If we are on a public page OR if there is no token, do not proceed.

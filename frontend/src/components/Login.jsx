@@ -205,7 +205,7 @@ export default function Login() {
               Create an account
             </Link>
             <Link
-              to="/forgotpassword"
+              to="/forgot-password"
               className="font-semibold text-gray-500 hover:underline"
             >
               Forgot password?
