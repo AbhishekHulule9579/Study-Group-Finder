@@ -12,25 +12,32 @@ import java.time.LocalDateTime;
 public class CalendarEventDTO {
 
     private Long id;
-    private String title;
+    private String topic;
     private String description;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private String location;
     private String meetingLink;
+    private String organizerName;
+    private String sessionType;
+    private String passcode;
     private Long groupId;
     private UserSummaryDTO createdBy;
     private String status;
 
     // Constructor for creation (without id and createdBy)
-    public CalendarEventDTO(String title, String description, LocalDateTime startTime, LocalDateTime endTime,
-                            String location, String meetingLink, Long groupId, String status) {
-        this.title = title;
+    public CalendarEventDTO(String topic, String description, LocalDateTime startTime, LocalDateTime endTime,
+                            String location, String meetingLink, String organizerName, String sessionType, String passcode,
+                            Long groupId, String status) {
+        this.topic = topic;
         this.description = description;
         this.startTime = startTime;
         this.endTime = endTime;
         this.location = location;
         this.meetingLink = meetingLink;
+        this.organizerName = organizerName;
+        this.sessionType = sessionType;
+        this.passcode = passcode;
         this.groupId = groupId;
         this.status = status;
     }

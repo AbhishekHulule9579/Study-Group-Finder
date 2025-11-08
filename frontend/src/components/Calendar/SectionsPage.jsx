@@ -1,46 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Calendar, momentLocalizer } from "react-big-calendar";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import SectionCreateModal from "./SectionCreateModal";
-
-// Demo data
-const dummySections = [
-  {
-    id: 1,
-    title: "Spring Boot Deep Dive",
-    start: new Date(2025, 10, 10, 19, 0),
-    end: new Date(2025, 10, 10, 21, 0),
-    description: "Advanced Spring Boot session",
-    type: "online",
-    status: "upcoming",
-    organizer: "Prof. Rao",
-    link: "https://meet.example.com/boot",
-    passkey: "SPRING2025",
-  },
-  {
-    id: 2,
-    title: "React UI Hackathon",
-    start: new Date(2025, 10, 7, 10, 0),
-    end: new Date(2025, 10, 7, 12, 30),
-    description: "Design a cool React UI",
-    type: "offline",
-    status: "ongoing",
-    organizer: "Ms. Sharma",
-    location: "KL Main Hall",
-  },
-  {
-    id: 3,
-    title: "Old Section",
-    start: new Date(2025, 10, 1, 16, 0),
-    end: new Date(2025, 10, 1, 17, 30),
-    description: "Previous section",
-    type: "offline",
-    status: "previous",
-    organizer: "Mr. Kumar",
-    location: "Room 101",
-  },
-];
 
 const localizer = momentLocalizer(moment);
 
@@ -57,26 +19,175 @@ const tabColors = {
 };
 
 export default function SectionsPage({ userRole, groupId }) {
-  const [sections, setSections] = useState(dummySections);
+  const [sections, setSections] = useState([]);
   const [selectedSection, setSelectedSection] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [activeTab, setActiveTab] = useState("ongoing");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentUserId, setCurrentUserId] = useState(null);
 
   // Check if user is admin/owner
   const isAdmin = userRole === "owner" || userRole === "admin";
 
-  const filteredSections = sections.filter((s) => s.status === activeTab);
+  const now = new Date();
+  const filteredSections = sections.filter((s) => {
+    if (activeTab === "ongoing") return s.start <= now && s.end >= now;
+    if (activeTab === "upcoming") return s.start > now;
+    if (activeTab === "previous") return s.end < now;
+    return false;
+  });
 
-  const handleAddSection = (section) => setSections([...sections, section]);
+  // Fetch events and current user from backend
+  useEffect(() => {
+    const fetchEvents = async () => {
+      const token = sessionStorage.getItem("token");
+      if (!token) {
+        setError("No authentication token found.");
+        setLoading(false);
+        return;
+      }
 
-  const handleDeleteSection = (sectionId) => {
-    if (!isAdmin) {
-      alert("Only admins can delete sections.");
+      try {
+        // Fetch current user info
+        const userResponse = await fetch("http://localhost:8145/api/user/profile", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          setCurrentUserId(userData.id);
+        } else {
+          setCurrentUserId(null);
+        }
+
+        // Fetch events
+        const response = await fetch(`http://localhost:8145/api/calendar/events/group/${groupId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch events: ${response.status}`);
+        }
+
+        const events = await response.json();
+        const formattedEvents = events.map(event => ({
+          id: event.id,
+          title: event.topic,
+          description: event.description,
+          start: moment.utc(event.startTime).toDate(),
+          end: moment.utc(event.endTime).toDate(),
+          type: event.sessionType.toLowerCase(),
+          status: event.status.toLowerCase(),
+          organizer: event.organizerName,
+          link: event.meetingLink,
+          passkey: event.passcode,
+          location: event.location,
+          createdBy: event.createdBy ? event.createdBy.id : null,
+        }));
+        setSections(formattedEvents);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEvents();
+  }, [groupId]);
+
+  const handleAddSection = async (section) => {
+    const token = sessionStorage.getItem("token");
+    if (!token) {
+      alert("No authentication token found.");
       return;
     }
-    if (window.confirm("Are you sure you want to delete this section?")) {
-      setSections((prev) => prev.filter((s) => s.id !== sectionId));
-      setSelectedSection(null);
+
+    try {
+      const eventDTO = {
+        topic: section.topic,
+        description: section.description,
+        startTime: section.startTime,
+        endTime: section.endTime,
+        location: section.location,
+        meetingLink: section.meetingLink,
+        organizerName: section.organizerName,
+        sessionType: section.sessionType,
+        passcode: section.passcode,
+        groupId: section.groupId,
+        status: section.status,
+      };
+
+      const response = await fetch("http://localhost:8145/api/calendar/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(eventDTO),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to create event: ${response.status}`);
+      }
+
+      const createdEvent = await response.json();
+      const formattedEvent = {
+        id: createdEvent.id,
+        title: createdEvent.topic,
+        description: createdEvent.description,
+        start: moment.utc(createdEvent.startTime).toDate(),
+        end: moment.utc(createdEvent.endTime).toDate(),
+        type: createdEvent.sessionType.toLowerCase(),
+        status: createdEvent.status.toLowerCase(),
+        organizer: createdEvent.organizerName,
+        link: createdEvent.meetingLink,
+        passkey: createdEvent.passcode,
+        location: createdEvent.location,
+      };
+      setSections([...sections, formattedEvent]);
+    } catch (err) {
+      alert("Error creating section: " + err.message);
+    }
+  };
+
+  const handleDeleteSection = async (sectionId) => {
+    const section = sections.find(s => s.id === sectionId);
+    if (!section) return;
+
+    const canDelete = isAdmin || (currentUserId && section.createdBy === currentUserId);
+    if (!canDelete) {
+      alert("You do not have permission to delete this section.");
+      return;
+    }
+    if (!window.confirm("Are you sure you want to delete this section?")) {
+      return;
+    }
+
+    const token = sessionStorage.getItem("token");
+    if (!token) {
+      alert("No authentication token found.");
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:8145/api/calendar/events/${sectionId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        if (response.status === 403) {
+          alert("You do not have permission to delete this section.");
+        } else {
+          throw new Error(`Failed to delete event: ${response.status}`);
+        }
+      } else {
+        setSections((prev) => prev.filter((s) => s.id !== sectionId));
+        setSelectedSection(null);
+      }
+    } catch (err) {
+      alert("Error deleting section: " + err.message);
     }
   };
 
@@ -113,6 +224,8 @@ export default function SectionsPage({ userRole, groupId }) {
             startAccessor="start"
             endAccessor="end"
             defaultView="week"
+            date={currentDate}
+            onNavigate={(date) => setCurrentDate(date)}
             style={{
               height: 500,
               width: "100%",
@@ -156,6 +269,7 @@ export default function SectionsPage({ userRole, groupId }) {
             onClose={() => setSelectedSection(null)}
             onDelete={handleDeleteSection}
             isAdmin={isAdmin}
+            currentUserId={currentUserId}
           />
         )}
       </div>
@@ -196,6 +310,7 @@ export default function SectionsPage({ userRole, groupId }) {
                 section={sec}
                 onDelete={handleDeleteSection}
                 isAdmin={isAdmin}
+                currentUserId={currentUserId}
               />
             ))
           )}
@@ -214,12 +329,14 @@ export default function SectionsPage({ userRole, groupId }) {
   );
 }
 
-function SectionDetail({ section, onClose, onDelete, isAdmin }) {
+function SectionDetail({ section, onClose, onDelete, isAdmin, currentUserId }) {
   const typeColors = {
     online: "border-blue-400 bg-gradient-to-br from-blue-50 to-cyan-50",
     offline: "border-yellow-400 bg-gradient-to-br from-yellow-50 to-orange-50",
     hybrid: "border-pink-400 bg-gradient-to-br from-pink-50 to-purple-50",
   };
+
+  const canDelete = isAdmin || (currentUserId && section.createdBy === currentUserId);
 
   return (
     <div
@@ -228,8 +345,8 @@ function SectionDetail({ section, onClose, onDelete, isAdmin }) {
       }`}
     >
       <div className="absolute right-4 top-4 flex gap-2">
-        {/* Delete button - only for admins */}
-        {isAdmin && (
+        {/* Delete button - only for admins or event creator */}
+        {canDelete && (
           <button
             onClick={() => onDelete(section.id)}
             className="text-red-600 hover:bg-red-100 font-bold text-xl px-3 py-1 rounded-full transition"
@@ -267,7 +384,7 @@ function SectionDetail({ section, onClose, onDelete, isAdmin }) {
         })}
       </div>
 
-      {section.type === "online" && section.link && (
+      {(section.type === "online" || section.type === "hybrid") && section.link && (
         <div className="bg-blue-100 p-3 rounded-lg">
           <div className="font-semibold text-blue-700">🔗 Meeting Link:</div>
           <a
@@ -286,7 +403,7 @@ function SectionDetail({ section, onClose, onDelete, isAdmin }) {
           </div>
         </div>
       )}
-      {section.type === "offline" && section.location && (
+      {(section.type === "offline" || section.type === "hybrid") && section.location && (
         <div className="bg-yellow-100 p-3 rounded-lg">
           <div className="font-semibold text-yellow-800">
             📍 Venue: <span className="font-normal">{section.location}</span>
@@ -297,20 +414,22 @@ function SectionDetail({ section, onClose, onDelete, isAdmin }) {
   );
 }
 
-function SectionCard({ section, onDelete, isAdmin }) {
+function SectionCard({ section, onDelete, isAdmin, currentUserId }) {
   const borderColors = {
     online: "#54C7E8",
     offline: "#FFD700",
     hybrid: "#F54CA7",
   };
 
+  const canDelete = isAdmin || (currentUserId && section.createdBy === currentUserId);
+
   return (
     <div
       className="mb-5 p-5 rounded-xl shadow-lg text-left bg-gradient-to-br from-white via-purple-50 to-pink-50 border-l-8 hover:shadow-2xl transition transform hover:scale-102 relative"
       style={{ borderColor: borderColors[section.type] || "#9254e8" }}
     >
-      {/* Delete button for admin on card */}
-      {isAdmin && (
+      {/* Delete button for admin or event creator on card */}
+      {canDelete && (
         <button
           onClick={() => onDelete(section.id)}
           className="absolute top-3 right-3 text-red-600 hover:bg-red-100 rounded-full p-2 transition"

@@ -13,12 +13,24 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class CalendarEvent {
 
+    public enum EventStatus {
+        ONGOING,
+        DONE,
+        CANCELED
+    }
+
+    public enum SessionType {
+        ONLINE,
+        HYBRID,
+        OFFLINE
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(nullable = false)
-    private String title;
+    private String topic;
 
     @Column(columnDefinition = "TEXT")
     private String description;
@@ -34,6 +46,15 @@ public class CalendarEvent {
     @Column(name = "meeting_link")
     private String meetingLink;
 
+    @Column(name = "organizer_name")
+    private String organizerName;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "session_type", nullable = false)
+    private SessionType sessionType;
+
+    private String passcode;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "group_id", nullable = false)
     private Group associatedGroup;
@@ -45,10 +66,4 @@ public class CalendarEvent {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private EventStatus status = EventStatus.ONGOING;
-
-    public enum EventStatus {
-        ONGOING,
-        DONE,
-        CANCELED
-    }
 }

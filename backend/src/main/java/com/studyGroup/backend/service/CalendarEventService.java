@@ -39,12 +39,15 @@ public class CalendarEventService {
 
         return new CalendarEventDTO(
                 event.getId(),
-                event.getTitle(),
+                event.getTopic(),
                 event.getDescription(),
                 event.getStartTime(),
                 event.getEndTime(),
                 event.getLocation(),
                 event.getMeetingLink(),
+                event.getOrganizerName(),
+                event.getSessionType().name(),
+                event.getPasscode(),
                 event.getAssociatedGroup().getGroupId(),
                 creatorDTO,
                 event.getStatus().name()
@@ -61,12 +64,15 @@ public class CalendarEventService {
         }
 
         CalendarEvent event = new CalendarEvent();
-        event.setTitle(eventDTO.getTitle());
+        event.setTopic(eventDTO.getTopic());
         event.setDescription(eventDTO.getDescription());
         event.setStartTime(eventDTO.getStartTime());
         event.setEndTime(eventDTO.getEndTime());
         event.setLocation(eventDTO.getLocation());
         event.setMeetingLink(eventDTO.getMeetingLink());
+        event.setOrganizerName(eventDTO.getOrganizerName());
+        event.setSessionType(CalendarEvent.SessionType.valueOf(eventDTO.getSessionType().toUpperCase()));
+        event.setPasscode(eventDTO.getPasscode());
         event.setAssociatedGroup(group);
         event.setCreatedBy(user);
         event.setStatus(CalendarEvent.EventStatus.valueOf(eventDTO.getStatus().toUpperCase()));
@@ -114,12 +120,15 @@ public class CalendarEventService {
             throw new RuntimeException("You are not authorized to update this event.");
         }
 
-        event.setTitle(eventDTO.getTitle());
+        event.setTopic(eventDTO.getTopic());
         event.setDescription(eventDTO.getDescription());
         event.setStartTime(eventDTO.getStartTime());
         event.setEndTime(eventDTO.getEndTime());
         event.setLocation(eventDTO.getLocation());
         event.setMeetingLink(eventDTO.getMeetingLink());
+        event.setOrganizerName(eventDTO.getOrganizerName());
+        event.setSessionType(CalendarEvent.SessionType.valueOf(eventDTO.getSessionType().toUpperCase()));
+        event.setPasscode(eventDTO.getPasscode());
         event.setStatus(CalendarEvent.EventStatus.valueOf(eventDTO.getStatus().toUpperCase()));
 
         CalendarEvent updatedEvent = calendarEventRepository.save(event);

@@ -92,7 +92,11 @@ public class UserService implements UserDetailsService {
         if ("401".equals(email)) {
             return null;
         }
-        return usersRepository.findByEmail(email).orElse(null);
+        User user = usersRepository.findByEmail(email).orElse(null);
+        if (user != null) {
+            user.setId(user.getId()); // Ensure ID is set
+        }
+        return user;
     }
     
     

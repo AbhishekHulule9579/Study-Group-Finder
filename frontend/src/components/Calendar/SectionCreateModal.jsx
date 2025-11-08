@@ -1,16 +1,18 @@
 import React, { useState } from "react";
+import moment from "moment";
 
 export default function SectionCreateModal({ groupId, onCreate, onClose }) {
-  const [title, setTitle] = useState("");
+  const [topic, setTopic] = useState("");
   const [description, setDescription] = useState("");
-  const [organizer, setOrganizer] = useState("");
-  const [type, setType] = useState("online");
+  const [organizerName, setOrganizerName] = useState("");
+  const [sessionType, setSessionType] = useState("online");
   const [date, setDate] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
-  const [link, setLink] = useState("");
-  const [passkey, setPasskey] = useState("");
+  const [meetingLink, setMeetingLink] = useState("");
+  const [passcode, setPasscode] = useState("");
   const [location, setLocation] = useState("");
+  const [error, setError] = useState("");
 
   // Builds a JS Date from date and time strings
   const parseDT = (d, t) => {
@@ -20,36 +22,36 @@ export default function SectionCreateModal({ groupId, onCreate, onClose }) {
     return new Date(+y, +m - 1, +day, +h, +min);
   };
 
-  // Auto-determine status based on date/time
-  const determineStatus = (startDate, endDate) => {
-    const now = new Date();
-    if (endDate < now) return "previous";
-    if (startDate <= now && endDate >= now) return "ongoing";
-    return "upcoming";
-  };
-
   const handleCreate = () => {
-    if (!title || !description || !date || !startTime || !endTime) {
+    setError("");
+
+    if (!topic || !description || !date || !startTime || !endTime) {
       alert("Please fill all required fields.");
       return;
     }
 
     const start = parseDT(date, startTime);
     const end = parseDT(date, endTime);
-    const status = determineStatus(start, end);
+
+    // Check if start time is in the past
+    const now = new Date();
+    if (start < now) {
+      setError("Event cannot be created in the past. Please select a current or future date and time.");
+      return;
+    }
 
     const section = {
-      id: Date.now(),
-      title,
+      topic,
       description,
-      organizer,
-      type,
-      status,
-      start,
-      end,
-      link: type !== "offline" ? link : undefined,
-      passkey: type !== "offline" ? passkey : undefined,
-      location: type !== "online" ? location : undefined,
+      organizerName,
+      sessionType: sessionType.toUpperCase(),
+      status: "ONGOING", // Always set to ongoing, filtering is time-based on frontend
+      startTime: moment(start).utc().format('YYYY-MM-DDTHH:mm:ss'), // Format as UTC time for LocalDateTime
+      endTime: moment(end).utc().format('YYYY-MM-DDTHH:mm:ss'),
+      meetingLink: sessionType !== "offline" ? meetingLink : undefined,
+      passcode: sessionType !== "offline" ? passcode : undefined,
+      location: sessionType !== "online" ? location : undefined,
+      groupId: groupId,
     };
     onCreate(section);
     onClose();
@@ -100,8 +102,8 @@ export default function SectionCreateModal({ groupId, onCreate, onClose }) {
               type="text"
               className="w-full px-4 py-3 rounded-xl border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition"
               placeholder="e.g., Spring Boot Deep Dive"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
             />
           </div>
 
@@ -128,8 +130,8 @@ export default function SectionCreateModal({ groupId, onCreate, onClose }) {
               type="text"
               className="w-full px-4 py-3 rounded-xl border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition"
               placeholder="e.g., Prof. Rao"
-              value={organizer}
-              onChange={(e) => setOrganizer(e.target.value)}
+              value={organizerName}
+              onChange={(e) => setOrganizerName(e.target.value)}
             />
           </div>
 
@@ -158,6 +160,11 @@ export default function SectionCreateModal({ groupId, onCreate, onClose }) {
                 onChange={(e) => setEndTime(e.target.value)}
               />
             </div>
+            {error && (
+              <div className="mt-2 text-red-600 text-sm bg-red-50 p-2 rounded-lg border border-red-200">
+                {error}
+              </div>
+            )}
           </div>
 
           {/* Type Only */}
@@ -167,8 +174,8 @@ export default function SectionCreateModal({ groupId, onCreate, onClose }) {
             </label>
             <select
               className="w-full px-4 py-3 rounded-xl border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition bg-white"
-              value={type}
-              onChange={(e) => setType(e.target.value)}
+              value={sessionType}
+              onChange={(e) => setSessionType(e.target.value)}
             >
               <option value="online">💻 Online</option>
               <option value="offline">🏢 Offline</option>
@@ -177,7 +184,7 @@ export default function SectionCreateModal({ groupId, onCreate, onClose }) {
           </div>
 
           {/* Conditional Fields based on Type */}
-          {(type === "online" || type === "hybrid") && (
+          {(sessionType === "online" || sessionType === "hybrid") && (
             <div className="space-y-3 bg-blue-50 p-4 rounded-xl border-2 border-blue-200">
               <div>
                 <label className="block text-sm font-semibold text-blue-700 mb-1">
@@ -187,8 +194,8 @@ export default function SectionCreateModal({ groupId, onCreate, onClose }) {
                   type="url"
                   className="w-full px-4 py-3 rounded-xl border-2 border-blue-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition"
                   placeholder="https://meet.example.com/..."
-                  value={link}
-                  onChange={(e) => setLink(e.target.value)}
+                  value={meetingLink}
+                  onChange={(e) => setMeetingLink(e.target.value)}
                 />
               </div>
               <div>
@@ -199,14 +206,14 @@ export default function SectionCreateModal({ groupId, onCreate, onClose }) {
                   type="text"
                   className="w-full px-4 py-3 rounded-xl border-2 border-blue-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition"
                   placeholder="e.g., SPRING2025"
-                  value={passkey}
-                  onChange={(e) => setPasskey(e.target.value)}
+                  value={passcode}
+                  onChange={(e) => setPasscode(e.target.value)}
                 />
               </div>
             </div>
           )}
 
-          {(type === "offline" || type === "hybrid") && (
+          {(sessionType === "offline" || sessionType === "hybrid") && (
             <div className="bg-yellow-50 p-4 rounded-xl border-2 border-yellow-200">
               <label className="block text-sm font-semibold text-yellow-800 mb-1">
                 📍 Venue/Location
