@@ -17,7 +17,6 @@ export default function Nav() {
     setIsLoggedIn(false);
     setUserName("User");
     setProfilePic(null);
-    // This check is important to prevent re-navigating to the same page.
     if (location.pathname !== "/login") {
       navigate("/login");
     }
@@ -27,8 +26,6 @@ export default function Nav() {
     const token = sessionStorage.getItem("token");
     setIsLoggedIn(!!token);
 
-    // ***** THIS IS THE CRUCIAL FIX *****
-    // Define public pages where we should NOT attempt to fetch user data.
     const publicPages = [
       "/",
       "/about",
@@ -38,11 +35,7 @@ export default function Nav() {
       "/forgot-password",
     ];
 
-    // If we are on a public page OR if there is no token, do not proceed.
-    // This stops the Nav component from interfering with the Login page's state.
-    if (publicPages.includes(location.pathname) || !token) {
-      return;
-    }
+    if (publicPages.includes(location.pathname) || !token) return;
 
     const fetchUserDataForNav = async () => {
       try {
@@ -56,7 +49,6 @@ export default function Nav() {
         ]);
 
         if (!userRes.ok) {
-          // If the token is invalid on a protected page, then log out.
           handleLogout();
           return;
         }
@@ -90,7 +82,8 @@ export default function Nav() {
   }, []);
 
   return (
-    <div className="w-full h-[9vh] bg-gradient-to-r from-purple-600 to-orange-500 flex items-center justify-between px-8 sticky top-0 z-50">
+    <div className="w-full h-[9vh] bg-gradient-to-r from-purple-600 to-orange-500 flex items-center justify-between px-8 sticky top-0 z-50 shadow-md">
+      {/* --- LEFT SIDE NAV LINKS --- */}
       <div className="flex gap-8">
         <Link to="/" className="text-white font-extrabold hover:underline">
           Home
@@ -104,8 +97,31 @@ export default function Nav() {
         >
           Collab
         </Link>
+
+        {/* Show additional links only if logged in */}
+        {isLoggedIn && (
+          <>
+            <Link
+              to="/dashboard"
+              className={`text-white font-extrabold hover:underline ${
+                location.pathname === "/dashboard" ? "underline" : ""
+              }`}
+            >
+              Dashboard
+            </Link>
+            <Link
+              to="/calendar"
+              className={`text-white font-extrabold hover:underline ${
+                location.pathname === "/calendar" ? "underline" : ""
+              }`}
+            >
+              Calendar
+            </Link>
+          </>
+        )}
       </div>
 
+      {/* --- RIGHT SIDE PROFILE / LOGIN --- */}
       <div className="relative" ref={menuRef}>
         {!isLoggedIn ? (
           <div className="flex gap-4 items-center">
@@ -140,15 +156,18 @@ export default function Nav() {
                 </div>
               )}
             </button>
+
+            {/* Dropdown Menu */}
             {menuOpen && (
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg p-4 z-50 flex flex-col items-center">
-                <div className="text-xl font-bold bg-gradient-to-r from-purple-700 to-orange-400 bg-clip-text text-transparent mb-2 text-center">
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg p-4 z-50 flex flex-col items-center animate-fadeIn">
+                <div className="text-xl font-bold bg-gradient-to-r from-purple-700 to-orange-400 bg-clip-text text-transparent mb-3 text-center">
                   Welcome, {userName}
                 </div>
 
+                {/* Profile / Dashboard Toggle */}
                 {location.pathname === "/profile" ? (
                   <button
-                    className="w-full py-2 mb-2 bg-gradient-to-r from-purple-700 to-orange-400 text-white font-bold rounded-lg shadow"
+                    className="w-full py-2 mb-2 bg-gradient-to-r from-purple-700 to-orange-400 text-white font-bold rounded-lg shadow hover:scale-105 transition-all"
                     onClick={() => {
                       setMenuOpen(false);
                       navigate("/dashboard");
@@ -158,7 +177,7 @@ export default function Nav() {
                   </button>
                 ) : (
                   <button
-                    className="w-full py-2 mb-2 bg-gradient-to-r from-purple-700 to-orange-400 text-white font-bold rounded-lg shadow"
+                    className="w-full py-2 mb-2 bg-gradient-to-r from-purple-700 to-orange-400 text-white font-bold rounded-lg shadow hover:scale-105 transition-all"
                     onClick={() => {
                       setMenuOpen(false);
                       navigate("/profile");
@@ -168,8 +187,22 @@ export default function Nav() {
                   </button>
                 )}
 
+                {/* Calendar shortcut */}
+                {location.pathname !== "/calendar" && (
+                  <button
+                    className="w-full py-2 mb-2 bg-purple-100 text-purple-700 font-bold rounded-lg hover:bg-purple-200 transition-all"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      navigate("/calendar");
+                    }}
+                  >
+                    🗓 My Calendar
+                  </button>
+                )}
+
+                {/* Logout */}
                 <button
-                  className="w-full py-2 bg-red-600 text-white font-bold rounded-lg shadow hover:bg-red-700"
+                  className="w-full py-2 bg-red-600 text-white font-bold rounded-lg shadow hover:bg-red-700 transition-all"
                   onClick={handleLogout}
                 >
                   Logout

@@ -22,6 +22,8 @@ public class CalendarEventDTO {
     private String sessionType;
     private String passcode;
     private Long groupId;
+    private String groupName;
+    private String courseName;
     private UserSummaryDTO createdBy;
     private String status;
 

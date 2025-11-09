@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import moment from "moment";
 
-export default function SectionCreateModal({ groupId, onCreate, onClose }) {
+export default function SessionCreateModal({ groupId, onCreate, onClose }) {
   const [topic, setTopic] = useState("");
   const [description, setDescription] = useState("");
   const [organizerName, setOrganizerName] = useState("");
@@ -14,7 +14,22 @@ export default function SectionCreateModal({ groupId, onCreate, onClose }) {
   const [location, setLocation] = useState("");
   const [error, setError] = useState("");
 
-  // Builds a JS Date from date and time strings
+  // Helpers for date/time constraints
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const curTimeStr = (() => {
+    const now = new Date();
+    return now
+      .toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      })
+      .padStart(5, "0");
+  })();
+  const minStartTime = date === todayStr ? curTimeStr : "00:00";
+  const minEndTime = startTime || minStartTime;
+
+  // Helper: Build Date object from date and time strings
   const parseDT = (d, t) => {
     if (!d || !t) return null;
     const [y, m, day] = d.split("-");
@@ -24,7 +39,6 @@ export default function SectionCreateModal({ groupId, onCreate, onClose }) {
 
   const handleCreate = () => {
     setError("");
-
     if (!topic || !description || !date || !startTime || !endTime) {
       alert("Please fill all required fields.");
       return;
@@ -32,28 +46,38 @@ export default function SectionCreateModal({ groupId, onCreate, onClose }) {
 
     const start = parseDT(date, startTime);
     const end = parseDT(date, endTime);
-
-    // Check if start time is in the past
     const now = new Date();
+
+    if (date === todayStr && startTime < minStartTime) {
+      setError("Start time can't be in the past!");
+      return;
+    }
+    if (end <= start) {
+      setError("End time must be after the start time.");
+      return;
+    }
     if (start < now) {
-      setError("Event cannot be created in the past. Please select a current or future date and time.");
+      setError(
+        "Event cannot be created in the past. Please select a current or future date and time."
+      );
       return;
     }
 
-    const section = {
+    const session = {
       topic,
       description,
       organizerName,
       sessionType: sessionType.toUpperCase(),
-      status: "ONGOING", // Always set to ongoing, filtering is time-based on frontend
-      startTime: moment(start).utc().format('YYYY-MM-DDTHH:mm:ss'), // Format as UTC time for LocalDateTime
-      endTime: moment(end).utc().format('YYYY-MM-DDTHH:mm:ss'),
+      status: "ONGOING",
+      startTime: moment(start).utc().format("YYYY-MM-DDTHH:mm:ss"),
+      endTime: moment(end).utc().format("YYYY-MM-DDTHH:mm:ss"),
       meetingLink: sessionType !== "offline" ? meetingLink : undefined,
       passcode: sessionType !== "offline" ? passcode : undefined,
       location: sessionType !== "online" ? location : undefined,
-      groupId: groupId,
+      groupId,
     };
-    onCreate(section);
+
+    if (onCreate) onCreate(session);
     onClose();
   };
 
@@ -64,7 +88,7 @@ export default function SectionCreateModal({ groupId, onCreate, onClose }) {
         <div className="bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 px-6 py-5 flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold text-white drop-shadow-lg">
-              ✨ Create New Section
+              ✨ Create New Session
             </h2>
             <p className="text-purple-100 text-sm mt-1">
               Fill in the details below
@@ -93,10 +117,10 @@ export default function SectionCreateModal({ groupId, onCreate, onClose }) {
 
         {/* Form Content */}
         <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-          {/* Section Topic */}
+          {/* Topic */}
           <div>
             <label className="block text-sm font-semibold text-purple-700 mb-1">
-              📚 Section Topic *
+              📚 Session Topic *
             </label>
             <input
               type="text"
@@ -114,7 +138,7 @@ export default function SectionCreateModal({ groupId, onCreate, onClose }) {
             </label>
             <textarea
               className="w-full px-4 py-3 rounded-xl border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition resize-none"
-              placeholder="Describe what this section is about..."
+              placeholder="Describe what this session is about..."
               rows="3"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -143,34 +167,52 @@ export default function SectionCreateModal({ groupId, onCreate, onClose }) {
             <div className="grid grid-cols-3 gap-2">
               <input
                 type="date"
+                min={todayStr}
                 className="px-3 py-3 rounded-xl border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
               />
-              <input
-                type="time"
-                className="px-3 py-3 rounded-xl border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-              />
-              <input
-                type="time"
-                className="px-3 py-3 rounded-xl border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-              />
+              {/* Start time */}
+              <div className="relative">
+                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-purple-400 font-bold">
+                  Start
+                </span>
+                <input
+                  type="time"
+                  min={minStartTime}
+                  className="pl-10 pr-2 py-3 rounded-xl border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition text-purple-700 font-semibold bg-purple-50"
+                  value={startTime}
+                  onChange={(e) => {
+                    setStartTime(e.target.value);
+                    if (endTime && e.target.value > endTime) setEndTime("");
+                  }}
+                />
+              </div>
+              {/* End time */}
+              <div className="relative">
+                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-pink-400 font-bold">
+                  End
+                </span>
+                <input
+                  type="time"
+                  min={minEndTime}
+                  className="pl-10 pr-2 py-3 rounded-xl border-2 border-pink-200 focus:border-pink-400 focus:ring-2 focus:ring-pink-200 outline-none transition text-pink-700 font-semibold bg-pink-50"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                />
+              </div>
             </div>
             {error && (
-              <div className="mt-2 text-red-600 text-sm bg-red-50 p-2 rounded-lg border border-red-200">
+              <div className="mt-2 text-pink-600 text-sm bg-pink-50 p-2 rounded-lg border border-pink-200">
                 {error}
               </div>
             )}
           </div>
 
-          {/* Type Only */}
+          {/* Type */}
           <div>
             <label className="block text-sm font-semibold text-purple-700 mb-1">
-              🌐 Type
+              🌐 Session Type
             </label>
             <select
               className="w-full px-4 py-3 rounded-xl border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition bg-white"
@@ -183,28 +225,28 @@ export default function SectionCreateModal({ groupId, onCreate, onClose }) {
             </select>
           </div>
 
-          {/* Conditional Fields based on Type */}
+          {/* Conditional Fields */}
           {(sessionType === "online" || sessionType === "hybrid") && (
-            <div className="space-y-3 bg-blue-50 p-4 rounded-xl border-2 border-blue-200">
+            <div className="space-y-3 bg-purple-50 p-4 rounded-xl border-2 border-purple-200">
               <div>
-                <label className="block text-sm font-semibold text-blue-700 mb-1">
+                <label className="block text-sm font-semibold text-purple-700 mb-1">
                   🔗 Meeting Link
                 </label>
                 <input
                   type="url"
-                  className="w-full px-4 py-3 rounded-xl border-2 border-blue-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition"
                   placeholder="https://meet.example.com/..."
                   value={meetingLink}
                   onChange={(e) => setMeetingLink(e.target.value)}
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-blue-700 mb-1">
+                <label className="block text-sm font-semibold text-purple-700 mb-1">
                   🔑 Passkey/Code
                 </label>
                 <input
                   type="text"
-                  className="w-full px-4 py-3 rounded-xl border-2 border-blue-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition"
                   placeholder="e.g., SPRING2025"
                   value={passcode}
                   onChange={(e) => setPasscode(e.target.value)}
@@ -214,13 +256,13 @@ export default function SectionCreateModal({ groupId, onCreate, onClose }) {
           )}
 
           {(sessionType === "offline" || sessionType === "hybrid") && (
-            <div className="bg-yellow-50 p-4 rounded-xl border-2 border-yellow-200">
-              <label className="block text-sm font-semibold text-yellow-800 mb-1">
+            <div className="bg-pink-50 p-4 rounded-xl border-2 border-pink-200">
+              <label className="block text-sm font-semibold text-pink-700 mb-1">
                 📍 Venue/Location
               </label>
               <input
                 type="text"
-                className="w-full px-4 py-3 rounded-xl border-2 border-yellow-200 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-200 outline-none transition"
+                className="w-full px-4 py-3 rounded-xl border-2 border-pink-200 focus:border-pink-400 focus:ring-2 focus:ring-pink-200 outline-none transition"
                 placeholder="e.g., KL Main Hall, Room 101"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
@@ -241,7 +283,7 @@ export default function SectionCreateModal({ groupId, onCreate, onClose }) {
             className="px-8 py-2 rounded-full bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 text-white font-bold shadow-lg transition transform hover:scale-105"
             onClick={handleCreate}
           >
-            Create Section
+            Create Session
           </button>
         </div>
       </div>

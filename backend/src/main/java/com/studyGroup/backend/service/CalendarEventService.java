@@ -49,6 +49,8 @@ public class CalendarEventService {
                 event.getSessionType().name(),
                 event.getPasscode(),
                 event.getAssociatedGroup().getGroupId(),
+                event.getAssociatedGroup().getName(),
+                event.getAssociatedGroup().getAssociatedCourse().getCourseName(),
                 creatorDTO,
                 event.getStatus().name()
         );
@@ -185,9 +187,6 @@ public class CalendarEventService {
     }
 
     public List<CalendarEventDTO> getEventsByDateRange(Long groupId, LocalDateTime start, LocalDateTime end, User user) {
-        Group group = groupRepository.findById(groupId)
-                .orElseThrow(() -> new RuntimeException("Group not found with ID: " + groupId));
-
         String userRole = groupService.getUserRoleInGroup(groupId, user);
         if ("non-member".equals(userRole)) {
             throw new RuntimeException("You must be a member of the group to view events.");
@@ -197,6 +196,48 @@ public class CalendarEventService {
         // Filter to only this group
         return events.stream()
                 .filter(event -> event.getAssociatedGroup().getGroupId().equals(groupId))
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    public List<CalendarEventDTO> getUpcomingEventsForUser(User user) {
+        LocalDateTime now = LocalDateTime.now();
+        List<CalendarEvent> events = calendarEventRepository.findByStartTimeGreaterThanEqual(now);
+        // Filter to only include events from groups the user is a member of
+        return events.stream()
+                .filter(event -> {
+                    String userRole = groupService.getUserRoleInGroup(event.getAssociatedGroup().getGroupId(), user);
+                    return !"non-member".equals(userRole);
+                })
+                .sorted((e1, e2) -> e1.getStartTime().compareTo(e2.getStartTime()))
+                .limit(3)
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    public List<CalendarEventDTO> getAllUpcomingEventsForUser(User user) {
+        LocalDateTime now = LocalDateTime.now();
+        List<CalendarEvent> events = calendarEventRepository.findByStartTimeGreaterThanEqual(now);
+        // Filter to only include events from groups the user is a member of
+        return events.stream()
+                .filter(event -> {
+                    String userRole = groupService.getUserRoleInGroup(event.getAssociatedGroup().getGroupId(), user);
+                    return !"non-member".equals(userRole);
+                })
+                .sorted((e1, e2) -> e1.getStartTime().compareTo(e2.getStartTime()))
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    public List<CalendarEventDTO> getAllEventsForUser(User user) {
+        List<CalendarEvent> events = calendarEventRepository.findAll();
+        // Filter to only include events from groups the user is a member of
+        return events.stream()
+                .filter(event -> {
+                    String userRole = groupService.getUserRoleInGroup(event.getAssociatedGroup().getGroupId(), user);
+                    return !"non-member".equals(userRole);
+                })
+                .sorted((e1, e2) -> e1.getStartTime().compareTo(e2.getStartTime()))
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }

@@ -19,4 +19,6 @@ public interface CalendarEventRepository extends JpaRepository<CalendarEvent, Lo
     List<CalendarEvent> findByAssociatedGroupAndStatus(Group group, CalendarEvent.EventStatus status);
 
     List<CalendarEvent> findByStartTimeBetween(LocalDateTime start, LocalDateTime end);
+
+    List<CalendarEvent> findByStartTimeGreaterThanEqual(LocalDateTime startTime);
 }

@@ -67,3 +67,17 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 } */
+
+.rbc-toolbar {
+  background: linear-gradient(to right, #9333ea, #f97316);
+  color: white;
+  border-radius: 12px;
+  padding: 8px;
+}
+.rbc-toolbar button {
+  color: white !important;
+  font-weight: 600;
+}
+.rbc-event {
+  border-radius: 8px !important;
+}

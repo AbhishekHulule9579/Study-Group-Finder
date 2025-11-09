@@ -352,7 +352,7 @@ export default function GroupDetailPage({ openFloatingChat }) {
               label="Resources"
               count={documentCount}
             />
-            <SidebarButton tabName="sections" label="Sections" />
+            <SidebarButton tabName="sections" label="session" />
             <SidebarButton tabName="contact" label="Contact Admin" />
             <SidebarButton tabName="settings" label="Settings" />
           </nav>

@@ -146,6 +146,66 @@ public class CalendarEventController {
         }
     }
 
+    @GetMapping("/upcoming")
+    public ResponseEntity<?> getUpcomingEvents(@RequestHeader("Authorization") String authHeader) {
+        try {
+            String token = authHeader.substring(7);
+            User currentUser = userService.getUserProfile(token);
+
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "Invalid or expired token."));
+            }
+
+            List<CalendarEventDTO> events = calendarEventService.getUpcomingEventsForUser(currentUser);
+            return ResponseEntity.ok(events);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "An error occurred while fetching upcoming events: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/all-upcoming")
+    public ResponseEntity<?> getAllUpcomingEvents(@RequestHeader("Authorization") String authHeader) {
+        try {
+            String token = authHeader.substring(7);
+            User currentUser = userService.getUserProfile(token);
+
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "Invalid or expired token."));
+            }
+
+            List<CalendarEventDTO> events = calendarEventService.getAllUpcomingEventsForUser(currentUser);
+            return ResponseEntity.ok(events);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "An error occurred while fetching all upcoming events: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/all")
+    public ResponseEntity<?> getAllEvents(@RequestHeader("Authorization") String authHeader) {
+        try {
+            String token = authHeader.substring(7);
+            User currentUser = userService.getUserProfile(token);
+
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "Invalid or expired token."));
+            }
+
+            List<CalendarEventDTO> events = calendarEventService.getAllEventsForUser(currentUser);
+            return ResponseEntity.ok(events);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "An error occurred while fetching all events: " + e.getMessage()));
+        }
+    }
+
     @GetMapping("/user")
     public ResponseEntity<?> getEventsByUser(@RequestHeader("Authorization") String authHeader) {
         try {

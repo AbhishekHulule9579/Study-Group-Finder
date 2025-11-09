@@ -18,6 +18,9 @@ import QuickNavButton from "./components/QuickActionButton.jsx";
 import FloatingChatWindow from "./components/FloatingChatWindow";
 import GroupChat from "./components/groups/GroupChat";
 
+// 🗓️ Calendar Import
+import CalendarView from "./components/Calendar/CalendarView.jsx";
+
 import { Route, Routes, Navigate, useLocation } from "react-router-dom";
 
 // ✅ Protected Route Component
@@ -62,7 +65,7 @@ const App = () => {
     <div className="min-h-screen bg-gray-50">
       <Layout>
         <Routes>
-          {/* Public Routes */}
+          {/* 🌍 Public Routes */}
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />
           <Route path="/collab" element={<Collab />} />
@@ -71,7 +74,7 @@ const App = () => {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/build-profile" element={<BuildProfile />} />
 
-          {/* Authenticated Routes */}
+          {/* 🔐 Authenticated Routes */}
           <Route
             path="/dashboard"
             element={
@@ -80,6 +83,7 @@ const App = () => {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/profile"
             element={
@@ -88,6 +92,7 @@ const App = () => {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/my-courses"
             element={
@@ -96,6 +101,7 @@ const App = () => {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/my-groups"
             element={
@@ -104,6 +110,7 @@ const App = () => {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/find-peers"
             element={
@@ -113,7 +120,17 @@ const App = () => {
             }
           />
 
-          {/* Group Routes */}
+          {/* 🗓️ Calendar Page */}
+          <Route
+            path="/calendar"
+            element={
+              <ProtectedRoute>
+                <CalendarView />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 👥 Group Routes */}
           <Route
             path="/group/:groupId/manage"
             element={
@@ -131,11 +148,19 @@ const App = () => {
             }
           />
 
-          {/* 404 Fallback */}
-          <Route path="*" element={<h1>404: Page Not Found</h1>} />
+          {/* 🚫 404 Fallback */}
+          <Route
+            path="*"
+            element={
+              <h1 className="text-center mt-20 text-2xl font-semibold text-gray-600">
+                404: Page Not Found
+              </h1>
+            }
+          />
         </Routes>
       </Layout>
-      {/* Render ALL open floating chat windows */}
+
+      {/* 💬 Render all floating chat windows */}
       {floatingChats.map((chat) => (
         <FloatingChatWindow
           key={chat.id}
