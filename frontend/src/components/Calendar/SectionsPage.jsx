@@ -194,7 +194,12 @@ export default function SessionsPage({ userRole, groupId }) {
           date={currentDate}
           onNavigate={(date) => setCurrentDate(date)}
           view={view}
-          onView={(v) => setView(v)}
+          onView={(v) => {
+            setView(v);
+            if (v === 'agenda') {
+              setCurrentDate(moment(currentDate).startOf('week').toDate());
+            }
+          }}
           defaultView="day"
           views={["day", "week", "agenda"]}
           style={{ height: 800 }}
@@ -207,6 +212,7 @@ export default function SessionsPage({ userRole, groupId }) {
                 view={view}
                 onView={setView}
                 themeColors={themeColors}
+                date={currentDate}
               />
             ),
           }}
@@ -294,7 +300,21 @@ export default function SessionsPage({ userRole, groupId }) {
 }
 
 /* ---- Custom Toolbar ---- */
-function CustomToolbar({ label, onNavigate, onView, view, themeColors }) {
+function CustomToolbar({ label, onNavigate, onView, view, themeColors, date }) {
+  // Format label for agenda view to DD/MM/YYYY format
+  const formatAgendaLabel = (label, currentDate) => {
+    if (view === "agenda") {
+      const startOfWeek = moment(currentDate).startOf('week'); // Sunday
+      const endOfWeek = moment(currentDate).endOf('week'); // Saturday
+      const startFormatted = startOfWeek.format('DD/MM/YYYY');
+      const endFormatted = endOfWeek.format('DD/MM/YYYY');
+      return `${startFormatted} – ${endFormatted}`;
+    }
+    return label;
+  };
+
+  const formattedLabel = formatAgendaLabel(label, date);
+
   return (
     <div className="flex flex-wrap justify-between items-center px-6 py-3 border-b border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50">
       {/* Navigation */}
@@ -319,7 +339,7 @@ function CustomToolbar({ label, onNavigate, onView, view, themeColors }) {
         </button>
       </div>
 
-      <h3 className="text-xl font-bold text-purple-700">{label}</h3>
+      <h3 className="text-xl font-bold text-purple-700">{formattedLabel}</h3>
 
       {/* View Buttons */}
       <div className="flex gap-2">

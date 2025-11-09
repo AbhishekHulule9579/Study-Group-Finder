@@ -1,0 +1,3 @@
+- [ ] Update CalendarView.jsx to remove week, day, agenda views from the calendar component
+- [ ] Update CustomToolbar to only show month view button
+- [ ] Verify changes work correctly

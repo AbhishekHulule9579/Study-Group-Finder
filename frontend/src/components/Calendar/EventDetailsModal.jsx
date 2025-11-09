@@ -17,11 +17,25 @@ export default function EventDetailsModal({ event, onClose }) {
           {event.title}
         </h2>
         <p className="text-gray-700 mb-3">{event.description}</p>
+
+        {event.groupName && (
+          <p className="text-purple-700 font-semibold mb-1">
+            👥 Group: <span className="font-normal">{event.groupName}</span>
+          </p>
+        )}
+
+        {event.courseName && (
+          <p className="text-purple-700 font-semibold mb-1">
+            📚 Course: <span className="font-normal">{event.courseName}</span>
+          </p>
+        )}
+
         <p className="text-purple-700 font-semibold mb-1">
           👤 Organizer: <span className="font-normal">{event.organizer}</span>
         </p>
+
         <p className="text-gray-800 mb-3">
-          🕒 {event.start.toLocaleDateString()} •{" "}
+          🕒{" "}
           {event.start.toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit",

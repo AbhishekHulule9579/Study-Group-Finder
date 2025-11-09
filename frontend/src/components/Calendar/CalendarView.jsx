@@ -80,9 +80,12 @@ export default function CalendarView() {
   };
 
   const eventStyleGetter = (event) => {
-    let backgroundColor = "#a855f7"; // purple default
-    if (event.type === "group") backgroundColor = "#ec4899"; // pinkish
-    if (event.type === "important") backgroundColor = "#f97316"; // orange
+    let backgroundColor = "#9b5de5"; // purple default
+    if (event.type === "group") backgroundColor = "#54C7E8"; // blue for group
+    if (event.type === "important") backgroundColor = "#FFD700"; // yellow for important
+    if (event.type === "online") backgroundColor = "#54C7E8"; // blue for online
+    if (event.type === "offline") backgroundColor = "#FFD700"; // yellow for offline
+    if (event.type === "hybrid") backgroundColor = "#F54CA7"; // pink for hybrid
     return {
       style: {
         backgroundColor,
@@ -110,7 +113,7 @@ export default function CalendarView() {
         <div className="h-[75vh] rounded-xl overflow-hidden">
           <Calendar
             localizer={localizer}
-            events={[]}  // Hide events from calendar display, only show date indicators
+            events={events}
             startAccessor="start"
             endAccessor="end"
             style={{ height: "100%" }}
@@ -122,7 +125,8 @@ export default function CalendarView() {
             onNavigate={(date) => setCurrentDate(date)}
             view={view}
             onView={(v) => setView(v)}
-            views={["month", "week", "day", "agenda"]}
+            views={["month", "agenda"]}
+            length={7}
             components={{
               dateCellWrapper: ({ children, value }) => {
                 const dayEvents = events.filter(event =>
@@ -132,7 +136,7 @@ export default function CalendarView() {
                 return (
                   <div className="relative">
                     {children}
-                    {eventCount > 0 && (
+                    {eventCount > 0 && view === "month" && (
                       <div className="absolute bottom-1 right-1 flex flex-wrap gap-1">
                         {Array.from({ length: eventCount }).map((_, i) => (
                           <div
@@ -151,8 +155,23 @@ export default function CalendarView() {
                   {...props}
                   view={view}
                   onView={setView}
+                  date={currentDate}
                 />
               ),
+              agenda: {
+                event: ({ event }) => (
+                  <div className="flex items-center justify-between p-3 border-b border-gray-200 hover:bg-gray-50">
+                    <div className="flex-1">
+                      <div className="font-semibold text-gray-800 mb-1">{event.title}</div>
+                      <div className="text-sm text-gray-600 mb-1">
+                        {moment(event.start).format('MMM DD, YYYY')} • {moment(event.start).format('h:mm A')} - {moment(event.end).format('h:mm A')}
+                      </div>
+                      <div className="text-sm font-medium text-purple-600">{event.courseName}</div>
+                      <div className="text-sm text-gray-500">{event.groupName}</div>
+                    </div>
+                  </div>
+                ),
+              },
             }}
           />
         </div>
@@ -218,7 +237,21 @@ export default function CalendarView() {
 }
 
 /* ---- Custom Toolbar ---- */
-function CustomToolbar({ label, onNavigate, onView, view }) {
+function CustomToolbar({ label, onNavigate, onView, view, date }) {
+  // Format label for agenda view to DD/MM/YYYY format
+  const formatAgendaLabel = (label, currentDate) => {
+    if (view === "agenda") {
+      const startOfWeek = moment(currentDate);
+      const endOfWeek = moment(currentDate).add(6, 'days');
+      const startFormatted = startOfWeek.format('DD/MM/YYYY');
+      const endFormatted = endOfWeek.format('DD/MM/YYYY');
+      return `${startFormatted} – ${endFormatted}`;
+    }
+    return label;
+  };
+
+  const formattedLabel = formatAgendaLabel(label, date);
+
   return (
     <div className="flex flex-wrap justify-between items-center px-6 py-3 border-b border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50">
       {/* Navigation */}
@@ -243,11 +276,11 @@ function CustomToolbar({ label, onNavigate, onView, view }) {
         </button>
       </div>
 
-      <h3 className="text-xl font-bold text-purple-700">{label}</h3>
+      <h3 className="text-xl font-bold text-purple-700">{formattedLabel}</h3>
 
       {/* View Buttons */}
       <div className="flex gap-2">
-        {["month", "week", "day", "agenda"].map((v) => (
+        {["month", "agenda"].map((v) => (
           <button
             key={v}
             onClick={() => onView(v)}
