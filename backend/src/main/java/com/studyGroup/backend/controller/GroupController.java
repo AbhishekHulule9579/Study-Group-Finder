@@ -154,6 +154,25 @@ public class GroupController {
         }
     }
 
+    @GetMapping("/course/{courseId}")
+    public ResponseEntity<?> getGroupsByCourse(@PathVariable String courseId, @RequestHeader("Authorization") String authHeader) {
+        try {
+            String token = authHeader.substring(7);
+            User currentUser = userService.getUserProfile(token);
+
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Invalid or expired token."));
+            }
+
+            List<GroupDTO> groups = groupService.findGroupsByUserIdAndCourseId(currentUser.getId(), courseId);
+            return ResponseEntity.ok(groups);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "An error occurred while fetching groups: " + e.getMessage()));
+        }
+    }
+
     @PostMapping("/join/{groupId}")
     public ResponseEntity<?> joinGroup(@PathVariable Long groupId,
                                          @RequestHeader("Authorization") String authHeader,

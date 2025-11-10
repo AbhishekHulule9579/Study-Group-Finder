@@ -445,6 +445,14 @@ public class GroupService {
         groupMemberRepository.save(memberToUpdate);
     }
 
+    public List<GroupDTO> findGroupsByUserIdAndCourseId(Integer userId, String courseId) {
+        List<GroupMember> memberships = groupMemberRepository.findByUserId(userId);
+        return memberships.stream()
+                .filter(membership -> membership.getGroup().getAssociatedCourse().getCourseId().equals(courseId))
+                .map(membership -> convertToDTO(membership.getGroup(), membership.getRole()))
+                .collect(Collectors.toList());
+    }
+
     public String getUserRoleInGroup(Long groupId, User user) {
         Optional<GroupMember> membership = getMembership(groupId, user);
         return membership.map(GroupMember::getRole).orElse("non-member");

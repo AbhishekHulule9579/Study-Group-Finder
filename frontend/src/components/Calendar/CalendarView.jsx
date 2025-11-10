@@ -73,10 +73,44 @@ export default function CalendarView() {
     setSelectedEvent(event);
   };
 
-  const handleAddEvent = (newEvent) => {
-    const updated = [...events, newEvent];
-    setEvents(updated);
-    localStorage.setItem("studyEvents", JSON.stringify(updated));
+  const handleAddEvent = async (session) => {
+    const token = sessionStorage.getItem("token");
+    if (!token) return alert("No authentication token found.");
+
+    try {
+      const response = await fetch("http://localhost:8145/api/calendar/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(session),
+      });
+
+      if (!response.ok)
+        throw new Error(`Failed to create session: ${response.status}`);
+
+      const created = await response.json();
+      const newEvent = {
+        id: created.id,
+        title: created.topic,
+        description: created.description,
+        start: moment.utc(created.startTime).local().toDate(),
+        end: moment.utc(created.endTime).local().toDate(),
+        type: created.sessionType.toLowerCase(),
+        organizer: created.organizerName,
+        link: created.meetingLink,
+        passkey: created.passcode,
+        location: created.location,
+        groupId: created.groupId,
+        groupName: created.groupName,
+        courseName: created.courseName,
+      };
+
+      setEvents((prev) => [...prev, newEvent]);
+    } catch (err) {
+      alert("Error creating session: " + err.message);
+    }
   };
 
   const eventStyleGetter = (event) => {
@@ -198,7 +232,7 @@ export default function CalendarView() {
           >
             <SessionCreateModal
               onClose={() => setShowCreateModal(false)}
-              onAddEvent={handleAddEvent}
+              onCreate={handleAddEvent}
             />
           </motion.div>
         )}

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import moment from "moment";
 
 export default function SessionCreateModal({ groupId, onCreate, onClose }) {
@@ -13,6 +13,56 @@ export default function SessionCreateModal({ groupId, onCreate, onClose }) {
   const [passcode, setPasscode] = useState("");
   const [location, setLocation] = useState("");
   const [error, setError] = useState("");
+  const [courses, setCourses] = useState([]);
+  const [selectedCourse, setSelectedCourse] = useState("");
+  const [groups, setGroups] = useState([]);
+  const [selectedGroup, setSelectedGroup] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
+
+  // Fetch courses on mount
+  useEffect(() => {
+    const fetchCourses = async () => {
+      const token = sessionStorage.getItem("token");
+      if (!token) return;
+      try {
+        const response = await fetch("http://localhost:8145/api/courses", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setCourses(data);
+        }
+      } catch (error) {
+        console.error("Error fetching courses:", error);
+      }
+    };
+    fetchCourses();
+  }, []);
+
+  // Fetch groups when course is selected
+  useEffect(() => {
+    if (!selectedCourse) {
+      setGroups([]);
+      setSelectedGroup("");
+      return;
+    }
+    const fetchGroups = async () => {
+      const token = sessionStorage.getItem("token");
+      if (!token) return;
+      try {
+        const response = await fetch(`http://localhost:8145/api/groups/course/${selectedCourse}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setGroups(data);
+        }
+      } catch (error) {
+        console.error("Error fetching groups:", error);
+      }
+    };
+    fetchGroups();
+  }, [selectedCourse]);
 
   // Helpers for date/time constraints
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -37,9 +87,11 @@ export default function SessionCreateModal({ groupId, onCreate, onClose }) {
     return new Date(+y, +m - 1, +day, +h, +min);
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
+    if (isCreating) return; // Prevent multiple clicks
+
     setError("");
-    if (!topic || !description || !date || !startTime || !endTime) {
+    if (!topic || !description || !selectedCourse || !selectedGroup || !date || !startTime || !endTime) {
       alert("Please fill all required fields.");
       return;
     }
@@ -63,22 +115,31 @@ export default function SessionCreateModal({ groupId, onCreate, onClose }) {
       return;
     }
 
-    const session = {
-      topic,
-      description,
-      organizerName,
-      sessionType: sessionType.toUpperCase(),
-      status: "ONGOING",
-      startTime: moment(start).utc().format("YYYY-MM-DDTHH:mm:ss"),
-      endTime: moment(end).utc().format("YYYY-MM-DDTHH:mm:ss"),
-      meetingLink: sessionType !== "offline" ? meetingLink : undefined,
-      passcode: sessionType !== "offline" ? passcode : undefined,
-      location: sessionType !== "online" ? location : undefined,
-      groupId,
-    };
+    setIsCreating(true);
 
-    if (onCreate) onCreate(session);
-    onClose();
+    try {
+      const session = {
+        topic,
+        description,
+        organizerName,
+        sessionType: sessionType.toUpperCase(),
+        status: "ONGOING",
+        startTime: moment(start).utc().format("YYYY-MM-DDTHH:mm:ss"),
+        endTime: moment(end).utc().format("YYYY-MM-DDTHH:mm:ss"),
+        meetingLink: sessionType !== "offline" ? meetingLink : undefined,
+        passcode: sessionType !== "offline" ? passcode : undefined,
+        location: sessionType !== "online" ? location : undefined,
+        groupId: selectedGroup,
+      };
+
+      if (onCreate) await onCreate(session);
+      onClose();
+    } catch (error) {
+      console.error("Error creating session:", error);
+      setError("Failed to create session. Please try again.");
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   return (
@@ -143,6 +204,45 @@ export default function SessionCreateModal({ groupId, onCreate, onClose }) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
+          </div>
+
+          {/* Course Selection */}
+          <div>
+            <label className="block text-sm font-semibold text-purple-700 mb-1">
+              📚 Select Course *
+            </label>
+            <select
+              className="w-full px-4 py-3 rounded-xl border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition bg-white"
+              value={selectedCourse}
+              onChange={(e) => setSelectedCourse(e.target.value)}
+            >
+              <option value="">Select a course</option>
+              {courses.map((course) => (
+                <option key={course.courseId} value={course.courseId}>
+                  {course.courseName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Group Selection */}
+          <div>
+            <label className="block text-sm font-semibold text-purple-700 mb-1">
+              👥 Select Group *
+            </label>
+            <select
+              className="w-full px-4 py-3 rounded-xl border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition bg-white"
+              value={selectedGroup}
+              onChange={(e) => setSelectedGroup(e.target.value)}
+              disabled={!selectedCourse}
+            >
+              <option value="">Select a group</option>
+              {groups.map((group) => (
+                <option key={group.groupId} value={group.groupId}>
+                  {group.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Organizer */}
@@ -280,10 +380,11 @@ export default function SessionCreateModal({ groupId, onCreate, onClose }) {
             Cancel
           </button>
           <button
-            className="px-8 py-2 rounded-full bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 text-white font-bold shadow-lg transition transform hover:scale-105"
+            className="px-8 py-2 rounded-full bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 text-white font-bold shadow-lg transition transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={handleCreate}
+            disabled={isCreating}
           >
-            Create Session
+            {isCreating ? "Creating..." : "Create Session"}
           </button>
         </div>
       </div>
