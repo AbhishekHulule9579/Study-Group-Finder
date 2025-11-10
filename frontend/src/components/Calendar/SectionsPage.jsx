@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Calendar, momentLocalizer } from "react-big-calendar";
+import { FaUser, FaMapMarkerAlt, FaLink } from "react-icons/fa";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import SessionCreateModal from "./SessionCreateModal";
@@ -13,6 +14,9 @@ const themeColors = {
     text: "text-white",
   },
 };
+
+const deleteBtnStyle =
+  "absolute left-1 top-1 z-20 bg-white/80 border border-white/60 shadow-lg text-red-600 px-2 py-1 rounded-full cursor-pointer hover:bg-red-100 transition transform hover:scale-110";
 
 export default function SessionsPage({ userRole, groupId }) {
   const [sessions, setSessions] = useState([]);
@@ -35,11 +39,11 @@ export default function SessionsPage({ userRole, groupId }) {
         setLoading(false);
         return;
       }
-
       try {
-        const userResponse = await fetch("http://localhost:8145/api/user/profile", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const userResponse = await fetch(
+          "http://localhost:8145/api/user/profile",
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
         if (userResponse.ok) {
           const userData = await userResponse.json();
           setCurrentUserId(userData.id);
@@ -59,7 +63,7 @@ export default function SessionsPage({ userRole, groupId }) {
           description: e.description,
           start: moment.utc(e.startTime).toDate(),
           end: moment.utc(e.endTime).toDate(),
-          type: e.sessionType.toLowerCase(),
+          type: (e.sessionType || "").toLowerCase(),
           organizer: e.organizerName,
           link: e.meetingLink,
           passkey: e.passcode,
@@ -73,7 +77,6 @@ export default function SessionsPage({ userRole, groupId }) {
         setLoading(false);
       }
     };
-
     fetchSessions();
   }, [groupId]);
 
@@ -88,17 +91,18 @@ export default function SessionsPage({ userRole, groupId }) {
   const handleAddSession = async (session) => {
     const token = sessionStorage.getItem("token");
     if (!token) return alert("No authentication token found.");
-
     try {
-      const response = await fetch("http://localhost:8145/api/calendar/events", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ ...session, groupId }),
-      });
-
+      const response = await fetch(
+        "http://localhost:8145/api/calendar/events",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ ...session, groupId }),
+        }
+      );
       if (!response.ok)
         throw new Error(`Failed to create session: ${response.status}`);
 
@@ -109,15 +113,22 @@ export default function SessionsPage({ userRole, groupId }) {
         description: created.description,
         start: moment.utc(created.startTime).toDate(),
         end: moment.utc(created.endTime).toDate(),
-        type: created.sessionType.toLowerCase(),
+        type: created.sessionType?.toLowerCase(),
         organizer: created.organizerName,
         link: created.meetingLink,
         passkey: created.passcode,
         location: created.location,
         createdBy: currentUserId,
+        isNew: true,
       };
 
-      setSessions((prev) => [...prev, newEvent]);
+      setSessions((p) => [...p, newEvent]);
+
+      setTimeout(() => {
+        setSessions((prev) =>
+          prev.map((e) => (e.id === newEvent.id ? { ...e, isNew: false } : e))
+        );
+      }, 4000);
     } catch (err) {
       alert("Error creating session: " + err.message);
     }
@@ -126,17 +137,11 @@ export default function SessionsPage({ userRole, groupId }) {
   const handleDeleteSession = async (sessionId) => {
     const session = sessions.find((s) => s.id === sessionId);
     if (!session) return;
-
-    const canDelete =
-      isAdmin || (currentUserId && session.createdBy === currentUserId);
-    if (!canDelete)
-      return alert("You do not have permission to delete this session.");
-
-    if (!window.confirm("Are you sure you want to delete this session?")) return;
+    const canDelete = isAdmin || session.createdBy === currentUserId;
+    if (!canDelete) return alert("No permission to delete this session.");
+    if (!window.confirm("Delete this session?")) return;
 
     const token = sessionStorage.getItem("token");
-    if (!token) return alert("No authentication token found.");
-
     try {
       const response = await fetch(
         `http://localhost:8145/api/calendar/events/${sessionId}`,
@@ -145,183 +150,247 @@ export default function SessionsPage({ userRole, groupId }) {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      if (!response.ok)
-        throw new Error(`Failed to delete session: ${response.status}`);
+      if (!response.ok) throw new Error(`Failed: ${response.status}`);
+
       setSessions((prev) => prev.filter((s) => s.id !== sessionId));
       setSelectedSession(null);
     } catch (err) {
-      alert("Error deleting session: " + err.message);
+      alert("Error deleting: " + err.message);
     }
   };
 
   return (
-    <div className="flex flex-col min-h-screen w-full bg-gradient-to-br from-purple-100 via-pink-50 to-blue-100 p-6 overflow-y-auto">
-      {/* Header */}
+    <div className="flex flex-col min-h-screen w-full bg-gradient-to-br from-purple-100 via-pink-50 to-blue-100 p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-4xl font-bold text-purple-700 flex items-center gap-2">
+        <h1 className="text-4xl font-extrabold text-purple-700">
           📅 Study Sessions
         </h1>
-
         {isAdmin ? (
           <button
-            className={`px-6 py-2 rounded-full font-semibold shadow-md transition transform hover:scale-105 ${themeColors.primary.base} ${themeColors.primary.hover} ${themeColors.primary.text}`}
+            className={`${themeColors.primary.base} ${themeColors.primary.text} px-6 py-2 rounded-full shadow-md transform hover:scale-105`}
             onClick={() => setShowCreateModal(true)}
           >
             + Add Session
           </button>
         ) : (
-          <span className="italic text-gray-500 text-sm">View Only</span>
+          <span className="text-gray-500">View Only</span>
         )}
       </div>
 
       {/* Calendar */}
-      <div className="bg-white rounded-2xl shadow-xl mb-6 overflow-y-auto" style={{ height: "85vh" }}>
+      <div
+        className="bg-white rounded-2xl shadow-xl mb-6 overflow-auto max-h-[72vh] scrollbar-thin scrollbar-track-white scrollbar-thumb-purple-300"
+        style={{ minHeight: "600px" }}
+      >
+        <div className="flex gap-4 p-4">
+          <LegendDot className="from-sky-500 to-fuchsia-500" label="Online" />
+          <LegendDot className="from-amber-400 to-orange-500" label="Offline" />
+          <LegendDot className="from-pink-500 to-purple-600" label="Hybrid" />
+        </div>
+
         <Calendar
           localizer={localizer}
           events={sessions}
           startAccessor="start"
           endAccessor="end"
-          date={currentDate}
-          onNavigate={(date) => setCurrentDate(date)}
           view={view}
           onView={setView}
-          defaultView="week"
+          date={currentDate}
+          onNavigate={setCurrentDate}
+          defaultView="agenda"
           views={["day", "week", "agenda"]}
-          style={{ minHeight: "80vh", height: "auto" }}
-          min={new Date(0, 0, 0, 0, 0, 0)}   // start at 12 AM
-          max={new Date(0, 0, 0, 23, 59, 59)} // show until 11:59 PM
+          style={{ height: "70vh" }}
+          dayLayoutAlgorithm="no-overlap"
           step={30}
           timeslots={2}
+          scrollToTime={new Date(1970, 1, 1, 9)}
+          slotPropGetter={() => ({
+            style: { minHeight: "42px" },
+          })}
           components={{
+            event: EventContent,
             toolbar: (props) => (
-              <CustomToolbar {...props} view={view} onView={setView} themeColors={themeColors} date={currentDate} />
-            ),
-          }}
-          onSelectEvent={(event) => setSelectedSession(event)}
-          eventPropGetter={(event) => {
-            let backgroundColor = "#9b5de5";
-            if (event.type === "online") backgroundColor = "#54C7E8";
-            if (event.type === "offline") backgroundColor = "#FFD700";
-            if (event.type === "hybrid") backgroundColor = "#F54CA7";
-            return {
-              style: {
-                backgroundColor,
-                color: "white",
-                border: "none",
-                borderRadius: "8px",
-                padding: "4px 8px",
-                fontWeight: "600",
-                cursor: "pointer",
-              },
-            };
-          }}
-        />
-      </div>
-
-      {/* Tabs */}
-      <div className="flex justify-center mt-2 gap-3 flex-wrap">
-        {["previous", "ongoing", "upcoming"].map((type) => (
-          <button
-            key={type}
-            onClick={() => setActiveTab(type)}
-            className={`px-6 py-2 rounded-full font-semibold text-lg transition transform hover:scale-105 ${
-              activeTab === type
-                ? `${themeColors.primary.base} ${themeColors.primary.text}`
-                : "bg-white text-purple-700 border-2 border-purple-300 hover:bg-purple-50"
-            }`}
-          >
-            {type.charAt(0).toUpperCase() + type.slice(1)} Sessions
-          </button>
-        ))}
-      </div>
-
-      {/* Session Cards */}
-      <div className="w-full mt-5 bg-white rounded-2xl shadow-xl flex-grow overflow-y-auto p-6 max-h-[50vh]">
-        {filteredSessions.length === 0 ? (
-          <div className="flex justify-center items-center h-40 text-gray-400 text-lg font-semibold select-none">
-            No sessions found in this category!
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredSessions.map((sess) => (
-              <SessionCard
-                key={sess.id}
-                session={sess}
-                onDelete={handleDeleteSession}
-                isAdmin={isAdmin}
-                currentUserId={currentUserId}
-                onPreview={() => setSelectedSession(sess)}
+              <CustomToolbar
+                {...props}
+                view={view}
+                onView={setView}
+                themeColors={themeColors}
               />
-            ))}
-          </div>
-        )}
+            ),
+            agenda: {
+              event: AgendaEventCard, // Custom agenda renderer
+            },
+          }}
+          eventPropGetter={eventStyleGetter}
+          onSelectEvent={(e) => setSelectedSession(e)}
+        />
       </div>
 
       {selectedSession && (
-        <SessionDetail
+        <PreviewPanel
           session={selectedSession}
-          onClose={() => setSelectedSession(null)}
-          onDelete={handleDeleteSession}
           isAdmin={isAdmin}
           currentUserId={currentUserId}
+          deleteFn={handleDeleteSession}
         />
       )}
 
-      {showCreateModal && isAdmin && (
+      <SessionTabs activeTab={activeTab} setActiveTab={setActiveTab} />
+
+      <SessionCards
+        filteredSessions={filteredSessions}
+        onDelete={handleDeleteSession}
+        isAdmin={isAdmin}
+        currentUserId={currentUserId}
+        onPreview={setSelectedSession}
+      />
+
+      {showCreateModal && (
         <SessionCreateModal
           groupId={groupId}
-          onClose={() => setShowCreateModal(false)}
           onCreate={handleAddSession}
+          onClose={() => setShowCreateModal(false)}
         />
       )}
     </div>
   );
 }
 
-/* ---- Custom Toolbar ---- */
-function CustomToolbar({ label, onNavigate, onView, view, themeColors, date }) {
-  const formatAgendaLabel = (label, currentDate) => {
-    if (view === "agenda") {
-      const startOfWeek = moment(currentDate).startOf("week");
-      const endOfWeek = moment(currentDate).endOf("week");
-      return `${startOfWeek.format("DD/MM/YYYY")} – ${endOfWeek.format("DD/MM/YYYY")}`;
-    }
-    return label;
+/* --- Calendar event pill --- */
+function eventStyleGetter(event) {
+  return {
+    className: "rbc-custom-event",
+    style: {
+      padding: 0,
+      margin: "7px 0",
+      minHeight: "32px",
+      height: "100%",
+      width: "100%",
+      display: "flex",
+      alignItems: "center",
+      backgroundColor: "transparent",
+      border: "none",
+      zIndex: 2,
+    },
   };
-
-  const formattedLabel = formatAgendaLabel(label, date);
-
+}
+function EventContent({ event }) {
+  const grad =
+    event.type === "online"
+      ? "from-sky-500 to-fuchsia-500"
+      : event.type === "offline"
+      ? "from-amber-400 to-orange-500"
+      : "from-pink-500 to-purple-600";
   return (
-    <div className="flex flex-wrap justify-between items-center px-6 py-3 border-b border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50">
+    <div
+      className={`w-full h-full bg-gradient-to-r ${grad} text-white rounded-xl shadow-lg border-2 border-white font-bold px-5 py-2 flex items-center justify-center`}
+      style={{ color: "white", fontSize: "1.05rem" }}
+    >
+      <span className="truncate">{event.title}</span>
+    </div>
+  );
+}
+
+/* --- Agenda card renderer --- */
+function AgendaEventCard({ event }) {
+  const grad =
+    event.type === "online"
+      ? "from-sky-500 to-fuchsia-500"
+      : event.type === "offline"
+      ? "from-amber-400 to-orange-500"
+      : "from-pink-500 to-purple-600";
+  return (
+    <div
+      className={`flex flex-col gap-2 p-4 mx-auto min-w-[290px] max-w-[420px] rounded-2xl bg-gradient-to-br ${grad} shadow-xl text-white animate-fadeIn`}
+    >
       <div className="flex items-center gap-2">
+        <FaUser className="text-white text-lg" />
+        <span className="font-bold text-xl">{event.title}</span>
+      </div>
+      <div className="opacity-90">{event.description}</div>
+      <div className="flex gap-3 flex-wrap text-xs mt-2">
+        <span>
+          <strong>{moment(event.start).format("DD/MM/YYYY")}</strong>
+        </span>
+        <span>
+          <strong>
+            {moment(event.start).format("hh:mm A")} -{" "}
+            {moment(event.end).format("hh:mm A")}
+          </strong>
+        </span>
+      </div>
+      <div className="flex gap-2 items-center">
+        <span className="px-2 py-1 bg-white/20 rounded font-bold text-xs">
+          {event.type.toUpperCase()}
+        </span>
+        {event.location && (
+          <span className="flex items-center gap-1 ml-2">
+            <FaMapMarkerAlt /> {event.location}
+          </span>
+        )}
+        {event.link && (
+          <span className="flex items-center gap-1 ml-2">
+            <FaLink />
+            <a
+              className="underline"
+              href={event.link}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Link
+            </a>
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LegendDot({ label, className }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className={`w-6 h-3 bg-gradient-to-r ${className} rounded-full`} />
+      <span className="text-xs text-gray-600">{label}</span>
+    </div>
+  );
+}
+
+function CustomToolbar({ label, onNavigate, onView, view, themeColors }) {
+  return (
+    <div className="flex justify-between items-center px-6 py-3 bg-purple-50 border-b">
+      <div className="flex gap-2">
         <button
           onClick={() => onNavigate("TODAY")}
-          className={`px-4 py-2 rounded-full text-sm font-semibold ${themeColors.primary.base} ${themeColors.primary.hover} ${themeColors.primary.text}`}
+          className={`${themeColors.primary.base} ${themeColors.primary.text} px-4 py-2 rounded-full`}
         >
           Today
         </button>
-        <button onClick={() => onNavigate("PREV")} className="px-3 py-2 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 font-bold transition">
+        <button
+          onClick={() => onNavigate("PREV")}
+          className="px-3 py-2 bg-gray-100 rounded-full"
+        >
           ◀
         </button>
-        <button onClick={() => onNavigate("NEXT")} className="px-3 py-2 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 font-bold transition">
+        <button
+          onClick={() => onNavigate("NEXT")}
+          className="px-3 py-2 bg-gray-100 rounded-full"
+        >
           ▶
         </button>
       </div>
-
-      <h3 className="text-xl font-bold text-purple-700">{formattedLabel}</h3>
-
+      <h2 className="text-xl font-bold text-purple-700">{label}</h2>
       <div className="flex gap-2">
         {["day", "week", "agenda"].map((v) => (
           <button
             key={v}
             onClick={() => onView(v)}
-            className={`px-4 py-2 rounded-full text-sm font-semibold transition ${
+            className={`px-4 py-2 rounded-full ${
               view === v
                 ? `${themeColors.primary.base} ${themeColors.primary.text}`
-                : "bg-gray-100 text-purple-700 hover:bg-purple-100"
+                : "bg-gray-100 text-purple-700"
             }`}
           >
-            {v.charAt(0).toUpperCase() + v.slice(1)}
+            {v[0].toUpperCase() + v.slice(1)}
           </button>
         ))}
       </div>
@@ -329,85 +398,105 @@ function CustomToolbar({ label, onNavigate, onView, view, themeColors, date }) {
   );
 }
 
-/* ---- Session Card ---- */
-function SessionCard({ session, onDelete, isAdmin, currentUserId, onPreview }) {
-  const canDelete = isAdmin || (currentUserId && session.createdBy === currentUserId);
-
+function PreviewPanel({ session, isAdmin, currentUserId, deleteFn }) {
   return (
-    <div className="relative p-5 rounded-xl bg-gradient-to-br from-white via-purple-50 to-pink-50 shadow-md border-l-8 border-purple-300 hover:shadow-xl transition transform hover:scale-105">
-      {canDelete && (
-        <button
-          onClick={() => onDelete(session.id)}
-          className="absolute top-3 right-3 text-red-600 hover:bg-red-100 p-2 rounded-full transition"
-        >
+    <div className="relative bg-white/70 p-8 rounded-2xl shadow-xl mb-6">
+      {(isAdmin || session.createdBy === currentUserId) && (
+        <button className={deleteBtnStyle} onClick={() => deleteFn(session.id)}>
           🗑️
         </button>
       )}
-      <h4 className="font-bold text-2xl text-purple-800 mb-1">{session.title}</h4>
+      <h2 className="text-3xl font-bold text-purple-800">{session.title}</h2>
       <p className="text-gray-700">{session.description}</p>
-      <p className="text-sm text-gray-600 mt-2">
-        📅 {session.start.toLocaleDateString("en-GB")} —{" "}
-        {session.start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+      <p className="mt-2">
+        <strong>🕒 </strong>
+        {session.start.toLocaleDateString("en-GB")} —{" "}
+        {session.start.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}
       </p>
-
-      <button
-        onClick={onPreview}
-        className={`mt-3 px-4 py-2 rounded-full text-sm font-semibold shadow-md ${themeColors.primary.base} ${themeColors.primary.text} ${themeColors.primary.hover} transition`}
-      >
-        👁 Preview
-      </button>
+      {session.link && (
+        <div className="bg-blue-50 border-l-4 border-blue-300 p-3 mt-3 rounded">
+          <strong>🔗 Link: </strong>
+          <a className="text-blue-700 underline" href={session.link}>
+            {session.link}
+          </a>
+        </div>
+      )}
     </div>
   );
 }
 
-/* ---- Session Detail ---- */
-function SessionDetail({ session, onClose, onDelete, isAdmin, currentUserId }) {
-  const canDelete = isAdmin || (currentUserId && session.createdBy === currentUserId);
-
+function SessionTabs({ activeTab, setActiveTab }) {
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-md relative animate-slideUp">
-        <div className="flex justify-between items-center mb-4">
-          <button onClick={onClose} className="text-purple-600 hover:bg-purple-100 p-2 rounded-full transition">
-            ✕
-          </button>
-          {canDelete && (
-            <button onClick={() => onDelete(session.id)} className="text-red-600 hover:bg-red-100 p-2 rounded-full transition">
-              🗑️
-            </button>
-          )}
+    <div className="flex justify-center gap-3 mb-4">
+      {["previous", "ongoing", "upcoming"].map((type) => (
+        <button
+          key={type}
+          onClick={() => setActiveTab(type)}
+          className={`px-6 py-2 rounded-full font-semibold ${
+            activeTab === type
+              ? "bg-gradient-to-r from-purple-600 to-pink-500 text-white"
+              : "bg-white text-purple-700 border border-purple-200"
+          }`}
+        >
+          {type[0].toUpperCase() + type.slice(1)} Sessions
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function SessionCards({
+  filteredSessions,
+  onDelete,
+  isAdmin,
+  currentUserId,
+  onPreview,
+}) {
+  return (
+    <div className="bg-white p-6 rounded-2xl shadow-xl max-h-[50vh] overflow-y-auto">
+      {filteredSessions.length === 0 ? (
+        <div className="text-gray-500 text-center">No sessions found.</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filteredSessions.map((s) => (
+            <SessionCard
+              key={s.id}
+              session={s}
+              onDelete={onDelete}
+              isAdmin={isAdmin}
+              currentUserId={currentUserId}
+              onPreview={() => onPreview(s)}
+            />
+          ))}
         </div>
+      )}
+    </div>
+  );
+}
 
-        <h2 className="text-2xl font-bold text-purple-800 mb-2">{session.title}</h2>
-        <p className="text-gray-700 mb-3">{session.description}</p>
-        <p className="text-purple-700 font-semibold mb-1">
-          👤 Organizer: <span className="font-normal">{session.organizer}</span>
-        </p>
-        <p className="text-gray-800 mb-3">
-          🕒 {session.start.toLocaleDateString("en-GB")} •{" "}
-          {session.start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} —{" "}
-          {session.end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-        </p>
-
-        {session.link && (
-          <div className="bg-blue-50 border-l-4 border-blue-300 p-3 rounded-lg mb-2">
-            <strong>🔗 Meeting Link:</strong>{" "}
-            <a href={session.link} target="_blank" rel="noreferrer" className="text-blue-700 underline">
-              {session.link}
-            </a>
-          </div>
-        )}
-        {session.passkey && (
-          <div className="bg-blue-50 border-l-4 border-blue-300 p-3 rounded-lg mb-2">
-            <strong>🔑 Passkey:</strong> {session.passkey}
-          </div>
-        )}
-        {session.location && (
-          <div className="bg-yellow-50 border-l-4 border-yellow-300 p-3 rounded-lg">
-            <strong>📍 Location:</strong> {session.location}
-          </div>
-        )}
-      </div>
+function SessionCard({ session, onDelete, isAdmin, currentUserId, onPreview }) {
+  const canDelete = isAdmin || session.createdBy === currentUserId;
+  return (
+    <div className="relative bg-purple-50 p-5 rounded-xl shadow hover:scale-105 transition border-l-8 border-purple-300">
+      {canDelete && (
+        <button
+          className="absolute right-3 top-3 text-red-600"
+          onClick={() => onDelete(session.id)}
+        >
+          🗑️
+        </button>
+      )}
+      <h3 className="text-xl font-bold text-purple-800">{session.title}</h3>
+      <p className="text-gray-700">{session.description}</p>
+      <button
+        className="mt-3 px-4 py-2 rounded-full bg-gradient-to-r from-purple-600 to-pink-500 text-white"
+        onClick={onPreview}
+      >
+        Preview
+      </button>
     </div>
   );
 }

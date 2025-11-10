@@ -264,7 +264,7 @@ export default function GroupDetailPage({ openFloatingChat }) {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row h-[calc(100vh-9vh)] bg-gray-50">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50">
       {/* --- MOBILE SIDEBAR BACKDROP --- */}
       {isSidebarOpen && (
         <div
@@ -352,7 +352,7 @@ export default function GroupDetailPage({ openFloatingChat }) {
               label="Resources"
               count={documentCount}
             />
-            <SidebarButton tabName="sections" label="session" />
+            <SidebarButton tabName="sections" label="Group Session" />
             <SidebarButton tabName="contact" label="Contact Admin" />
             <SidebarButton tabName="settings" label="Settings" />
           </nav>
@@ -397,7 +397,7 @@ export default function GroupDetailPage({ openFloatingChat }) {
       )}
 
       {/* --- MAIN CONTENT AREA --- */}
-      <main className="w-full flex-1 flex flex-col overflow-hidden">
+      <main className="w-full flex-1 flex flex-col overflow-y-auto overflow-x-hidden">
         {/* MOBILE HEADER */}
         <div className="lg:hidden flex items-center justify-between p-4 bg-gray-100 border-b border-gray-200 shadow-sm">
           <button

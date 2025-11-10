@@ -41,3 +41,28 @@
 .read-the-docs {
   color: #888;
 } */
+
+.event-animate {
+  animation: fadeSlideIn 0.35s ease-out;
+}
+@keyframes fadeSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+/* Fix RBC forcing black text */
+.rbc-event,
+.rbc-event-content,
+.rbc-event-label {
+  color: white !important;
+}
+
+/* Remove default blue event background */
+.rbc-event {
+  background: transparent !important;
+}
