@@ -66,4 +66,7 @@ public class CalendarEvent {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private EventStatus status = EventStatus.ONGOING;
+
+    @Column(name = "reminder_sent")
+    private Boolean reminderSent = false;
 }

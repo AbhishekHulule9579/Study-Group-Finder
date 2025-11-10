@@ -164,7 +164,7 @@ export default function CalendarView() {
                     <div className="flex-1">
                       <div className="font-semibold text-gray-800 mb-1">{event.title}</div>
                       <div className="text-sm text-gray-600 mb-1">
-                        {moment(event.start).format('MMM DD, YYYY')} • {moment(event.start).format('h:mm A')} - {moment(event.end).format('h:mm A')}
+                        {moment(event.start).format('DD/MM/YYYY')} • {moment(event.start).format('h:mm A')} - {moment(event.end).format('h:mm A')}
                       </div>
                       <div className="text-sm font-medium text-purple-600">{event.courseName}</div>
                       <div className="text-sm text-gray-500">{event.groupName}</div>

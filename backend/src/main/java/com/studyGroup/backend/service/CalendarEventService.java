@@ -2,21 +2,48 @@ package com.studyGroup.backend.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional; // ✅ Added this import
 
 import com.studyGroup.backend.dto.CalendarEventDTO;
 import com.studyGroup.backend.dto.UserSummaryDTO;
 import com.studyGroup.backend.model.CalendarEvent;
 import com.studyGroup.backend.model.Group;
+import com.studyGroup.backend.model.GroupMember;
 import com.studyGroup.backend.model.User;
 import com.studyGroup.backend.repository.CalendarEventRepository;
+import com.studyGroup.backend.repository.GroupMemberRepository;
 import com.studyGroup.backend.repository.GroupRepository;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
+
+import org.springframework.scheduling.annotation.Scheduled;
 
 @Service
 public class CalendarEventService {
+
+    // === Time/format helpers ===
+    private static final ZoneId UTC = ZoneId.of("UTC");
+    private static final ZoneId IST = ZoneId.of("Asia/Kolkata");
+    private static final DateTimeFormatter DATE_DDMMYYYY = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final DateTimeFormatter TIME_HH_MM_A = DateTimeFormatter.ofPattern("hh:mm a");
+
+    private static ZonedDateTime toIST(LocalDateTime utcDateTime) {
+        return utcDateTime.atZone(UTC).withZoneSameInstant(IST);
+    }
+
+    private static String formatDateIST(LocalDateTime utcDateTime) {
+        return toIST(utcDateTime).format(DATE_DDMMYYYY);
+    }
+
+    private static String formatTimeRangeIST(LocalDateTime startUtc, LocalDateTime endUtc) {
+        return toIST(startUtc).format(TIME_HH_MM_A) + " - " + toIST(endUtc).format(TIME_HH_MM_A);
+    }
 
     @Autowired
     private CalendarEventRepository calendarEventRepository;
@@ -27,13 +54,19 @@ public class CalendarEventService {
     @Autowired
     private GroupService groupService;
 
+    @Autowired
+    private GroupMemberRepository groupMemberRepository;
+
+    @Autowired
+    private EmailService emailService;
+
     private CalendarEventDTO convertToDTO(CalendarEvent event) {
         User creator = event.getCreatedBy();
         UserSummaryDTO creatorDTO = new UserSummaryDTO(
                 Long.valueOf(creator.getId()),
                 creator.getName(),
                 creator.getEmail(),
-                null, // aboutMe not needed here
+                null,
                 "Creator"
         );
 
@@ -78,8 +111,12 @@ public class CalendarEventService {
         event.setAssociatedGroup(group);
         event.setCreatedBy(user);
         event.setStatus(CalendarEvent.EventStatus.valueOf(eventDTO.getStatus().toUpperCase()));
+        event.setReminderSent(false);
 
         CalendarEvent savedEvent = calendarEventRepository.save(event);
+
+        sendEventCreationEmail(savedEvent, user);
+
         return convertToDTO(savedEvent);
     }
 
@@ -105,9 +142,7 @@ public class CalendarEventService {
         }
 
         List<CalendarEvent> events = calendarEventRepository.findByAssociatedGroup(group);
-        return events.stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
+        return events.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
     public CalendarEventDTO updateEvent(Long id, CalendarEventDTO eventDTO, User user) {
@@ -122,6 +157,8 @@ public class CalendarEventService {
             throw new RuntimeException("You are not authorized to update this event.");
         }
 
+        LocalDateTime oldStart = event.getStartTime();
+
         event.setTopic(eventDTO.getTopic());
         event.setDescription(eventDTO.getDescription());
         event.setStartTime(eventDTO.getStartTime());
@@ -132,6 +169,10 @@ public class CalendarEventService {
         event.setSessionType(CalendarEvent.SessionType.valueOf(eventDTO.getSessionType().toUpperCase()));
         event.setPasscode(eventDTO.getPasscode());
         event.setStatus(CalendarEvent.EventStatus.valueOf(eventDTO.getStatus().toUpperCase()));
+
+        if (!Objects.equals(oldStart, event.getStartTime())) {
+            event.setReminderSent(false);
+        }
 
         CalendarEvent updatedEvent = calendarEventRepository.save(event);
         return convertToDTO(updatedEvent);
@@ -149,19 +190,131 @@ public class CalendarEventService {
             throw new RuntimeException("You are not authorized to delete this event.");
         }
 
+        sendEventCancellationEmail(event, user);
         calendarEventRepository.delete(event);
     }
 
+    // ==== Email helpers ====
+
+    private void appendCommonEventLines(StringBuilder body, CalendarEvent event) {
+        body.append("Event Details:\n");
+        body.append("Session Name: ").append(event.getTopic()).append("\n");
+        body.append("Organizer: ").append(
+                event.getOrganizerName() != null ? event.getOrganizerName() : "N/A"
+        ).append("\n");
+        body.append("Associated Course: ").append(
+                event.getAssociatedGroup().getAssociatedCourse().getCourseName()
+        ).append("\n");
+        body.append("Associated Group: ").append(
+                event.getAssociatedGroup().getName()
+        ).append("\n");
+
+        body.append("Date: ").append(formatDateIST(event.getStartTime())).append("\n");
+        body.append("Time: ").append(formatTimeRangeIST(event.getStartTime(), event.getEndTime())).append("\n");
+
+        if (event.getMeetingLink() != null && !event.getMeetingLink().isEmpty()) {
+            body.append("Meeting Link: ").append(event.getMeetingLink()).append("\n");
+        }
+        if (event.getSessionType() == CalendarEvent.SessionType.OFFLINE
+                || event.getSessionType() == CalendarEvent.SessionType.HYBRID) {
+            if (event.getLocation() != null && !event.getLocation().isEmpty()) {
+                body.append("Location: ").append(event.getLocation()).append("\n");
+            }
+        }
+
+        body.append("\nDescription: ")
+                .append(event.getDescription() != null ? event.getDescription() : "No description provided.")
+                .append("\n\n");
+        body.append("Best regards,\nStudy Group Finder Team");
+    }
+
+    private void sendEventCreationEmail(CalendarEvent event, User creator) {
+        List<GroupMember> members = groupMemberRepository.findByGroup(event.getAssociatedGroup());
+        String subject = "New Event Created: " + event.getTopic();
+        for (GroupMember member : members) {
+            if (!member.getUser().getId().equals(creator.getId())) {
+                StringBuilder body = new StringBuilder();
+                body.append("Dear Group Member,\n\n");
+                body.append("A new event has been created in your group.\n\n");
+                body.append("Creator: ").append(creator.getName()).append("\n");
+                appendCommonEventLines(body, event);
+                emailService.sendEmail(member.getUser().getEmail(), subject, body.toString());
+            }
+        }
+    }
+
+    private void sendEventCancellationEmail(CalendarEvent event, User canceller) {
+        List<GroupMember> members = groupMemberRepository.findByGroup(event.getAssociatedGroup());
+        String subject = "Event Cancelled: " + event.getTopic();
+        for (GroupMember member : members) {
+            if (!member.getUser().getId().equals(canceller.getId())) {
+                StringBuilder body = new StringBuilder();
+                body.append("Dear Group Member,\n\n");
+                body.append("An event has been cancelled in your group.\n\n");
+                body.append("Cancelled By: ").append(canceller.getName()).append("\n");
+                appendCommonEventLines(body, event);
+                emailService.sendEmail(member.getUser().getEmail(), subject, body.toString());
+            }
+        }
+    }
+
+    // ✅ FIXED: Added @Transactional to prevent LazyInitializationException
+    @Scheduled(fixedRate = 60000)
+    @Transactional
+    public void sendReminderEmails() {
+        LocalDateTime nowUtc = ZonedDateTime.now(UTC).toLocalDateTime();
+        LocalDateTime oneHourLaterUtc = nowUtc.plusHours(1);
+
+        List<CalendarEvent> upcomingEvents =
+                calendarEventRepository.findByStartTimeBetween(nowUtc, oneHourLaterUtc);
+
+        for (CalendarEvent event : upcomingEvents) {
+            if (Boolean.TRUE.equals(event.getReminderSent())) continue;
+
+            List<GroupMember> members = groupMemberRepository.findByGroup(event.getAssociatedGroup());
+            String subject = "Reminder: Event Starting Soon - " + event.getTopic();
+            StringBuilder base = new StringBuilder();
+            base.append("Dear Group Member,\n\n");
+            base.append("This is a reminder that an event in your group is starting in less than 1 hour.\n\n");
+            appendCommonEventLines(base, event);
+            String body = base.toString();
+
+            for (GroupMember member : members) {
+                emailService.sendEmail(member.getUser().getEmail(), subject, body);
+            }
+
+            event.setReminderSent(true);
+            calendarEventRepository.save(event);
+            System.out.println("[Reminder] Email sent for event: " + event.getTopic());
+        }
+    }
+
+    public List<CalendarEventDTO> getUpcomingEventsForUser(User user) {
+        LocalDateTime now = LocalDateTime.now();
+        List<GroupMember> memberships = groupMemberRepository.findByUser(user);
+        List<CalendarEvent> upcomingEvents = calendarEventRepository.findByAssociatedGroupInAndStartTimeAfter(
+                memberships.stream().map(GroupMember::getGroup).collect(Collectors.toList()), now);
+        return upcomingEvents.stream().map(this::convertToDTO).collect(Collectors.toList());
+    }
+
+    public List<CalendarEventDTO> getAllUpcomingEventsForUser(User user) {
+        LocalDateTime now = LocalDateTime.now();
+        List<GroupMember> memberships = groupMemberRepository.findByUser(user);
+        List<CalendarEvent> allUpcomingEvents = calendarEventRepository.findByAssociatedGroupInAndStartTimeAfter(
+                memberships.stream().map(GroupMember::getGroup).collect(Collectors.toList()), now);
+        return allUpcomingEvents.stream().map(this::convertToDTO).collect(Collectors.toList());
+    }
+
+    public List<CalendarEventDTO> getAllEventsForUser(User user) {
+        List<GroupMember> memberships = groupMemberRepository.findByUser(user);
+        List<CalendarEvent> allEvents = calendarEventRepository.findByAssociatedGroupIn(
+                memberships.stream().map(GroupMember::getGroup).collect(Collectors.toList()));
+        return allEvents.stream().map(this::convertToDTO).collect(Collectors.toList());
+    }
+
     public List<CalendarEventDTO> getEventsByUser(User user) {
-        List<CalendarEvent> events = calendarEventRepository.findByCreatedBy(user);
-        // Filter to only include events from groups the user is a member of
-        return events.stream()
-                .filter(event -> {
-                    String userRole = groupService.getUserRoleInGroup(event.getAssociatedGroup().getGroupId(), user);
-                    return !"non-member".equals(userRole);
-                })
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
+        List<CalendarEvent> userEvents = calendarEventRepository.findByCreatedBy(user);
+        return userEvents.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
     public List<CalendarEventDTO> getEventsByStatus(Long groupId, String status, User user) {
@@ -173,72 +326,21 @@ public class CalendarEventService {
             throw new RuntimeException("You must be a member of the group to view events.");
         }
 
-        CalendarEvent.EventStatus eventStatus;
-        try {
-            eventStatus = CalendarEvent.EventStatus.valueOf(status.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new RuntimeException("Invalid status: " + status);
-        }
-
+        CalendarEvent.EventStatus eventStatus = CalendarEvent.EventStatus.valueOf(status.toUpperCase());
         List<CalendarEvent> events = calendarEventRepository.findByAssociatedGroupAndStatus(group, eventStatus);
-        return events.stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
+        return events.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
     public List<CalendarEventDTO> getEventsByDateRange(Long groupId, LocalDateTime start, LocalDateTime end, User user) {
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new RuntimeException("Group not found with ID: " + groupId));
+
         String userRole = groupService.getUserRoleInGroup(groupId, user);
         if ("non-member".equals(userRole)) {
             throw new RuntimeException("You must be a member of the group to view events.");
         }
 
-        List<CalendarEvent> events = calendarEventRepository.findByStartTimeBetween(start, end);
-        // Filter to only this group
-        return events.stream()
-                .filter(event -> event.getAssociatedGroup().getGroupId().equals(groupId))
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
-    }
-
-    public List<CalendarEventDTO> getUpcomingEventsForUser(User user) {
-        LocalDateTime now = LocalDateTime.now();
-        List<CalendarEvent> events = calendarEventRepository.findByStartTimeGreaterThanEqual(now);
-        // Filter to only include events from groups the user is a member of
-        return events.stream()
-                .filter(event -> {
-                    String userRole = groupService.getUserRoleInGroup(event.getAssociatedGroup().getGroupId(), user);
-                    return !"non-member".equals(userRole);
-                })
-                .sorted((e1, e2) -> e1.getStartTime().compareTo(e2.getStartTime()))
-                .limit(3)
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
-    }
-
-    public List<CalendarEventDTO> getAllUpcomingEventsForUser(User user) {
-        LocalDateTime now = LocalDateTime.now();
-        List<CalendarEvent> events = calendarEventRepository.findByStartTimeGreaterThanEqual(now);
-        // Filter to only include events from groups the user is a member of
-        return events.stream()
-                .filter(event -> {
-                    String userRole = groupService.getUserRoleInGroup(event.getAssociatedGroup().getGroupId(), user);
-                    return !"non-member".equals(userRole);
-                })
-                .sorted((e1, e2) -> e1.getStartTime().compareTo(e2.getStartTime()))
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
-    }
-
-    public List<CalendarEventDTO> getAllEventsForUser(User user) {
-        List<CalendarEvent> events = calendarEventRepository.findAll();
-        // Filter to only include events from groups the user is a member of
-        return events.stream()
-                .filter(event -> {
-                    String userRole = groupService.getUserRoleInGroup(event.getAssociatedGroup().getGroupId(), user);
-                    return !"non-member".equals(userRole);
-                })
-                .sorted((e1, e2) -> e1.getStartTime().compareTo(e2.getStartTime()))
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
+        List<CalendarEvent> events = calendarEventRepository.findByAssociatedGroupAndStartTimeBetween(group, start, end);
+        return events.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 }

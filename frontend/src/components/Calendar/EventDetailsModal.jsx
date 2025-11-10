@@ -35,7 +35,7 @@ export default function EventDetailsModal({ event, onClose }) {
         </p>
 
         <p className="text-gray-800 mb-3">
-          🕒{" "}
+          🕒 {event.start.toLocaleDateString('en-GB')} •{" "}
           {event.start.toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit",
