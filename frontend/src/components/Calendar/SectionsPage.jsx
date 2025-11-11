@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { Calendar, momentLocalizer } from "react-big-calendar";
-import { FaUser, FaMapMarkerAlt, FaLink } from "react-icons/fa";
+import { FaUser } from "react-icons/fa";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import SessionCreateModal from "./SessionCreateModal";
+import EventDetailsModal from "./EventDetailsModal";
+import EventContent from "./EventContent";
 
 const localizer = momentLocalizer(moment);
 
@@ -20,7 +22,7 @@ const deleteBtnStyle =
 
 export default function SessionsPage({ userRole, groupId }) {
   const [sessions, setSessions] = useState([]);
-  const [selectedSession, setSelectedSession] = useState(null);
+  const [selectedEvent, setSelectedEvent] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -31,6 +33,15 @@ export default function SessionsPage({ userRole, groupId }) {
 
   const isAdmin = userRole === "owner" || userRole === "admin";
 
+  // Listen for event details open event
+  React.useEffect(() => {
+    const handleOpenEventDetails = (e) => {
+      setSelectedEvent(e.detail);
+    };
+    window.addEventListener("openEventDetails", handleOpenEventDetails);
+    return () => window.removeEventListener("openEventDetails", handleOpenEventDetails);
+  }, []);
+
   useEffect(() => {
     const fetchSessions = async () => {
       const token = sessionStorage.getItem("token");
@@ -40,21 +51,18 @@ export default function SessionsPage({ userRole, groupId }) {
         return;
       }
       try {
-        const userResponse = await fetch(
-          "http://localhost:8145/api/user/profile",
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const userResponse = await fetch("http://localhost:8145/api/user/profile", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         if (userResponse.ok) {
           const userData = await userResponse.json();
           setCurrentUserId(userData.id);
         }
 
-        const response = await fetch(
-          `http://localhost:8145/api/calendar/events/group/${groupId}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        if (!response.ok)
-          throw new Error(`Failed to fetch sessions: ${response.status}`);
+        const response = await fetch(`http://localhost:8145/api/calendar/events/group/${groupId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) throw new Error(`Failed to fetch sessions: ${response.status}`);
 
         const events = await response.json();
         const formatted = events.map((e) => ({
@@ -88,23 +96,30 @@ export default function SessionsPage({ userRole, groupId }) {
     return true;
   });
 
+  // Filter events for agenda view to show only current week
+  const filteredEvents =
+    view === "agenda"
+      ? sessions.filter((event) => {
+          const eventDate = moment(event.start);
+          const weekStart = moment(currentDate).startOf("isoWeek");
+          const weekEnd = moment(currentDate).endOf("isoWeek");
+          return eventDate.isBetween(weekStart, weekEnd, null, "[]");
+        })
+      : sessions;
+
   const handleAddSession = async (session) => {
     const token = sessionStorage.getItem("token");
     if (!token) return alert("No authentication token found.");
     try {
-      const response = await fetch(
-        "http://localhost:8145/api/calendar/events",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ ...session, groupId }),
-        }
-      );
-      if (!response.ok)
-        throw new Error(`Failed to create session: ${response.status}`);
+      const response = await fetch("http://localhost:8145/api/calendar/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ ...session, groupId }),
+      });
+      if (!response.ok) throw new Error(`Failed to create session: ${response.status}`);
 
       const created = await response.json();
       const newEvent = {
@@ -123,11 +138,8 @@ export default function SessionsPage({ userRole, groupId }) {
       };
 
       setSessions((p) => [...p, newEvent]);
-
       setTimeout(() => {
-        setSessions((prev) =>
-          prev.map((e) => (e.id === newEvent.id ? { ...e, isNew: false } : e))
-        );
+        setSessions((prev) => prev.map((e) => (e.id === newEvent.id ? { ...e, isNew: false } : e)));
       }, 4000);
     } catch (err) {
       alert("Error creating session: " + err.message);
@@ -143,17 +155,14 @@ export default function SessionsPage({ userRole, groupId }) {
 
     const token = sessionStorage.getItem("token");
     try {
-      const response = await fetch(
-        `http://localhost:8145/api/calendar/events/${sessionId}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const response = await fetch(`http://localhost:8145/api/calendar/events/${sessionId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (!response.ok) throw new Error(`Failed: ${response.status}`);
 
       setSessions((prev) => prev.filter((s) => s.id !== sessionId));
-      setSelectedSession(null);
+      setSelectedEvent(null);
     } catch (err) {
       alert("Error deleting: " + err.message);
     }
@@ -162,9 +171,7 @@ export default function SessionsPage({ userRole, groupId }) {
   return (
     <div className="flex flex-col min-h-screen w-full bg-gradient-to-br from-purple-100 via-pink-50 to-blue-100 p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-4xl font-extrabold text-purple-700">
-          📅 Study Sessions
-        </h1>
+        <h1 className="text-4xl font-extrabold text-purple-700">📅 Study Sessions</h1>
         {isAdmin ? (
           <button
             className={`${themeColors.primary.base} ${themeColors.primary.text} px-6 py-2 rounded-full shadow-md transform hover:scale-105`}
@@ -190,13 +197,12 @@ export default function SessionsPage({ userRole, groupId }) {
 
         <Calendar
           localizer={localizer}
-          events={sessions}
+          events={filteredEvents}
           startAccessor="start"
           endAccessor="end"
           view={view}
           onView={setView}
           date={currentDate}
-          onNavigate={setCurrentDate}
           defaultView="agenda"
           views={["day", "week", "agenda"]}
           style={{ height: "70vh" }}
@@ -215,25 +221,20 @@ export default function SessionsPage({ userRole, groupId }) {
                 view={view}
                 onView={setView}
                 themeColors={themeColors}
+                date={currentDate}
+                setCurrentDate={setCurrentDate}
               />
             ),
             agenda: {
-              event: AgendaEventCard, // Custom agenda renderer
+              event: AgendaEventCard,
             },
           }}
           eventPropGetter={eventStyleGetter}
-          onSelectEvent={(e) => setSelectedSession(e)}
+          onSelectEvent={(e) => setSelectedEvent(e)}
         />
       </div>
 
-      {selectedSession && (
-        <PreviewPanel
-          session={selectedSession}
-          isAdmin={isAdmin}
-          currentUserId={currentUserId}
-          deleteFn={handleDeleteSession}
-        />
-      )}
+      {selectedEvent && <EventDetailsModal event={selectedEvent} onClose={() => setSelectedEvent(null)} />}
 
       <SessionTabs activeTab={activeTab} setActiveTab={setActiveTab} />
 
@@ -242,7 +243,7 @@ export default function SessionsPage({ userRole, groupId }) {
         onDelete={handleDeleteSession}
         isAdmin={isAdmin}
         currentUserId={currentUserId}
-        onPreview={setSelectedSession}
+        onPreview={setSelectedEvent}
       />
 
       {showCreateModal && (
@@ -256,129 +257,82 @@ export default function SessionsPage({ userRole, groupId }) {
   );
 }
 
-/* --- Calendar event pill --- */
+/* ✅ Fixed event background colors */
 function eventStyleGetter(event) {
+  let backgroundColor = "#9b5de5"; // Default purple
+  if (event.type === "online") backgroundColor = "#54C7E8"; // Blue
+  if (event.type === "offline") backgroundColor = "#FFD700"; // Yellow
+  if (event.type === "hybrid") backgroundColor = "#F54CA7"; // Pink
+
   return {
-    className: "rbc-custom-event",
     style: {
-      padding: 0,
-      margin: "7px 0",
-      minHeight: "32px",
-      height: "100%",
-      width: "100%",
+      backgroundColor,
+      color: "white",
+      borderRadius: "10px",
+      border: "none",
+      padding: "4px",
       display: "flex",
       alignItems: "center",
-      backgroundColor: "transparent",
-      border: "none",
-      zIndex: 2,
+      justifyContent: "center",
+      height: "100%",
+      width: "100%",
+      boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
     },
   };
 }
-function EventContent({ event }) {
-  const grad =
-    event.type === "online"
-      ? "from-sky-500 to-fuchsia-500"
-      : event.type === "offline"
-      ? "from-amber-400 to-orange-500"
-      : "from-pink-500 to-purple-600";
-  return (
-    <div
-      className={`w-full h-full bg-gradient-to-r ${grad} text-white rounded-xl shadow-lg border-2 border-white font-bold px-5 py-2 flex items-center justify-center`}
-      style={{ color: "white", fontSize: "1.05rem" }}
-    >
-      <span className="truncate">{event.title}</span>
-    </div>
-  );
-}
 
-/* --- Agenda card renderer --- */
-function AgendaEventCard({ event }) {
-  const grad =
-    event.type === "online"
-      ? "from-sky-500 to-fuchsia-500"
-      : event.type === "offline"
-      ? "from-amber-400 to-orange-500"
-      : "from-pink-500 to-purple-600";
-  return (
-    <div
-      className={`flex flex-col gap-2 p-4 mx-auto min-w-[290px] max-w-[420px] rounded-2xl bg-gradient-to-br ${grad} shadow-xl text-white animate-fadeIn`}
-    >
-      <div className="flex items-center gap-2">
-        <FaUser className="text-white text-lg" />
-        <span className="font-bold text-xl">{event.title}</span>
-      </div>
-      <div className="opacity-90">{event.description}</div>
-      <div className="flex gap-3 flex-wrap text-xs mt-2">
-        <span>
-          <strong>{moment(event.start).format("DD/MM/YYYY")}</strong>
-        </span>
-        <span>
-          <strong>
-            {moment(event.start).format("hh:mm A")} -{" "}
-            {moment(event.end).format("hh:mm A")}
-          </strong>
-        </span>
-      </div>
-      <div className="flex gap-2 items-center">
-        <span className="px-2 py-1 bg-white/20 rounded font-bold text-xs">
-          {event.type.toUpperCase()}
-        </span>
-        {event.location && (
-          <span className="flex items-center gap-1 ml-2">
-            <FaMapMarkerAlt /> {event.location}
-          </span>
-        )}
-        {event.link && (
-          <span className="flex items-center gap-1 ml-2">
-            <FaLink />
-            <a
-              className="underline"
-              href={event.link}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Link
-            </a>
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
+/* --- Fixed Custom Toolbar --- */
+function CustomToolbar({ label, onNavigate, onView, view, themeColors, date, setCurrentDate }) {
+  const formatAgendaLabel = (label, currentDate) => {
+    if (view === "agenda") {
+      const startOfWeek = moment(currentDate).startOf("isoWeek");
+      const endOfWeek = moment(currentDate).endOf("isoWeek");
+      return `${startOfWeek.format("DD/MM/YYYY")} – ${endOfWeek.format("DD/MM/YYYY")}`;
+    }
+    return label;
+  };
 
-function LegendDot({ label, className }) {
-  return (
-    <div className="flex items-center gap-2">
-      <div className={`w-6 h-3 bg-gradient-to-r ${className} rounded-full`} />
-      <span className="text-xs text-gray-600">{label}</span>
-    </div>
-  );
-}
+  const formattedLabel = formatAgendaLabel(label, date);
 
-function CustomToolbar({ label, onNavigate, onView, view, themeColors }) {
+  const handlePrev = () => {
+    let newDate = moment(date);
+    if (view === "day") newDate = newDate.subtract(1, "day");
+    else if (view === "week" || view === "agenda") newDate = newDate.subtract(1, "week");
+    setCurrentDate(newDate.toDate());
+    onNavigate("PREV");
+  };
+
+  const handleNext = () => {
+    let newDate = moment(date);
+    if (view === "day") newDate = newDate.add(1, "day");
+    else if (view === "week" || view === "agenda") newDate = newDate.add(1, "week");
+    setCurrentDate(newDate.toDate());
+    onNavigate("NEXT");
+  };
+
+  const handleToday = () => {
+    const today = new Date();
+    setCurrentDate(today);
+    onNavigate("TODAY");
+  };
+
   return (
     <div className="flex justify-between items-center px-6 py-3 bg-purple-50 border-b">
       <div className="flex gap-2">
         <button
-          onClick={() => onNavigate("TODAY")}
+          onClick={handleToday}
           className={`${themeColors.primary.base} ${themeColors.primary.text} px-4 py-2 rounded-full`}
         >
           Today
         </button>
-        <button
-          onClick={() => onNavigate("PREV")}
-          className="px-3 py-2 bg-gray-100 rounded-full"
-        >
+        <button onClick={handlePrev} className="px-3 py-2 bg-gray-100 rounded-full">
           ◀
         </button>
-        <button
-          onClick={() => onNavigate("NEXT")}
-          className="px-3 py-2 bg-gray-100 rounded-full"
-        >
+        <button onClick={handleNext} className="px-3 py-2 bg-gray-100 rounded-full">
           ▶
         </button>
       </div>
-      <h2 className="text-xl font-bold text-purple-700">{label}</h2>
+      <h2 className="text-xl font-bold text-purple-700">{formattedLabel}</h2>
       <div className="flex gap-2">
         {["day", "week", "agenda"].map((v) => (
           <button
@@ -398,32 +352,41 @@ function CustomToolbar({ label, onNavigate, onView, view, themeColors }) {
   );
 }
 
-function PreviewPanel({ session, isAdmin, currentUserId, deleteFn }) {
+function LegendDot({ label, className }) {
   return (
-    <div className="relative bg-white/70 p-8 rounded-2xl shadow-xl mb-6">
-      {(isAdmin || session.createdBy === currentUserId) && (
-        <button className={deleteBtnStyle} onClick={() => deleteFn(session.id)}>
-          🗑️
-        </button>
-      )}
-      <h2 className="text-3xl font-bold text-purple-800">{session.title}</h2>
-      <p className="text-gray-700">{session.description}</p>
-      <p className="mt-2">
-        <strong>🕒 </strong>
-        {session.start.toLocaleDateString("en-GB")} —{" "}
-        {session.start.toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}
-      </p>
-      {session.link && (
-        <div className="bg-blue-50 border-l-4 border-blue-300 p-3 mt-3 rounded">
-          <strong>🔗 Link: </strong>
-          <a className="text-blue-700 underline" href={session.link}>
-            {session.link}
-          </a>
-        </div>
-      )}
+    <div className="flex items-center gap-2">
+      <div className={`w-6 h-3 bg-gradient-to-r ${className} rounded-full`} />
+      <span className="text-xs text-gray-600">{label}</span>
+    </div>
+  );
+}
+
+function AgendaEventCard({ event }) {
+  const grad =
+    event.type === "online"
+      ? "from-sky-500 to-fuchsia-500"
+      : event.type === "offline"
+      ? "from-amber-400 to-orange-500"
+      : "from-pink-500 to-purple-600";
+  return (
+    <div
+      className={`flex flex-col gap-2 p-4 mx-auto min-w-[290px] max-w-[420px] rounded-2xl bg-gradient-to-br ${grad} shadow-xl text-white animate-fadeIn cursor-pointer`}
+      onClick={() => window.dispatchEvent(new CustomEvent("openEventDetails", { detail: event }))}
+    >
+      <div className="flex items-center gap-2">
+        <FaUser className="text-white text-lg" />
+        <span className="font-bold text-xl">{event.title}</span>
+      </div>
+      <div className="flex gap-3 flex-wrap text-xs mt-2">
+        <span>
+          <strong>{moment(event.start).format("DD/MM/YYYY")}</strong>
+        </span>
+        <span>
+          <strong>
+            {moment(event.start).format("hh:mm A")} - {moment(event.end).format("hh:mm A")}
+          </strong>
+        </span>
+      </div>
     </div>
   );
 }
@@ -448,13 +411,7 @@ function SessionTabs({ activeTab, setActiveTab }) {
   );
 }
 
-function SessionCards({
-  filteredSessions,
-  onDelete,
-  isAdmin,
-  currentUserId,
-  onPreview,
-}) {
+function SessionCards({ filteredSessions, onDelete, isAdmin, currentUserId, onPreview }) {
   return (
     <div className="bg-white p-6 rounded-2xl shadow-xl max-h-[50vh] overflow-y-auto">
       {filteredSessions.length === 0 ? (
@@ -482,10 +439,7 @@ function SessionCard({ session, onDelete, isAdmin, currentUserId, onPreview }) {
   return (
     <div className="relative bg-purple-50 p-5 rounded-xl shadow hover:scale-105 transition border-l-8 border-purple-300">
       {canDelete && (
-        <button
-          className="absolute right-3 top-3 text-red-600"
-          onClick={() => onDelete(session.id)}
-        >
+        <button className="absolute right-3 top-3 text-red-600" onClick={() => onDelete(session.id)}>
           🗑️
         </button>
       )}

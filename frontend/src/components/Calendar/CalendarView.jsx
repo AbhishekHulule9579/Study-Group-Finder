@@ -5,6 +5,7 @@ import "react-big-calendar/lib/css/react-big-calendar.css";
 import SessionCreateModal from "./SessionCreateModal";
 import EventDetailsModal from "./EventDetailsModal";
 import DateSessionsModal from "./DateSessionsModal";
+import EventContent from "./EventContent";
 import { motion, AnimatePresence } from "framer-motion";
 
 const localizer = momentLocalizer(moment);
@@ -18,14 +19,14 @@ export default function CalendarView() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState("month");
 
-  // Listen for event details open event
-  React.useEffect(() => {
+  useEffect(() => {
     const handleOpenEventDetails = (e) => {
       setSelectedEvent(e.detail);
-      setShowDateSessionsModal(false); // Close the date sessions modal when opening event details
+      setShowDateSessionsModal(false);
     };
-    window.addEventListener('openEventDetails', handleOpenEventDetails);
-    return () => window.removeEventListener('openEventDetails', handleOpenEventDetails);
+    window.addEventListener("openEventDetails", handleOpenEventDetails);
+    return () =>
+      window.removeEventListener("openEventDetails", handleOpenEventDetails);
   }, []);
 
   useEffect(() => {
@@ -45,7 +46,7 @@ export default function CalendarView() {
             description: e.description,
             start: moment.utc(e.startTime).local().toDate(),
             end: moment.utc(e.endTime).local().toDate(),
-            type: e.sessionType.toLowerCase(),
+            type: e.sessionType?.toLowerCase(),
             organizer: e.organizerName,
             link: e.meetingLink,
             passkey: e.passcode,
@@ -60,7 +61,6 @@ export default function CalendarView() {
         console.error("Error fetching events:", error);
       }
     };
-
     fetchEvents();
   }, []);
 
@@ -113,23 +113,43 @@ export default function CalendarView() {
     }
   };
 
+  const filteredEvents =
+    view === "agenda"
+      ? events.filter((event) => {
+          const eventDate = moment(event.start);
+          const start = moment(currentDate);
+          const end = moment(currentDate).add(6, "days");
+          return eventDate.isBetween(start, end, null, "[]");
+        })
+      : events;
+
   const eventStyleGetter = (event) => {
-    let backgroundColor = "#9b5de5"; // purple default
-    if (event.type === "group") backgroundColor = "#54C7E8"; // blue for group
-    if (event.type === "important") backgroundColor = "#FFD700"; // yellow for important
-    if (event.type === "online") backgroundColor = "#54C7E8"; // blue for online
-    if (event.type === "offline") backgroundColor = "#FFD700"; // yellow for offline
-    if (event.type === "hybrid") backgroundColor = "#F54CA7"; // pink for hybrid
+    let backgroundColor = "#9b5de5";
+    if (event.type === "group" || event.type === "online") backgroundColor = "#54C7E8";
+    if (event.type === "offline" || event.type === "important") backgroundColor = "#FFD700";
+    if (event.type === "hybrid") backgroundColor = "#F54CA7";
     return {
       style: {
         backgroundColor,
         borderRadius: "10px",
         color: "white",
         border: "none",
-        padding: "4px",
+        padding: "0",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1,
       },
     };
   };
+
+  const openDateModal = (value) => {
+    setSelectedDate(value);
+    setShowDateSessionsModal(true);
+  };
+
+  const isInCurrentMonth = (date, currentMonthDate) =>
+    moment(date).isSame(currentMonthDate, "month");
 
   return (
     <div className="min-h-screen bg-purple-50/50 p-6 relative">
@@ -147,7 +167,7 @@ export default function CalendarView() {
         <div className="h-[75vh] rounded-xl overflow-hidden">
           <Calendar
             localizer={localizer}
-            events={events}
+            events={filteredEvents}
             startAccessor="start"
             endAccessor="end"
             style={{ height: "100%" }}
@@ -156,29 +176,45 @@ export default function CalendarView() {
             onSelectEvent={handleSelectEvent}
             eventPropGetter={eventStyleGetter}
             date={currentDate}
-            onNavigate={(date) => setCurrentDate(date)}
             view={view}
-            onView={(v) => setView(v)}
+            onView={setView}
             views={["month", "agenda"]}
-            length={7}
             components={{
+              event: EventContent,
               dateCellWrapper: ({ children, value }) => {
-                const dayEvents = events.filter(event =>
-                  moment(event.start).isSame(value, 'day')
+                const dayEvents = events.filter((event) =>
+                  moment(event.start).isSame(value, "day")
                 );
                 const eventCount = dayEvents.length;
+
+                const isVisibleDay = isInCurrentMonth(value, currentDate);
+                if (!isVisibleDay)
+                  return <div className="relative overflow-hidden">{children}</div>;
+
                 return (
-                  <div className="relative">
+                  <div
+                    className="relative overflow-visible"
+                    style={{
+                      zIndex: 5,
+                      pointerEvents: "auto",
+                    }}
+                  >
                     {children}
-                    {eventCount > 0 && view === "month" && (
-                      <div className="absolute bottom-1 right-1 flex flex-wrap gap-1">
-                        {Array.from({ length: eventCount }).map((_, i) => (
-                          <div
-                            key={i}
-                            className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: "#9E2BF0" }}
-                          ></div>
-                        ))}
+                    {view === "month" && eventCount > 1 && (
+                      <div
+                        className="absolute bottom-[2px] left-1/2 transform -translate-x-1/2 cursor-pointer"
+                        style={{
+                          zIndex: 10,
+                          pointerEvents: "all",
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openDateModal(value);
+                        }}
+                      >
+                        <div className="bg-gradient-to-r from-purple-600 to-pink-500 w-6 h-6 rounded-full text-white text-xs flex items-center justify-center shadow-md hover:scale-110 transition-transform">
+                          +{eventCount - 1}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -190,28 +226,15 @@ export default function CalendarView() {
                   view={view}
                   onView={setView}
                   date={currentDate}
+                  setCurrentDate={setCurrentDate}
                 />
               ),
-              agenda: {
-                event: ({ event }) => (
-                  <div className="flex items-center justify-between p-3 border-b border-gray-200 hover:bg-gray-50">
-                    <div className="flex-1">
-                      <div className="font-semibold text-gray-800 mb-1">{event.title}</div>
-                      <div className="text-sm text-gray-600 mb-1">
-                        {moment(event.start).format('DD/MM/YYYY')} • {moment(event.start).format('h:mm A')} - {moment(event.end).format('h:mm A')}
-                      </div>
-                      <div className="text-sm font-medium text-purple-600">{event.courseName}</div>
-                      <div className="text-sm text-gray-500">{event.groupName}</div>
-                    </div>
-                  </div>
-                ),
-              },
             }}
           />
         </div>
       </div>
 
-      {/* 🟣 Floating Add Session Button (FAB) */}
+      {/* 🟣 Floating Add Session Button */}
       <motion.button
         onClick={() => setShowCreateModal(true)}
         className="fixed bottom-10 right-10 bg-gradient-to-r from-purple-600 to-orange-500 text-white text-3xl w-16 h-16 rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-transform z-50"
@@ -224,12 +247,7 @@ export default function CalendarView() {
       {/* Modals */}
       <AnimatePresence>
         {showCreateModal && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ duration: 0.2 }}
-          >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <SessionCreateModal
               onClose={() => setShowCreateModal(false)}
               onCreate={handleAddEvent}
@@ -238,26 +256,13 @@ export default function CalendarView() {
         )}
 
         {selectedEvent && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.2 }}
-          >
-            <EventDetailsModal
-              event={selectedEvent}
-              onClose={() => setSelectedEvent(null)}
-            />
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <EventDetailsModal event={selectedEvent} onClose={() => setSelectedEvent(null)} />
           </motion.div>
         )}
 
         {showDateSessionsModal && selectedDate && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ duration: 0.2 }}
-          >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <DateSessionsModal
               selectedDate={selectedDate}
               events={events}
@@ -270,40 +275,58 @@ export default function CalendarView() {
   );
 }
 
-/* ---- Custom Toolbar ---- */
-function CustomToolbar({ label, onNavigate, onView, view, date }) {
-  // Format label for agenda view to DD/MM/YYYY format
+/* ---- ✅ Toolbar ---- */
+function CustomToolbar({ label, onNavigate, onView, view, date, setCurrentDate }) {
   const formatAgendaLabel = (label, currentDate) => {
     if (view === "agenda") {
-      const startOfWeek = moment(currentDate);
-      const endOfWeek = moment(currentDate).add(6, 'days');
-      const startFormatted = startOfWeek.format('DD/MM/YYYY');
-      const endFormatted = endOfWeek.format('DD/MM/YYYY');
-      return `${startFormatted} – ${endFormatted}`;
+      const startOfWeek = moment(currentDate).startOf("isoWeek");
+      const endOfWeek = moment(currentDate).endOf("isoWeek");
+      return `${startOfWeek.format("DD/MM/YYYY")} – ${endOfWeek.format("DD/MM/YYYY")}`;
     }
     return label;
   };
 
   const formattedLabel = formatAgendaLabel(label, date);
 
+  const handlePrev = () => {
+    let newDate = moment(date);
+    if (view === "month") newDate = newDate.subtract(1, "month");
+    else if (view === "agenda") newDate = newDate.subtract(1, "week");
+    setCurrentDate(newDate.toDate());
+    onNavigate("PREV");
+  };
+
+  const handleNext = () => {
+    let newDate = moment(date);
+    if (view === "month") newDate = newDate.add(1, "month");
+    else if (view === "agenda") newDate = newDate.add(1, "week");
+    setCurrentDate(newDate.toDate());
+    onNavigate("NEXT");
+  };
+
+  const handleToday = () => {
+    const today = new Date();
+    setCurrentDate(today);
+    onNavigate("TODAY");
+  };
+
   return (
     <div className="flex flex-wrap justify-between items-center px-6 py-3 border-b border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50">
-      {/* Navigation */}
       <div className="flex items-center gap-2">
         <button
-          onClick={() => onNavigate("TODAY")}
+          onClick={handleToday}
           className="px-4 py-2 rounded-full text-sm font-semibold bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 text-white transition"
         >
           Today
         </button>
         <button
-          onClick={() => onNavigate("PREV")}
+          onClick={handlePrev}
           className="px-3 py-2 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 font-bold transition"
         >
           ◀
         </button>
         <button
-          onClick={() => onNavigate("NEXT")}
+          onClick={handleNext}
           className="px-3 py-2 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 font-bold transition"
         >
           ▶
@@ -312,7 +335,6 @@ function CustomToolbar({ label, onNavigate, onView, view, date }) {
 
       <h3 className="text-xl font-bold text-purple-700">{formattedLabel}</h3>
 
-      {/* View Buttons */}
       <div className="flex gap-2">
         {["month", "agenda"].map((v) => (
           <button

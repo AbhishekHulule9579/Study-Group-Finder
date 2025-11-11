@@ -19,8 +19,9 @@ export default function SessionCreateModal({ groupId, onCreate, onClose }) {
   const [selectedGroup, setSelectedGroup] = useState("");
   const [isCreating, setIsCreating] = useState(false);
 
-  // Fetch courses on mount
+  // Fetch courses on mount only if groupId is not provided
   useEffect(() => {
+    if (groupId) return; // Skip fetching if groupId is provided
     const fetchCourses = async () => {
       const token = sessionStorage.getItem("token");
       if (!token) return;
@@ -37,11 +38,11 @@ export default function SessionCreateModal({ groupId, onCreate, onClose }) {
       }
     };
     fetchCourses();
-  }, []);
+  }, [groupId]);
 
-  // Fetch groups when course is selected
+  // Fetch groups when course is selected, only if groupId is not provided
   useEffect(() => {
-    if (!selectedCourse) {
+    if (groupId || !selectedCourse) {
       setGroups([]);
       setSelectedGroup("");
       return;
@@ -62,7 +63,7 @@ export default function SessionCreateModal({ groupId, onCreate, onClose }) {
       }
     };
     fetchGroups();
-  }, [selectedCourse]);
+  }, [selectedCourse, groupId]);
 
   // Helpers for date/time constraints
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -91,7 +92,11 @@ export default function SessionCreateModal({ groupId, onCreate, onClose }) {
     if (isCreating) return; // Prevent multiple clicks
 
     setError("");
-    if (!topic || !description || !selectedCourse || !selectedGroup || !date || !startTime || !endTime) {
+    const requiredFields = groupId
+      ? [topic, description, date, startTime, endTime]
+      : [topic, description, selectedCourse, selectedGroup, date, startTime, endTime];
+
+    if (requiredFields.some(field => !field)) {
       alert("Please fill all required fields.");
       return;
     }
@@ -129,7 +134,7 @@ export default function SessionCreateModal({ groupId, onCreate, onClose }) {
         meetingLink: sessionType !== "offline" ? meetingLink : undefined,
         passcode: sessionType !== "offline" ? passcode : undefined,
         location: sessionType !== "online" ? location : undefined,
-        groupId: selectedGroup,
+        groupId: groupId || selectedGroup,
       };
 
       if (onCreate) await onCreate(session);
@@ -206,44 +211,48 @@ export default function SessionCreateModal({ groupId, onCreate, onClose }) {
             />
           </div>
 
-          {/* Course Selection */}
-          <div>
-            <label className="block text-sm font-semibold text-purple-700 mb-1">
-              📚 Select Course *
-            </label>
-            <select
-              className="w-full px-4 py-3 rounded-xl border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition bg-white"
-              value={selectedCourse}
-              onChange={(e) => setSelectedCourse(e.target.value)}
-            >
-              <option value="">Select a course</option>
-              {courses.map((course) => (
-                <option key={course.courseId} value={course.courseId}>
-                  {course.courseName}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Course Selection - Only show if groupId is not provided */}
+          {!groupId && (
+            <div>
+              <label className="block text-sm font-semibold text-purple-700 mb-1">
+                📚 Select Course *
+              </label>
+              <select
+                className="w-full px-4 py-3 rounded-xl border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition bg-white"
+                value={selectedCourse}
+                onChange={(e) => setSelectedCourse(e.target.value)}
+              >
+                <option value="">Select a course</option>
+                {courses.map((course) => (
+                  <option key={course.courseId} value={course.courseId}>
+                    {course.courseName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
-          {/* Group Selection */}
-          <div>
-            <label className="block text-sm font-semibold text-purple-700 mb-1">
-              👥 Select Group *
-            </label>
-            <select
-              className="w-full px-4 py-3 rounded-xl border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition bg-white"
-              value={selectedGroup}
-              onChange={(e) => setSelectedGroup(e.target.value)}
-              disabled={!selectedCourse}
-            >
-              <option value="">Select a group</option>
-              {groups.map((group) => (
-                <option key={group.groupId} value={group.groupId}>
-                  {group.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Group Selection - Only show if groupId is not provided */}
+          {!groupId && (
+            <div>
+              <label className="block text-sm font-semibold text-purple-700 mb-1">
+                👥 Select Group *
+              </label>
+              <select
+                className="w-full px-4 py-3 rounded-xl border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition bg-white"
+                value={selectedGroup}
+                onChange={(e) => setSelectedGroup(e.target.value)}
+                disabled={!selectedCourse}
+              >
+                <option value="">Select a group</option>
+                {groups.map((group) => (
+                  <option key={group.groupId} value={group.groupId}>
+                    {group.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Organizer */}
           <div>

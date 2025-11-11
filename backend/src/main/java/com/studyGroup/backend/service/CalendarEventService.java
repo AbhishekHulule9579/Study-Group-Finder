@@ -111,7 +111,11 @@ public class CalendarEventService {
         event.setAssociatedGroup(group);
         event.setCreatedBy(user);
         event.setStatus(CalendarEvent.EventStatus.valueOf(eventDTO.getStatus().toUpperCase()));
+        event.setCreatedAt(LocalDateTime.now());
         event.setReminderSent(false);
+        event.setReminder10MinSent(false);
+        event.setReminder1MinSent(false);
+        event.setReminder1HourSent(false);
 
         CalendarEvent savedEvent = calendarEventRepository.save(event);
 
@@ -172,6 +176,9 @@ public class CalendarEventService {
 
         if (!Objects.equals(oldStart, event.getStartTime())) {
             event.setReminderSent(false);
+            event.setReminder10MinSent(false);
+            event.setReminder1MinSent(false);
+            event.setReminder1HourSent(false);
         }
 
         CalendarEvent updatedEvent = calendarEventRepository.save(event);
@@ -232,14 +239,12 @@ public class CalendarEventService {
         List<GroupMember> members = groupMemberRepository.findByGroup(event.getAssociatedGroup());
         String subject = "New Event Created: " + event.getTopic();
         for (GroupMember member : members) {
-            if (!member.getUser().getId().equals(creator.getId())) {
-                StringBuilder body = new StringBuilder();
-                body.append("Dear Group Member,\n\n");
-                body.append("A new event has been created in your group.\n\n");
-                body.append("Creator: ").append(creator.getName()).append("\n");
-                appendCommonEventLines(body, event);
-                emailService.sendEmail(member.getUser().getEmail(), subject, body.toString());
-            }
+            StringBuilder body = new StringBuilder();
+            body.append("Dear Group Member,\n\n");
+            body.append("A new event has been created in your group.\n\n");
+            body.append("Creator: ").append(creator.getName()).append("\n");
+            appendCommonEventLines(body, event);
+            emailService.sendEmail(member.getUser().getEmail(), subject, body.toString());
         }
     }
 
@@ -247,14 +252,12 @@ public class CalendarEventService {
         List<GroupMember> members = groupMemberRepository.findByGroup(event.getAssociatedGroup());
         String subject = "Event Cancelled: " + event.getTopic();
         for (GroupMember member : members) {
-            if (!member.getUser().getId().equals(canceller.getId())) {
-                StringBuilder body = new StringBuilder();
-                body.append("Dear Group Member,\n\n");
-                body.append("An event has been cancelled in your group.\n\n");
-                body.append("Cancelled By: ").append(canceller.getName()).append("\n");
-                appendCommonEventLines(body, event);
-                emailService.sendEmail(member.getUser().getEmail(), subject, body.toString());
-            }
+            StringBuilder body = new StringBuilder();
+            body.append("Dear Group Member,\n\n");
+            body.append("An event has been cancelled in your group.\n\n");
+            body.append("Cancelled By: ").append(canceller.getName()).append("\n");
+            appendCommonEventLines(body, event);
+            emailService.sendEmail(member.getUser().getEmail(), subject, body.toString());
         }
     }
 
@@ -263,30 +266,54 @@ public class CalendarEventService {
     @Transactional
     public void sendReminderEmails() {
         LocalDateTime nowUtc = ZonedDateTime.now(UTC).toLocalDateTime();
+        LocalDateTime tenMinutesLaterUtc = nowUtc.plusMinutes(10);
         LocalDateTime oneHourLaterUtc = nowUtc.plusHours(1);
 
+        // Fetch events starting within 1 hour
         List<CalendarEvent> upcomingEvents =
                 calendarEventRepository.findByStartTimeBetween(nowUtc, oneHourLaterUtc);
 
         for (CalendarEvent event : upcomingEvents) {
-            if (Boolean.TRUE.equals(event.getReminderSent())) continue;
+            LocalDateTime createdAt = event.getCreatedAt();
+            if (createdAt == null) continue; // Skip if no createdAt (legacy events)
 
-            List<GroupMember> members = groupMemberRepository.findByGroup(event.getAssociatedGroup());
-            String subject = "Reminder: Event Starting Soon - " + event.getTopic();
-            StringBuilder base = new StringBuilder();
-            base.append("Dear Group Member,\n\n");
-            base.append("This is a reminder that an event in your group is starting in less than 1 hour.\n\n");
-            appendCommonEventLines(base, event);
-            String body = base.toString();
+            long minutesSinceCreation = java.time.Duration.between(createdAt, nowUtc).toMinutes();
 
-            for (GroupMember member : members) {
-                emailService.sendEmail(member.getUser().getEmail(), subject, body);
+            // Determine which reminder to send based on creation time
+            if (minutesSinceCreation < 60) { // Created less than 1 hour ago
+                if (minutesSinceCreation < 10) { // Created less than 10 minutes ago
+                    if (Boolean.TRUE.equals(event.getReminder1MinSent())) continue;
+                    sendReminderEmail(event, "1 minute");
+                    event.setReminder1MinSent(true);
+                } else {
+                    if (Boolean.TRUE.equals(event.getReminder10MinSent())) continue;
+                    sendReminderEmail(event, "10 minutes");
+                    event.setReminder10MinSent(true);
+                }
+            } else { // Created 1 hour or more ago
+                if (Boolean.TRUE.equals(event.getReminder1HourSent())) continue;
+                sendReminderEmail(event, "1 hour");
+                event.setReminder1HourSent(true);
             }
 
-            event.setReminderSent(true);
             calendarEventRepository.save(event);
-            System.out.println("[Reminder] Email sent for event: " + event.getTopic());
         }
+    }
+
+    private void sendReminderEmail(CalendarEvent event, String timeFrame) {
+        List<GroupMember> members = groupMemberRepository.findByGroup(event.getAssociatedGroup());
+        String subject = "Reminder: Event Starting in " + timeFrame + " - " + event.getTopic();
+        StringBuilder base = new StringBuilder();
+        base.append("Dear Group Member,\n\n");
+        base.append("This is a reminder that an event in your group is starting in less than ").append(timeFrame).append(".\n\n");
+        appendCommonEventLines(base, event);
+        String body = base.toString();
+
+        for (GroupMember member : members) {
+            emailService.sendEmail(member.getUser().getEmail(), subject, body);
+        }
+
+        System.out.println("[Reminder] " + timeFrame + " email sent for event: " + event.getTopic());
     }
 
     public List<CalendarEventDTO> getUpcomingEventsForUser(User user) {

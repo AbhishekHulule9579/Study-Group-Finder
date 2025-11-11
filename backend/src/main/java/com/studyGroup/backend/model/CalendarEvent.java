@@ -67,6 +67,18 @@ public class CalendarEvent {
     @Column(nullable = false)
     private EventStatus status = EventStatus.ONGOING;
 
+    @Column(name = "created_at", nullable = true)
+    private LocalDateTime createdAt;
+
     @Column(name = "reminder_sent")
     private Boolean reminderSent = false;
+
+    @Column(name = "reminder_10_min_sent")
+    private Boolean reminder10MinSent = false;
+
+    @Column(name = "reminder_1_min_sent")
+    private Boolean reminder1MinSent = false;
+
+    @Column(name = "reminder_1_hour_sent")
+    private Boolean reminder1HourSent = false;
 }

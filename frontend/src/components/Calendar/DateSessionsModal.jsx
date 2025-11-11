@@ -2,17 +2,20 @@ import React from "react";
 import moment from "moment";
 
 export default function DateSessionsModal({ selectedDate, events, onClose }) {
-  // Filter events for the selected date
-  const dayEvents = events.filter(event =>
-    moment(event.start).isSame(selectedDate, 'day')
-  ).sort((a, b) => moment(a.start).diff(moment(b.start)));
+  const dayEvents = React.useMemo(
+    () =>
+      events
+        .filter((event) => moment(event.start).isSame(selectedDate, "day"))
+        .sort((a, b) => moment(a.start).diff(moment(b.start))),
+    [selectedDate, events]
+  );
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn">
       <div className="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[80vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-purple-800">
-            Sessions on {moment(selectedDate).format('MMMM D, YYYY')}
+            Sessions on {moment(selectedDate).format("MMMM D, YYYY")}
           </h2>
           <button
             onClick={onClose}
@@ -31,11 +34,9 @@ export default function DateSessionsModal({ selectedDate, events, onClose }) {
             {dayEvents.map((event, index) => (
               <div
                 key={index}
-                className="p-4 rounded-xl bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 hover:shadow-lg transition"
+                className="p-4 rounded-xl bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 hover:shadow-lg transition cursor-pointer"
               >
-                <h3 className="font-bold text-lg text-purple-800 mb-2">
-                  {event.title}
-                </h3>
+                <h3 className="font-bold text-lg text-purple-800 mb-2">{event.title}</h3>
                 <p className="text-gray-700 mb-2">{event.description}</p>
                 <p className="text-purple-700 font-semibold mb-1">
                   👥 Group: <span className="font-normal">{event.groupName}</span>
@@ -47,9 +48,24 @@ export default function DateSessionsModal({ selectedDate, events, onClose }) {
                   👤 Organizer: <span className="font-normal">{event.organizer}</span>
                 </p>
                 <div className="text-sm text-gray-600 space-y-1">
-                  <p>🕒 {moment(event.start).format('h:mm A')} - {moment(event.end).format('h:mm A')}</p>
+                  <p>
+                    🕒 {moment(event.start).format("h:mm A")} -{" "}
+                    {moment(event.end).format("h:mm A")}
+                  </p>
                   {event.location && <p>📍 {event.location}</p>}
-                  {event.link && <p>🔗 <a href={event.link} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Meeting Link</a></p>}
+                  {event.link && (
+                    <p>
+                      🔗{" "}
+                      <a
+                        href={event.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 underline"
+                      >
+                        Meeting Link
+                      </a>
+                    </p>
+                  )}
                   {event.passkey && <p>🔑 Passkey: {event.passkey}</p>}
                 </div>
               </div>
