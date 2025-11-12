@@ -1,24 +1,42 @@
 import React, { useState, useEffect } from "react";
 import { Calendar, momentLocalizer } from "react-big-calendar";
-import { FaUser } from "react-icons/fa";
+import {
+  FaUser,
+  FaTrash,
+  FaVideo,
+  FaMapMarkerAlt,
+  FaUsers,
+} from "react-icons/fa";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
+// NOTE: I'm removing the EventContent import as it's not used in this file.
+// import EventContent from "./EventContent";
+
+// --- Modals (assuming they are in these locations) ---
 import SessionCreateModal from "./SessionCreateModal";
 import EventDetailsModal from "./EventDetailsModal";
-import EventContent from "./EventContent";
 
 const localizer = momentLocalizer(moment);
 
+// --- ✅ UPDATED: Consistent Theme Colors (Lighter) ---
 const themeColors = {
   primary: {
     base: "bg-gradient-to-r from-purple-600 to-pink-500",
     hover: "hover:from-purple-700 hover:to-pink-600",
     text: "text-white",
   },
+  gradients: {
+    // Replaced blue with a light indigo/purple
+    online: "bg-gradient-to-r from-indigo-500 to-purple-500",
+    // Lighter orange/pink
+    offline: "bg-gradient-to-r from-orange-500 to-pink-500",
+    // Main purple/pink
+    hybrid: "bg-gradient-to-r from-purple-600 to-pink-500",
+    default: "bg-gradient-to-r from-gray-500 to-gray-600",
+  },
 };
 
-const deleteBtnStyle =
-  "absolute left-1 top-1 z-20 bg-white/80 border border-white/60 shadow-lg text-red-600 px-2 py-1 rounded-full cursor-pointer hover:bg-red-100 transition transform hover:scale-110";
+// --- Main Sessions Page Component ---
 
 export default function SessionsPage({ userRole, groupId }) {
   const [sessions, setSessions] = useState([]);
@@ -39,11 +57,14 @@ export default function SessionsPage({ userRole, groupId }) {
       setSelectedEvent(e.detail);
     };
     window.addEventListener("openEventDetails", handleOpenEventDetails);
-    return () => window.removeEventListener("openEventDetails", handleOpenEventDetails);
+    return () =>
+      window.removeEventListener("openEventDetails", handleOpenEventDetails);
   }, []);
 
+  // Fetch user profile and sessions
   useEffect(() => {
     const fetchSessions = async () => {
+      setLoading(true);
       const token = sessionStorage.getItem("token");
       if (!token) {
         setError("No authentication token found.");
@@ -51,27 +72,36 @@ export default function SessionsPage({ userRole, groupId }) {
         return;
       }
       try {
-        const userResponse = await fetch("http://localhost:8145/api/user/profile", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        // Fetch user ID
+        const userResponse = await fetch(
+          "http://localhost:8145/api/user/profile",
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
         if (userResponse.ok) {
           const userData = await userResponse.json();
           setCurrentUserId(userData.id);
         }
 
-        const response = await fetch(`http://localhost:8145/api/calendar/events/group/${groupId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!response.ok) throw new Error(`Failed to fetch sessions: ${response.status}`);
+        // Fetch group sessions
+        const response = await fetch(
+          `http://localhost:8145/api/calendar/events/group/${groupId}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        if (!response.ok)
+          throw new Error(`Failed to fetch sessions: ${response.status}`);
 
         const events = await response.json();
         const formatted = events.map((e) => ({
           id: e.id,
           title: e.topic,
           description: e.description,
-          start: moment.utc(e.startTime).toDate(),
-          end: moment.utc(e.endTime).toDate(),
-          type: (e.sessionType || "").toLowerCase(),
+          start: moment.utc(e.startTime).local().toDate(), // Changed to local()
+          end: moment.utc(e.endTime).local().toDate(), // Changed to local()
+          type: (e.sessionType || "hybrid").toLowerCase(), // Default to hybrid if undefined
           organizer: e.organizerName,
           link: e.meetingLink,
           passkey: e.passcode,
@@ -89,57 +119,77 @@ export default function SessionsPage({ userRole, groupId }) {
   }, [groupId]);
 
   const now = new Date();
+
+  // --- Filter for the bottom card list ---
   const filteredSessions = sessions.filter((s) => {
-    if (activeTab === "ongoing") return s.start <= now && s.end >= now;
-    if (activeTab === "upcoming") return s.start > now;
-    if (activeTab === "previous") return s.end < now;
-    return true;
+    const start = moment(s.start);
+    const end = moment(s.end);
+    if (activeTab === "ongoing")
+      return start.isSameOrBefore(now) && end.isSameOrAfter(now);
+    if (activeTab === "upcoming") return start.isAfter(now);
+    if (activeTab === "previous") return end.isBefore(now);
+    return true; // Should not happen
   });
 
-  // Filter events for agenda view to show only current week
-  const filteredEvents =
+  // --- Filter for the Calendar/Agenda view ---
+  // ✅ FIXED: This filter logic now correctly checks for *any* overlap
+  const filteredEventsForCalendar =
     view === "agenda"
       ? sessions.filter((event) => {
-          const eventDate = moment(event.start);
           const weekStart = moment(currentDate).startOf("isoWeek");
           const weekEnd = moment(currentDate).endOf("isoWeek");
-          return eventDate.isBetween(weekStart, weekEnd, null, "[]");
+          const eventStart = moment(event.start);
+          const eventEnd = moment(event.end);
+          // Check for overlap: (StartA <= EndB) and (EndA >= StartB)
+          return (
+            eventStart.isSameOrBefore(weekEnd) &&
+            eventEnd.isSameOrAfter(weekStart)
+          );
         })
       : sessions;
+
+  // --- Event Handlers ---
 
   const handleAddSession = async (session) => {
     const token = sessionStorage.getItem("token");
     if (!token) return alert("No authentication token found.");
     try {
-      const response = await fetch("http://localhost:8145/api/calendar/events", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ ...session, groupId }),
-      });
-      if (!response.ok) throw new Error(`Failed to create session: ${response.status}`);
+      const response = await fetch(
+        "http://localhost:8145/api/calendar/events",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ ...session, groupId }),
+        }
+      );
+      if (!response.ok)
+        throw new Error(`Failed to create session: ${response.status}`);
 
       const created = await response.json();
       const newEvent = {
         id: created.id,
         title: created.topic,
         description: created.description,
-        start: moment.utc(created.startTime).toDate(),
-        end: moment.utc(created.endTime).toDate(),
-        type: created.sessionType?.toLowerCase(),
+        start: moment.utc(created.startTime).local().toDate(),
+        end: moment.utc(created.endTime).local().toDate(),
+        type: (created.sessionType || "hybrid").toLowerCase(),
         organizer: created.organizerName,
         link: created.meetingLink,
         passkey: created.passcode,
         location: created.location,
         createdBy: currentUserId,
-        isNew: true,
+        isNew: true, // For a potential 'glow' effect
       };
 
       setSessions((p) => [...p, newEvent]);
+      // Remove 'isNew' glow after animation
       setTimeout(() => {
-        setSessions((prev) => prev.map((e) => (e.id === newEvent.id ? { ...e, isNew: false } : e)));
+        setSessions((prev) =>
+          prev.map((e) => (e.id === newEvent.id ? { ...e, isNew: false } : e))
+        );
       }, 4000);
     } catch (err) {
       alert("Error creating session: " + err.message);
@@ -151,14 +201,20 @@ export default function SessionsPage({ userRole, groupId }) {
     if (!session) return;
     const canDelete = isAdmin || session.createdBy === currentUserId;
     if (!canDelete) return alert("No permission to delete this session.");
-    if (!window.confirm("Delete this session?")) return;
+
+    // Use a custom modal/confirm here later, window.confirm is bad practice
+    if (!window.confirm("Are you sure you want to delete this session?"))
+      return;
 
     const token = sessionStorage.getItem("token");
     try {
-      const response = await fetch(`http://localhost:8145/api/calendar/events/${sessionId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await fetch(
+        `http://localhost:8145/api/calendar/events/${sessionId}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       if (!response.ok) throw new Error(`Failed: ${response.status}`);
 
       setSessions((prev) => prev.filter((s) => s.id !== sessionId));
@@ -168,84 +224,95 @@ export default function SessionsPage({ userRole, groupId }) {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="p-6 text-purple-700 font-semibold">
+        Loading sessions...
+      </div>
+    );
+  }
+
+  if (error) {
+    return <div className="p-6 text-red-600 font-semibold">Error: {error}</div>;
+  }
+
   return (
-    <div className="flex flex-col min-h-screen w-full bg-gradient-to-br from-purple-100 via-pink-50 to-blue-100 p-6">
+    <div className="flex flex-col min-h-screen w-full bg-purple-50/50 p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-4xl font-extrabold text-purple-700">📅 Study Sessions</h1>
-        {isAdmin ? (
+        <h1 className="text-4xl font-extrabold text-gray-800">
+          📅 Study Sessions
+        </h1>
+        {isAdmin && (
           <button
-            className={`${themeColors.primary.base} ${themeColors.primary.text} px-6 py-2 rounded-full shadow-md transform hover:scale-105`}
+            className={`${themeColors.primary.base} ${themeColors.primary.text} ${themeColors.primary.hover} px-6 py-2 rounded-full shadow-lg shadow-purple-500/30 transform transition hover:scale-105`}
             onClick={() => setShowCreateModal(true)}
           >
             + Add Session
           </button>
-        ) : (
-          <span className="text-gray-500">View Only</span>
         )}
       </div>
 
-      {/* Calendar */}
+      {/* --- Calendar --- */}
       <div
-        className="bg-white rounded-2xl shadow-xl mb-6 overflow-auto max-h-[72vh] scrollbar-thin scrollbar-track-white scrollbar-thumb-purple-300"
+        className="bg-white rounded-2xl shadow-xl mb-6 overflow-hidden"
         style={{ minHeight: "600px" }}
       >
-        <div className="flex gap-4 p-4">
-          <LegendDot className="from-sky-500 to-fuchsia-500" label="Online" />
-          <LegendDot className="from-amber-400 to-orange-500" label="Offline" />
-          <LegendDot className="from-pink-500 to-purple-600" label="Hybrid" />
+        <div className="flex flex-wrap gap-4 p-4 border-b border-gray-200">
+          <LegendDot className={themeColors.gradients.online} label="Online" />
+          <LegendDot
+            className={themeColors.gradients.offline}
+            label="Offline"
+          />
+          <LegendDot className={themeColors.gradients.hybrid} label="Hybrid" />
         </div>
 
         <Calendar
           localizer={localizer}
-          events={filteredEvents}
+          events={filteredEventsForCalendar}
           startAccessor="start"
           endAccessor="end"
           view={view}
           onView={setView}
           date={currentDate}
-          defaultView="agenda"
+          onNavigate={(newDate) => setCurrentDate(newDate)}
+          defaultView="week" // Changed default to 'week' as 'agenda' is better for lists
           views={["day", "week", "agenda"]}
           style={{ height: "70vh" }}
           dayLayoutAlgorithm="no-overlap"
           step={30}
           timeslots={2}
           scrollToTime={new Date(1970, 1, 1, 9)}
-          slotPropGetter={() => ({
-            style: { minHeight: "42px" },
-          })}
           components={{
-            event: EventContent,
             toolbar: (props) => (
               <CustomToolbar
                 {...props}
                 view={view}
                 onView={setView}
-                themeColors={themeColors}
                 date={currentDate}
                 setCurrentDate={setCurrentDate}
               />
             ),
             agenda: {
+              // ✅ Tell RBC to use our new layout component
               event: AgendaEventCard,
+              // ✅ Add a container to remove the default table styling
+              list: AgendaListContainer,
             },
           }}
-          eventPropGetter={eventStyleGetter}
+          eventPropGetter={eventStyleGetter} // ✅ NEW "cool" event colors
           onSelectEvent={(e) => setSelectedEvent(e)}
         />
       </div>
 
-      {selectedEvent && <EventDetailsModal event={selectedEvent} onClose={() => setSelectedEvent(null)} />}
-
-      <SessionTabs activeTab={activeTab} setActiveTab={setActiveTab} />
-
-      <SessionCards
-        filteredSessions={filteredSessions}
-        onDelete={handleDeleteSession}
-        isAdmin={isAdmin}
-        currentUserId={currentUserId}
-        onPreview={setSelectedEvent}
-      />
-
+      {/* --- Modals --- */}
+      {selectedEvent && (
+        <EventDetailsModal
+          event={selectedEvent}
+          onClose={() => setSelectedEvent(null)}
+          // Pass delete func if you want delete from details modal
+          // onDelete={handleDeleteSession}
+        />
+      )}
       {showCreateModal && (
         <SessionCreateModal
           groupId={groupId}
@@ -253,51 +320,69 @@ export default function SessionsPage({ userRole, groupId }) {
           onClose={() => setShowCreateModal(false)}
         />
       )}
+
+      {/* --- Session Lists --- */}
+      <SessionTabs activeTab={activeTab} setActiveTab={setActiveTab} />
+
+      <SessionCards
+        activeTab={activeTab}
+        filteredSessions={filteredSessions}
+        onDelete={handleDeleteSession}
+        isAdmin={isAdmin}
+        currentUserId={currentUserId}
+        onPreview={setSelectedEvent} // Re-using setSelectedEvent is smart!
+      />
     </div>
   );
 }
 
-/* ✅ Fixed event background colors */
+//
+// --- Sub-Components (Consolidated & Restyled) ---
+//
+
+/* ✅ "Cool" Event Styling */
 function eventStyleGetter(event) {
-  let backgroundColor = "#9b5de5"; // Default purple
-  if (event.type === "online") backgroundColor = "#54C7E8"; // Blue
-  if (event.type === "offline") backgroundColor = "#FFD700"; // Yellow
-  if (event.type === "hybrid") backgroundColor = "#F54CA7"; // Pink
+  let gradient = themeColors.gradients.default;
+  if (event.type === "online") gradient = themeColors.gradients.online;
+  if (event.type === "offline") gradient = themeColors.gradients.offline;
+  if (event.type === "hybrid") gradient = themeColors.gradients.hybrid;
 
   return {
+    className: `
+      ${gradient} 
+      text-white p-1 rounded-lg border-2 border-white/50 shadow-md
+      flex items-center justify-center
+      text-xs font-semibold
+    `,
     style: {
-      backgroundColor,
-      color: "white",
-      borderRadius: "10px",
-      border: "none",
-      padding: "4px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      height: "100%",
-      width: "100%",
-      boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
+      // We use className for gradients, but style for overrides
     },
   };
 }
 
-/* --- Fixed Custom Toolbar --- */
-function CustomToolbar({ label, onNavigate, onView, view, themeColors, date, setCurrentDate }) {
-  const formatAgendaLabel = (label, currentDate) => {
+/* ✅ "Cool & Consistent" Toolbar */
+function CustomToolbar({
+  label,
+  onNavigate,
+  onView,
+  view,
+  date,
+  setCurrentDate,
+}) {
+  const formatAgendaLabel = () => {
     if (view === "agenda") {
-      const startOfWeek = moment(currentDate).startOf("isoWeek");
-      const endOfWeek = moment(currentDate).endOf("isoWeek");
-      return `${startOfWeek.format("DD/MM/YYYY")} – ${endOfWeek.format("DD/MM/YYYY")}`;
+      const s = moment(date).startOf("isoWeek").format("DD/MM/YYYY");
+      const e = moment(date).endOf("isoWeek").format("DD/MM/YYYY");
+      return `${s} – ${e}`;
     }
     return label;
   };
 
-  const formattedLabel = formatAgendaLabel(label, date);
-
   const handlePrev = () => {
     let newDate = moment(date);
     if (view === "day") newDate = newDate.subtract(1, "day");
-    else if (view === "week" || view === "agenda") newDate = newDate.subtract(1, "week");
+    else if (view === "week" || view === "agenda")
+      newDate = newDate.subtract(1, "week");
     setCurrentDate(newDate.toDate());
     onNavigate("PREV");
   };
@@ -305,7 +390,8 @@ function CustomToolbar({ label, onNavigate, onView, view, themeColors, date, set
   const handleNext = () => {
     let newDate = moment(date);
     if (view === "day") newDate = newDate.add(1, "day");
-    else if (view === "week" || view === "agenda") newDate = newDate.add(1, "week");
+    else if (view === "week" || view === "agenda")
+      newDate = newDate.add(1, "week");
     setCurrentDate(newDate.toDate());
     onNavigate("NEXT");
   };
@@ -317,34 +403,48 @@ function CustomToolbar({ label, onNavigate, onView, view, themeColors, date, set
   };
 
   return (
-    <div className="flex justify-between items-center px-6 py-3 bg-purple-50 border-b">
-      <div className="flex gap-2">
+    <div className="flex flex-wrap justify-between items-center gap-4 px-4 py-3 border-b border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50">
+      {/* LEFT: Nav buttons */}
+      <div className="flex items-center gap-2">
         <button
           onClick={handleToday}
-          className={`${themeColors.primary.base} ${themeColors.primary.text} px-4 py-2 rounded-full`}
+          className="px-4 py-2 rounded-md text-sm font-semibold bg-gradient-to-r from-purple-600 to-pink-500 text-white transition shadow-sm hover:shadow-md"
         >
           Today
         </button>
-        <button onClick={handlePrev} className="px-3 py-2 bg-gray-100 rounded-full">
+        <button
+          onClick={handlePrev}
+          className="px-3 py-2 rounded-md bg-white border border-gray-300 text-gray-700 font-bold hover:bg-gray-50 transition"
+        >
           ◀
         </button>
-        <button onClick={handleNext} className="px-3 py-2 bg-gray-100 rounded-full">
+        <button
+          onClick={handleNext}
+          className="px-3 py-2 rounded-md bg-white border border-gray-300 text-gray-700 font-bold hover:bg-gray-50 transition"
+        >
           ▶
         </button>
       </div>
-      <h2 className="text-xl font-bold text-purple-700">{formattedLabel}</h2>
-      <div className="flex gap-2">
+
+      {/* CENTER: Label */}
+      <h3 className="text-xl font-bold text-purple-700 order-first md:order-none">
+        {formatAgendaLabel()}
+      </h3>
+
+      {/* RIGHT: View Switcher */}
+      <div className="flex items-center p-1 bg-gray-100 rounded-lg space-x-1">
         {["day", "week", "agenda"].map((v) => (
           <button
             key={v}
             onClick={() => onView(v)}
-            className={`px-4 py-2 rounded-full ${
-              view === v
-                ? `${themeColors.primary.base} ${themeColors.primary.text}`
-                : "bg-gray-100 text-purple-700"
-            }`}
+            className={`flex-1 py-2 px-3 rounded-md text-sm font-semibold transition-all duration-300
+              ${
+                view === v
+                  ? "bg-gradient-to-r from-purple-600 to-pink-500 text-white shadow-md"
+                  : "text-gray-600 hover:bg-white"
+              }`}
           >
-            {v[0].toUpperCase() + v.slice(1)}
+            {v.charAt(0).toUpperCase() + v.slice(1)}
           </button>
         ))}
       </div>
@@ -352,70 +452,138 @@ function CustomToolbar({ label, onNavigate, onView, view, themeColors, date, set
   );
 }
 
+/* ✅ Restyled LegendDot */
 function LegendDot({ label, className }) {
   return (
     <div className="flex items-center gap-2">
-      <div className={`w-6 h-3 bg-gradient-to-r ${className} rounded-full`} />
-      <span className="text-xs text-gray-600">{label}</span>
+      <div className={`w-5 h-3 ${className} rounded-full shadow-sm`} />
+      <span className="text-sm text-gray-600">{label}</span>
     </div>
   );
 }
 
+/* ✅✅✅ --- NEW AGENDA LIST CONTAINER (Fixes Layout) --- ✅✅✅ */
+// This component replaces the default <table> wrapper
+function AgendaListContainer({ children }) {
+  return <div className="p-4 space-y-4">{children}</div>;
+}
+
+/* ✅✅✅ --- NEW "Cool & Neat" Agenda Card (Matches Screenshot) --- ✅✅✅ */
 function AgendaEventCard({ event }) {
-  const grad =
-    event.type === "online"
-      ? "from-sky-500 to-fuchsia-500"
-      : event.type === "offline"
-      ? "from-amber-400 to-orange-500"
-      : "from-pink-500 to-purple-600";
+  let gradient = themeColors.gradients.default;
+  if (event.type === "online") gradient = themeColors.gradients.online;
+  if (event.type === "offline") gradient = themeColors.gradients.offline;
+  if (event.type === "hybrid") gradient = themeColors.gradients.hybrid;
+
+  let icon = <FaUsers />;
+  if (event.type === "online") icon = <FaVideo />;
+  if (event.type === "offline") icon = <FaMapMarkerAlt />;
+
+  // This replaces the old "Split Block" card.
+  // It's one continuous card, matching your screenshot's layout.
   return (
     <div
-      className={`flex flex-col gap-2 p-4 mx-auto min-w-[290px] max-w-[420px] rounded-2xl bg-gradient-to-br ${grad} shadow-xl text-white animate-fadeIn cursor-pointer`}
-      onClick={() => window.dispatchEvent(new CustomEvent("openEventDetails", { detail: event }))}
+      className="flex w-full bg-white rounded-xl shadow-lg hover:shadow-xl transition-all overflow-hidden cursor-pointer border border-gray-200"
+      onClick={() =>
+        window.dispatchEvent(
+          new CustomEvent("openEventDetails", { detail: event })
+        )
+      }
     >
-      <div className="flex items-center gap-2">
-        <FaUser className="text-white text-lg" />
-        <span className="font-bold text-xl">{event.title}</span>
+      {/* === LEFT BLOCK (Time) === */}
+      <div
+        className={`flex-shrink-0 w-24 p-4 
+                        flex flex-col items-center justify-center 
+                        ${gradient} text-white`}
+      >
+        <div className="text-2xl font-bold tracking-tight">
+          {moment(event.start).format("hh:mm")}
+        </div>
+        <div className="text-lg font-medium opacity-90">
+          {moment(event.start).format("A")}
+        </div>
+        <div className="w-8 h-px bg-white/50 my-1" />
+        <div className="text-xs font-semibold opacity-90">
+          {moment(event.end).format("hh:mm A")}
+        </div>
       </div>
-      <div className="flex gap-3 flex-wrap text-xs mt-2">
-        <span>
-          <strong>{moment(event.start).format("DD/MM/YYYY")}</strong>
-        </span>
-        <span>
-          <strong>
-            {moment(event.start).format("hh:mm A")} - {moment(event.end).format("hh:mm A")}
-          </strong>
-        </span>
+
+      {/* === RIGHT BLOCK (Details) === */}
+      <div className="flex-grow p-4 min-w-0">
+        <div className="flex justify-between items-start">
+          <h4 className="font-bold text-gray-800 text-lg truncate pr-2">
+            {event.title}
+          </h4>
+          <span
+            className={`text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize ${gradient} bg-opacity-10 ${
+              event.type === "online"
+                ? "text-indigo-700"
+                : event.type === "offline"
+                ? "text-orange-700"
+                : "text-purple-700"
+            }`}
+          >
+            {event.type}
+          </span>
+        </div>
+
+        {/* --- Organizer --- */}
+        {event.organizer && (
+          <div className="text-gray-500 text-sm mt-3 flex items-center gap-2">
+            <FaUser className="text-gray-400" />
+            <span>{event.organizer}</span>
+          </div>
+        )}
+
+        {/* You can add more details here if needed, e.g., location */}
+        {event.type === "offline" && event.location && (
+          <div className="text-gray-500 text-sm mt-2 flex items-center gap-2">
+            <FaMapMarkerAlt className="text-gray-400" />
+            <span>{event.location}</span>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
+/* ✅ Restyled SessionTabs */
 function SessionTabs({ activeTab, setActiveTab }) {
   return (
-    <div className="flex justify-center gap-3 mb-4">
+    <div className="flex justify-center items-center p-1 bg-white rounded-lg space-x-2 mb-6 shadow-md max-w-md mx-auto">
       {["previous", "ongoing", "upcoming"].map((type) => (
         <button
           key={type}
           onClick={() => setActiveTab(type)}
-          className={`px-6 py-2 rounded-full font-semibold ${
-            activeTab === type
-              ? "bg-gradient-to-r from-purple-600 to-pink-500 text-white"
-              : "bg-white text-purple-700 border border-purple-200"
-          }`}
+          className={`w-full px-4 py-2 rounded-md text-sm font-semibold transition-all duration-300
+            ${
+              activeTab === type
+                ? "bg-gradient-to-r from-purple-600 to-pink-500 text-white shadow-md"
+                : "text-gray-600 hover:bg-gray-100"
+            }`}
         >
-          {type[0].toUpperCase() + type.slice(1)} Sessions
+          {type[0].toUpperCase() + type.slice(1)}
         </button>
       ))}
     </div>
   );
 }
 
-function SessionCards({ filteredSessions, onDelete, isAdmin, currentUserId, onPreview }) {
+/* ✅ Restyled SessionCards List */
+function SessionCards({
+  filteredSessions,
+  onDelete,
+  isAdmin,
+  currentUserId,
+  onPreview,
+  activeTab,
+}) {
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-xl max-h-[50vh] overflow-y-auto">
+    <div className="bg-white p-4 md:p-6 rounded-2xl shadow-xl min-h-[30vh] max-h-[60vh] overflow-y-auto">
       {filteredSessions.length === 0 ? (
-        <div className="text-gray-500 text-center">No sessions found.</div>
+        <div className="text-gray-500 text-center py-10">
+          No {activeTab} sessions found.
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredSessions.map((s) => (
@@ -434,23 +602,48 @@ function SessionCards({ filteredSessions, onDelete, isAdmin, currentUserId, onPr
   );
 }
 
+/* ✅ "Cool & Neat" Session Card */
 function SessionCard({ session, onDelete, isAdmin, currentUserId, onPreview }) {
   const canDelete = isAdmin || session.createdBy === currentUserId;
+
+  let gradient = themeColors.gradients.default;
+  if (session.type === "online") gradient = themeColors.gradients.online;
+  if (session.type === "offline") gradient = themeColors.gradients.offline;
+  if (session.type === "hybrid") gradient = themeColors.gradients.hybrid;
+
   return (
-    <div className="relative bg-purple-50 p-5 rounded-xl shadow hover:scale-105 transition border-l-8 border-purple-300">
+    <div className="relative bg-white p-5 rounded-xl shadow-lg hover:shadow-2xl transition-all border-l-4 border-transparent">
+      {/* Gradient accent bar */}
+      <div
+        className={`absolute top-0 left-0 bottom-0 w-1.5 ${gradient} rounded-l-xl`}
+      />
+
       {canDelete && (
-        <button className="absolute right-3 top-3 text-red-600" onClick={() => onDelete(session.id)}>
-          🗑️
+        <button
+          className="absolute right-3 top-3 text-gray-400 hover:text-red-500 hover:bg-red-100 rounded-full p-1.5 transition"
+          onClick={() => onDelete(session.id)}
+          title="Delete session"
+        >
+          <FaTrash />
         </button>
       )}
-      <h3 className="text-xl font-bold text-purple-800">{session.title}</h3>
-      <p className="text-gray-700">{session.description}</p>
-      <button
-        className="mt-3 px-4 py-2 rounded-full bg-gradient-to-r from-purple-600 to-pink-500 text-white"
-        onClick={onPreview}
-      >
-        Preview
-      </button>
+
+      <h3 className="text-xl font-bold text-gray-800 pr-8">{session.title}</h3>
+      <p className="text-gray-600 mt-2 text-sm h-16 overflow-hidden">
+        {session.description || "No description provided."}
+      </p>
+
+      <div className="mt-4 flex justify-between items-center">
+        <button
+          className="px-5 py-2 rounded-full text-sm font-semibold bg-gradient-to-r from-purple-600 to-pink-500 text-white shadow-md hover:scale-105 transition"
+          onClick={onPreview}
+        >
+          View Details
+        </button>
+        <span className="text-xs font-medium text-purple-700 bg-purple-100 px-3 py-1 rounded-full capitalize">
+          {session.type}
+        </span>
+      </div>
     </div>
   );
 }

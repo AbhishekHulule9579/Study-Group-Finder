@@ -1,47 +1,6 @@
 @import "tailwindcss";
-/* #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
-}
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
-}
-
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
-} */
-
+/* --- Custom Animations --- */
 .event-animate {
   animation: fadeSlideIn 0.35s ease-out;
 }
@@ -55,14 +14,46 @@
     transform: translateY(0) scale(1);
   }
 }
-/* Fix RBC forcing black text */
-.rbc-event,
-.rbc-event-content,
-.rbc-event-label {
-  color: white !important;
+
+/* --- React Big Calendar Customizations --- */
+
+/* ✅✅✅ THIS IS THE NEW, MORE POWERFUL FIX ✅✅✅
+  By adding .rbc-month-view, we make this rule 
+  more specific than the default, forcing it to apply.
+*/
+.rbc-month-view .rbc-event {
+  background-color: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  pointer-events: all !important;
 }
 
-/* Remove default blue event background */
-.rbc-event {
-  background: transparent !important;
+/* This rule handles the event text color.
+  We are overriding the 'white' you had earlier
+  so that our custom MonthEvent pill's text is visible.
+*/
+.rbc-event-content {
+  color: #1f2937 !important; /* This is dark gray */
+}
+
+/* Adds vertical lines between days in month view */
+.rbc-month-view .rbc-day-bg + .rbc-day-bg {
+  border-left: 1px solid #eeeeee;
+}
+
+/* Adds horizontal lines between weeks in month view */
+.rbc-month-row + .rbc-month-row {
+  border-top: 1px solid #eeeeee;
+}
+
+/* Styles the "+X more" link to match your theme */
+.rbc-show-more {
+  background-color: #f3e8ff !important; /* light-purple-100 */
+  color: #6b21a8 !important; /* purple-700 */
+  font-weight: 600 !important;
+  border-radius: 4px !important;
+  margin-top: 2px !important;
+}
+.rbc-show-more:hover {
+  background-color: #e9d5ff !important; /* purple-200 */
 }

@@ -1,3 +1,7 @@
+/* 1. CORRECT TAILWIND IMPORTS */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 @import "tailwindcss";
 /* :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
@@ -78,6 +82,36 @@ button:focus-visible {
   color: white !important;
   font-weight: 600;
 }
-.rbc-event {
-  border-radius: 8px !important;
+
+body .rbc-month-view .rbc-event {
+  background-color: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  pointer-events: all !important;
+  border-radius: 8px !important; /* Your rule is now here */
+}
+
+/* ✅ This rule makes your custom event pill's text visible */
+body .rbc-month-view .rbc-event-content {
+  color: #1f2937 !important; /* This is dark gray */
+}
+
+/* --- Vertical/Horizontal Lines --- */
+.rbc-month-view .rbc-day-bg + .rbc-day-bg {
+  border-left: 1px solid #eeeeee;
+}
+.rbc-month-row + .rbc-month-row {
+  border-top: 1px solid #eeeeee;
+}
+
+/* --- "+X More" Link Style --- */
+.rbc-show-more {
+  background-color: #f3e8ff !important; /* light-purple-100 */
+  color: #6b21a8 !important; /* purple-700 */
+  font-weight: 600 !important;
+  border-radius: 4px !important;
+  margin-top: 2px !important;
+}
+.rbc-show-more:hover {
+  background-color: #e9d5ff !important; /* purple-200 */
 }

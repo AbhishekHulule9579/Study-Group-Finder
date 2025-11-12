@@ -17,6 +17,7 @@ import GroupManagementPage from "./components/groups/GroupManagementPage.jsx";
 import QuickNavButton from "./components/QuickActionButton.jsx";
 import FloatingChatWindow from "./components/FloatingChatWindow";
 import GroupChat from "./components/groups/GroupChat";
+import NotificationsPage from "./components/NotificationsPage.jsx";
 
 // 🗓️ Calendar Import
 import CalendarView from "./components/Calendar/CalendarView.jsx";
@@ -144,6 +145,15 @@ const App = () => {
             element={
               <ProtectedRoute>
                 <GroupDetailPage openFloatingChat={openFloatingChat} />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/notifications"
+            element={
+              <ProtectedRoute>
+                <NotificationsPage />
               </ProtectedRoute>
             }
           />

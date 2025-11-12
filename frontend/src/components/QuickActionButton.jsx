@@ -196,6 +196,12 @@ const QuickActionButton = () => {
           <button className={btnClasses} onClick={() => quickNav("/dashboard")}>
             🏠 Dashboard
           </button>
+          <button
+            className={btnClasses}
+            onClick={() => quickNav("/notifications")}
+          >
+            🔔 Notifications
+          </button>
           <button className={btnClasses} onClick={() => quickNav("/profile")}>
             👤 Profile
           </button>
