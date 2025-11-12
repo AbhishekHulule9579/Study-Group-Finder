@@ -12,8 +12,11 @@ public class NotificationDTO {
 
     private Integer id;
     private Integer userId;
+    private String title;
     private String message;
     private String type;
     private Boolean isRead;
     private LocalDateTime createdAt;
+    private Long relatedEntityId;
+    private String relatedEntityType;
 }

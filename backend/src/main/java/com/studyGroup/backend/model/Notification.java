@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "notification")
+@Table(name = "notifications")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -31,6 +31,15 @@ public class Notification {
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "title")
+    private String title;
+
+    @Column(name = "related_entity_id")
+    private Long relatedEntityId;
+
+    @Column(name = "related_entity_type")
+    private String relatedEntityType;
 
     // Getters and Setters
     public Integer getId() {

@@ -49,24 +49,23 @@ export default function Dashboard() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const endpoints = [
-          "dashboard",
-          "users/profile",
-          "notifications/recent",
-          "calendar/upcoming",
-        ];
-
         const fetchWithAuth = (endpoint) =>
           fetch(`http://localhost:8145/api/${endpoint}`, {
             headers: { Authorization: `Bearer ${token}` },
           }).then((res) => (res.ok ? res.json() : null));
 
-        const [dashboard, user, notifications, calendar] = await Promise.all(
-          endpoints.map(fetchWithAuth)
-        );
+        // Fetch user first to get userId
+        const user = await fetchWithAuth("users/profile");
+        if (!user) throw new Error("Session expired. Please log in again.");
 
-        if (!dashboard || !user)
-          throw new Error("Session expired. Please log in again.");
+        // Now fetch others in parallel
+        const [dashboard, notifications, calendar] = await Promise.all([
+          fetchWithAuth("dashboard"),
+          fetchWithAuth(`notifications/user/${user.id}`),
+          fetchWithAuth("calendar/upcoming"),
+        ]);
+
+        if (!dashboard) throw new Error("Failed to load dashboard data.");
 
         setData({
           dashboard,

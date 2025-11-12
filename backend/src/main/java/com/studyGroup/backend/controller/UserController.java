@@ -167,18 +167,32 @@ public class UserController {
     @PostMapping("/signin")
     public ResponseEntity<?> signin(@RequestBody LoginRequest loginRequest) {
         String response = userService.validateCredentials(loginRequest.getEmail(), loginRequest.getPassword());
-        
+
         if (response.startsWith("404")) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Collections.singletonMap("message", "User not registered. Please register first."));
         }
-        if (response.startsWith("401")) { 
+        if (response.startsWith("401")) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Collections.singletonMap("message", "Invalid email or password."));
         }
 
         String token = response.substring(5);
-        return ResponseEntity.ok(Collections.singletonMap("token", token));
+        // Fetch user details for the response
+        User user = userService.getUserByEmail(loginRequest.getEmail()).orElse(null);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Collections.singletonMap("message", "User not found after authentication."));
+        }
+        Map<String, Object> responseBody = Map.of(
+            "token", token,
+            "user", Map.of(
+                "id", user.getId(),
+                "email", user.getEmail(),
+                "name", user.getName()
+            )
+        );
+        return ResponseEntity.ok(responseBody);
     }
     
     @GetMapping("/profile")

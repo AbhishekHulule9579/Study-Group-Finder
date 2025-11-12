@@ -81,7 +81,11 @@ export default function Login() {
       const data = await res.json();
 
       if (res.ok) {
-        sessionStorage.setItem("token", data.token);
+        // Persist auth for subsequent API/WebSocket calls
+        const token = data.token || data.jwt || data.accessToken;
+        const user = data.user || data.userDetails || data.profile || null;
+        if (token) sessionStorage.setItem("token", token);
+        if (user) sessionStorage.setItem("user", JSON.stringify(user));
         navigate("/dashboard");
       } else {
         if (res.status === 404) {

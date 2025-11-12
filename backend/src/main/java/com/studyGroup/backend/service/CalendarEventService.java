@@ -60,6 +60,9 @@ public class CalendarEventService {
     @Autowired
     private EmailService emailService;
 
+    @Autowired
+    private NotificationService notificationService;
+
     private CalendarEventDTO convertToDTO(CalendarEvent event) {
         User creator = event.getCreatedBy();
         UserSummaryDTO creatorDTO = new UserSummaryDTO(
@@ -119,7 +122,37 @@ public class CalendarEventService {
 
         CalendarEvent savedEvent = calendarEventRepository.save(event);
 
+        // Send emails (existing behavior)
         sendEventCreationEmail(savedEvent, user);
+
+        // In-app notifications for creator and all group members
+        List<GroupMember> members = groupMemberRepository.findByGroup(savedEvent.getAssociatedGroup());
+        String groupName = savedEvent.getAssociatedGroup().getName();
+        String topic = savedEvent.getTopic();
+        Long eventId = savedEvent.getId();
+        String creatorName = user.getName();
+
+        // Creator
+        notificationService.createUpdateNotification(
+                user.getId(),
+                "New session created",
+                "You created '" + topic + "' in '" + groupName + "'.",
+                eventId,
+                "CALENDAR_EVENT"
+        );
+        // Other members
+        for (GroupMember gm : members) {
+            Integer memberId = gm.getUser().getId();
+            if (!memberId.equals(user.getId())) {
+                notificationService.createUpdateNotification(
+                        memberId,
+                        "New session created",
+                        creatorName + " created '" + topic + "' in '" + groupName + "'.",
+                        eventId,
+                        "CALENDAR_EVENT"
+                );
+            }
+        }
 
         return convertToDTO(savedEvent);
     }
@@ -198,6 +231,19 @@ public class CalendarEventService {
         }
 
         sendEventCancellationEmail(event, user);
+
+        // In-app cancellation update for all members
+        List<GroupMember> members = groupMemberRepository.findByGroup(event.getAssociatedGroup());
+        for (GroupMember gm : members) {
+            notificationService.createUpdateNotification(
+                    gm.getUser().getId(),
+                    "Session canceled",
+                    "Update: '" + event.getTopic() + "' has been canceled in '" + event.getAssociatedGroup().getName() + "'.",
+                    event.getId(),
+                    "CALENDAR_EVENT"
+            );
+        }
+
         calendarEventRepository.delete(event);
     }
 
@@ -311,6 +357,14 @@ public class CalendarEventService {
 
         for (GroupMember member : members) {
             emailService.sendEmail(member.getUser().getEmail(), subject, body);
+            // In-app reminder notification
+            notificationService.createReminderNotification(
+                    member.getUser().getId(),
+                    "Upcoming session reminder",
+                    "Reminder: '" + event.getTopic() + "' starts at " + formatTimeRangeIST(event.getStartTime(), event.getEndTime()) + " in '" + event.getAssociatedGroup().getName() + "'.",
+                    event.getId(),
+                    "CALENDAR_EVENT"
+            );
         }
 
         System.out.println("[Reminder] " + timeFrame + " email sent for event: " + event.getTopic());

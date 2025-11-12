@@ -74,7 +74,7 @@ export default function SessionsPage({ userRole, groupId }) {
       try {
         // Fetch user ID
         const userResponse = await fetch(
-          "http://localhost:8145/api/user/profile",
+          "http://localhost:8145/api/users/profile",
           {
             headers: { Authorization: `Bearer ${token}` },
           }

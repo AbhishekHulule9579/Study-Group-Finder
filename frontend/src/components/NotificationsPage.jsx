@@ -1,8 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
+import SockJS from "sockjs-client";
+import { Stomp } from "@stomp/stompjs";
+import {
+  getAllNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+  mapNotificationToUI,
+} from "../services/NotificationService";
 
-// Demo data for different tabs
+// Static demo fallback (used only if API not available)
 const demoNotifications = [
   {
     id: 1,
@@ -48,17 +56,70 @@ const demoNotifications = [
 
 const tabs = ["All", "Invites", "Reminders", "Updates"];
 
-export default function NotificationsPage({
-  notifications: initialNotifications,
-}) {
+export default function NotificationsPage({ notifications: initialNotifications }) {
   const [selectedTab, setSelectedTab] = useState("All");
-
-  // Manage the list in state to allow marking as read
   const [notifications, setNotifications] = useState(
     initialNotifications && initialNotifications.length > 0
       ? initialNotifications
-      : demoNotifications
+      : []
   );
+  const stompRef = useRef(null);
+  const userJson = sessionStorage.getItem("user");
+  const currentUser = userJson ? JSON.parse(userJson) : null;
+
+  // Load from API on mount
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      try {
+        if (!currentUser?.id) {
+          setNotifications([]);
+          return;
+        }
+        const list = await getAllNotifications(currentUser.id);
+        if (!mounted) return;
+        setNotifications(list.map(mapNotificationToUI));
+      } catch (e) {
+        // no demo fallback; show empty-state only
+        setNotifications([]);
+      }
+    }
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // WebSocket subscription for real-time
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    const token = sessionStorage.getItem("token");
+    let stomp = null;
+    try {
+      const socket = new SockJS("http://localhost:8145/ws");
+      stomp = Stomp.over(() => socket);
+      stomp.debug = () => {};
+      stomp.connect(
+        { Authorization: `Bearer ${token}` },
+        () => {
+          stompRef.current = stomp;
+          stomp.subscribe(`/queue/notifications/${currentUser.id}`, (msg) => {
+            try {
+              const payload = JSON.parse(msg.body);
+              const item = mapNotificationToUI(payload);
+              setNotifications((prev) => [item, ...prev]);
+            } catch {}
+          });
+        },
+        () => {}
+      );
+    } catch {}
+    return () => {
+      try {
+        if (stomp) stomp.disconnect();
+      } catch {}
+    };
+  }, [currentUser?.id]);
 
   // Filter based on tab
   const filteredNotifications =
@@ -68,15 +129,18 @@ export default function NotificationsPage({
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
-  // --- Handlers for Interactivity ---
-
-  const handleMarkAsRead = (id) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-    );
+  // Handlers
+  const handleMarkAsRead = async (id) => {
+    try {
+      await markNotificationRead(id);
+    } catch {}
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
   };
 
-  const handleMarkAllAsRead = () => {
+  const handleMarkAllAsRead = async () => {
+    try {
+      if (currentUser?.id) await markAllNotificationsRead(currentUser.id);
+    } catch {}
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
   };
 
