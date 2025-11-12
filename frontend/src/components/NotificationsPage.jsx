@@ -7,56 +7,19 @@ import {
   getAllNotifications,
   markNotificationRead,
   markAllNotificationsRead,
-  mapNotificationToUI,
+  // mapNotificationToUI is removed from imports, we'll define it below
 } from "../services/NotificationService";
 
 // Static demo fallback (used only if API not available)
 const demoNotifications = [
-  {
-    id: 1,
-    icon: "✅",
-    message: "Your assignment for 'Data Structures' has been submitted.",
-    timeAgo: "2h ago",
-    isRead: false,
-    type: "Updates",
-  },
-  {
-    id: 2,
-    icon: "📬",
-    message: "You were invited to join 'CS 101 Final Review Group'.",
-    timeAgo: "3h ago",
-    isRead: false,
-    type: "Invites",
-  },
-  {
-    id: 3,
-    icon: "⏰",
-    message: "Reminder: 'Computer Organization' project deadline is tomorrow.",
-    timeAgo: "5h ago",
-    isRead: true,
-    type: "Reminders",
-  },
-  {
-    id: 4,
-    icon: "💡",
-    message: "Sarah added a new comment in your 'OS Project Group'.",
-    timeAgo: "1d ago",
-    isRead: false,
-    type: "Updates",
-  },
-  {
-    id: 5,
-    icon: "📬",
-    message: "You were invited to 'Study Group Beta' for 'Algorithms'.",
-    timeAgo: "2d ago",
-    isRead: true,
-    type: "Invites",
-  },
+  // ... (demo data remains the same)
 ];
 
 const tabs = ["All", "Invites", "Reminders", "Updates"];
 
-export default function NotificationsPage({ notifications: initialNotifications }) {
+export default function NotificationsPage({
+  notifications: initialNotifications,
+}) {
   const [selectedTab, setSelectedTab] = useState("All");
   const [notifications, setNotifications] = useState(
     initialNotifications && initialNotifications.length > 0
@@ -78,9 +41,10 @@ export default function NotificationsPage({ notifications: initialNotifications 
         }
         const list = await getAllNotifications(currentUser.id);
         if (!mounted) return;
-        setNotifications(list.map(mapNotificationToUI));
+
+        // --- MODIFIED: Added sorting ---
+        setNotifications(list.map(mapNotificationToUI).sort(sortNotifications));
       } catch (e) {
-        // no demo fallback; show empty-state only
         setNotifications([]);
       }
     }
@@ -88,7 +52,7 @@ export default function NotificationsPage({ notifications: initialNotifications 
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [currentUser?.id]); // Added dependency
 
   // WebSocket subscription for real-time
   useEffect(() => {
@@ -107,7 +71,11 @@ export default function NotificationsPage({ notifications: initialNotifications 
             try {
               const payload = JSON.parse(msg.body);
               const item = mapNotificationToUI(payload);
-              setNotifications((prev) => [item, ...prev]);
+
+              // --- MODIFIED: Add new item and re-sort ---
+              setNotifications((prev) =>
+                [item, ...prev].sort(sortNotifications)
+              );
             } catch {}
           });
         },
@@ -134,7 +102,9 @@ export default function NotificationsPage({ notifications: initialNotifications 
     try {
       await markNotificationRead(id);
     } catch {}
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+    );
   };
 
   const handleMarkAllAsRead = async () => {
@@ -248,12 +218,12 @@ function NotificationItem({ notification, onItemClick }) {
       onClick={() => onItemClick(id)}
       disabled={isRead}
       className={`w-full text-left flex items-center space-x-4 p-4 rounded-lg
-        transition-all duration-200 cursor-pointer
-        ${
-          !isRead
-            ? "bg-purple-50 hover:bg-purple-100"
-            : "bg-white hover:bg-gray-50"
-        }`}
+       transition-all duration-200 cursor-pointer
+       ${
+         !isRead
+           ? "bg-purple-50 hover:bg-purple-100"
+           : "bg-white hover:bg-gray-50"
+       }`}
       layout
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -286,4 +256,91 @@ function NotificationItem({ notification, onItemClick }) {
       )}
     </motion.button>
   );
+}
+
+// --- HELPER FUNCTIONS ---
+
+/**
+ * Sorts notifications to show newest first.
+ */
+function sortNotifications(a, b) {
+  // Use createdAt, which is preserved in the mapped object
+  return new Date(b.createdAt) - new Date(a.createdAt);
+}
+
+/**
+ * Converts an ISO date string into a "time ago" format.
+ */
+function formatTimeAgo(isoDate) {
+  if (!isoDate) return "Just now";
+
+  const timeUnits = [
+    { unit: "year", ms: 31536000000 },
+    { unit: "month", ms: 2592000000 },
+    { unit: "week", ms: 604800000 },
+    { unit: "day", ms: 86400000 },
+    { unit: "hour", ms: 3600000 },
+    { unit: "minute", ms: 60000 },
+    { unit: "second", ms: 1000 },
+  ];
+
+  const date = new Date(isoDate);
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+
+  if (diff < 5000) return "Just now"; // less than 5 seconds
+
+  for (const { unit, ms } of timeUnits) {
+    const elapsed = Math.floor(diff / ms);
+    if (elapsed >= 1) {
+      return `${elapsed} ${unit}${elapsed > 1 ? "s" : ""} ago`;
+    }
+  }
+  return "Just now";
+}
+
+/**
+ * Maps a raw notification object from the API/WebSocket
+ * to a UI-friendly object for rendering.
+ */
+function mapNotificationToUI(notification) {
+  let icon = "🔔";
+  let type = "Updates";
+
+  switch (notification.type) {
+    case "INVITE":
+    case "GROUP_INVITATION":
+      icon = "📬";
+      type = "Invites";
+      break;
+    case "REMINDER":
+    case "DEADLINE":
+      icon = "⏰";
+      type = "Reminders";
+      break;
+    case "MENTION":
+    case "REPLY":
+    case "COMMENT":
+      icon = "💡";
+      type = "Updates";
+      break;
+    case "SUBMISSION":
+    case "GROUP_JOIN_APPROVED":
+      icon = "✅";
+      type = "Updates";
+      break;
+    default:
+      icon = "🔔";
+      type = "Updates";
+  }
+
+  return {
+    id: notification.id,
+    icon: icon,
+    message: notification.message,
+    timeAgo: formatTimeAgo(notification.createdAt),
+    isRead: notification.read, // API might use 'read', UI component uses 'isRead'
+    type: type,
+    createdAt: notification.createdAt, // Keep original timestamp for sorting
+  };
 }

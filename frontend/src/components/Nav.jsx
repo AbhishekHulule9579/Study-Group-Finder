@@ -104,8 +104,7 @@ const ProfileMenu = ({ userName, profilePic, handleLogout }) => {
   );
 };
 
-// --- 3. Notification Item (Copied from Dashboard) ---
-// This is the component that styles each notification in the dropdown
+// --- 3. Notification Item (Full version from NotificationsPage) ---
 function NotificationItem({ icon, message, timeAgo, isRead }) {
   return (
     <div
@@ -133,10 +132,11 @@ function NotificationItem({ icon, message, timeAgo, isRead }) {
   );
 }
 
-// --- 4. Notification Bell (MODIFIED - Now Dynamic) ---
+// --- 4. Notification Bell (Dynamic) ---
 const NotificationBell = ({ notifications, unreadCount }) => {
   const [isOpen, setIsOpen] = useState(false);
   const bellRef = useRef();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -147,6 +147,11 @@ const NotificationBell = ({ notifications, unreadCount }) => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const goToNotifications = () => {
+    setIsOpen(false);
+    navigate("/notifications");
+  };
 
   return (
     <div className="relative" ref={bellRef}>
@@ -183,7 +188,16 @@ const NotificationBell = ({ notifications, unreadCount }) => {
           <div className="font-bold p-4 border-b">Notifications</div>
           <div className="max-h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-purple-400">
             {notifications.length > 0 ? (
-              notifications.map((n) => <NotificationItem key={n.id} {...n} />)
+              // Use the full NotificationItem component
+              notifications.map((n) => (
+                <div
+                  key={n.id}
+                  onClick={goToNotifications}
+                  className="cursor-pointer"
+                >
+                  <NotificationItem {...n} />
+                </div>
+              ))
             ) : (
               <p className="p-4 text-center text-gray-500 text-sm">
                 No new notifications.
@@ -244,6 +258,7 @@ export default function Nav() {
 
   const handleLogout = useCallback(() => {
     sessionStorage.removeItem("token");
+    sessionStorage.removeItem("user"); // Also remove user data
     setIsLoggedIn(false);
     setUserName("User");
     setProfilePic(null);
@@ -275,23 +290,31 @@ export default function Nav() {
     }
 
     const fetchUserDataForNav = async () => {
+      let userData;
       try {
-        const [userRes, profileRes] = await Promise.all([
-          fetch("http://localhost:8145/api/users/profile", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch("http://localhost:8145/api/profile", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-        ]);
-
-        if (!userRes.ok) {
-          handleLogout();
-          return;
+        // Try getting user from session storage first
+        const storedUser = sessionStorage.getItem("user");
+        if (storedUser) {
+          userData = JSON.parse(storedUser);
+        } else {
+          // If not in session, fetch user profile
+          const userRes = await fetch(
+            "http://localhost:8145/api/users/profile",
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+          if (!userRes.ok) throw new Error("Failed to fetch user");
+          userData = await userRes.json();
+          sessionStorage.setItem("user", JSON.stringify(userData)); // Save user data
         }
 
-        const userData = await userRes.json();
         setUserName(userData.name || "User");
+
+        // Fetch profile pic (this might be separate)
+        const profileRes = await fetch("http://localhost:8145/api/profile", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
         if (profileRes.ok) {
           const profileData = await profileRes.json();
@@ -311,10 +334,18 @@ export default function Nav() {
           );
 
           if (notifRes.ok) {
-            const notifData = await notifRes.json();
+            const rawNotifData = await notifRes.json();
+
+            // --- Process notifications with timeAgo and sorting ---
+            const processedNotifications = rawNotifData
+              .map(mapNotificationToUI)
+              .sort(sortNotifications);
+
             // Show the 5 most recent in the dropdown
-            setNotifications(notifData.slice(0, 5));
-            setUnreadCount(notifData.filter((n) => !n.isRead).length);
+            setNotifications(processedNotifications.slice(0, 5));
+            setUnreadCount(
+              processedNotifications.filter((n) => !n.isRead).length
+            );
           } else {
             console.error("Failed to fetch notifications for nav");
             setNotifications([]);
@@ -357,4 +388,93 @@ export default function Nav() {
       </div>
     </div>
   );
+}
+
+// --- HELPER FUNCTIONS (Copied from NotificationsPage) ---
+
+/**
+ * Sorts notifications to show newest first.
+ */
+function sortNotifications(a, b) {
+  // Use createdAt, which is preserved in the mapped object
+  return new Date(b.createdAt) - new Date(a.createdAt);
+}
+
+/**
+ * Converts an ISO date string into a "time ago" format.
+ * @param {string} isoDate - The ISO 8601 timestamp string (e.g., from notification.createdAt)
+ */
+function formatTimeAgo(isoDate) {
+  if (!isoDate) return "Just now";
+
+  const timeUnits = [
+    { unit: "year", ms: 31536000000 },
+    { unit: "month", ms: 2592000000 },
+    { unit: "week", ms: 604800000 },
+    { unit: "day", ms: 86400000 },
+    { unit: "hour", ms: 3600000 },
+    { unit: "minute", ms: 60000 },
+    { unit: "second", ms: 1000 },
+  ];
+
+  const date = new Date(isoDate);
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+
+  if (diff < 5000) return "Just now"; // less than 5 seconds
+
+  for (const { unit, ms } of timeUnits) {
+    const elapsed = Math.floor(diff / ms);
+    if (elapsed >= 1) {
+      return `${elapsed} ${unit}${elapsed > 1 ? "s" : ""} ago`;
+    }
+  }
+  return "Just now";
+}
+
+/**
+ * Maps a raw notification object from the API/WebSocket
+ * to a UI-friendly object for rendering.
+ * @param {object} notification - The raw notification object.
+ */
+function mapNotificationToUI(notification) {
+  let icon = "🔔";
+  let type = "Updates"; // 'type' is for filtering on the main page, not used in nav
+
+  switch (notification.type) {
+    case "INVITE":
+    case "GROUP_INVITATION":
+      icon = "📬";
+      type = "Invites";
+      break;
+    case "REMINDER":
+    case "DEADLINE":
+      icon = "⏰";
+      type = "Reminders";
+      break;
+    case "MENTION":
+    case "REPLY":
+    case "COMMENT":
+      icon = "💡";
+      type = "Updates";
+      break;
+    case "SUBMISSION":
+    case "GROUP_JOIN_APPROVED":
+      icon = "✅";
+      type = "Updates";
+      break;
+    default:
+      icon = "🔔";
+      type = "Updates";
+  }
+
+  return {
+    id: notification.id,
+    icon: icon,
+    message: notification.message,
+    timeAgo: formatTimeAgo(notification.createdAt), // This is where the time is calculated
+    isRead: notification.read, // API uses 'read', UI component uses 'isRead'
+    type: type,
+    createdAt: notification.createdAt, // Keep original timestamp for sorting
+  };
 }
