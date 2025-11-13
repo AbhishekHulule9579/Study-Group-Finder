@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Calendar, momentLocalizer } from "react-big-calendar";
+import { Calendar, momentLocalizer, Views } from "react-big-calendar";
 import {
   FaUser,
   FaTrash,
@@ -131,23 +131,6 @@ export default function SessionsPage({ userRole, groupId }) {
     return true; // Should not happen
   });
 
-  // --- Filter for the Calendar/Agenda view ---
-  // ✅ FIXED: This filter logic now correctly checks for *any* overlap
-  const filteredEventsForCalendar =
-    view === "agenda"
-      ? sessions.filter((event) => {
-          const weekStart = moment(currentDate).startOf("isoWeek");
-          const weekEnd = moment(currentDate).endOf("isoWeek");
-          const eventStart = moment(event.start);
-          const eventEnd = moment(event.end);
-          // Check for overlap: (StartA <= EndB) and (EndA >= StartB)
-          return (
-            eventStart.isSameOrBefore(weekEnd) &&
-            eventEnd.isSameOrAfter(weekStart)
-          );
-        })
-      : sessions;
-
   // --- Event Handlers ---
 
   const handleAddSession = async (session) => {
@@ -268,20 +251,38 @@ export default function SessionsPage({ userRole, groupId }) {
 
         <Calendar
           localizer={localizer}
-          events={filteredEventsForCalendar}
+          events={sessions} // ✅ Pass all sessions, let the calendar filter them
           startAccessor="start"
           endAccessor="end"
           view={view}
-          onView={setView}
+          onView={(newView) => {
+            // ✅ FIX: When switching to agenda, snap date to the start of the week (Monday)
+            if (newView === "agenda") {
+              setCurrentDate(moment(currentDate).startOf("isoWeek").toDate());
+            }
+            setView(newView);
+          }}
           date={currentDate}
-          onNavigate={(newDate) => setCurrentDate(newDate)}
-          defaultView="week" // Changed default to 'week' as 'agenda' is better for lists
+          onNavigate={(newDate) => {
+            // ✅ FIX: When navigating, snap date to the start of the week (Monday) for agenda view
+            setCurrentDate(moment(newDate).startOf("isoWeek").toDate());
+          }}
+          defaultView="week"
+          // ✅ Use a simple array for views to ensure stability
           views={["day", "week", "agenda"]}
           style={{ height: "70vh" }}
           dayLayoutAlgorithm="no-overlap"
           step={30}
           timeslots={2}
           scrollToTime={new Date(1970, 1, 1, 9)}
+          // ✅ FIX: Use `formats` for agenda date formatting to avoid conflicts
+          formats={{
+            agendaHeaderFormat: ({ start, end }) => {
+              const s = moment(start).format("ddd MMM DD");
+              const e = moment(end).format("ddd MMM DD");
+              return `${s} – ${e}`;
+            },
+          }}
           components={{
             toolbar: (props) => (
               <CustomToolbar
@@ -289,16 +290,18 @@ export default function SessionsPage({ userRole, groupId }) {
                 view={view}
                 onView={setView}
                 date={currentDate}
-                setCurrentDate={setCurrentDate}
               />
             ),
+            // ✅ FIX: Pass a valid component to `agenda`. Config is moved.
             agenda: {
-              // ✅ Tell RBC to use our new layout component
               event: AgendaEventCard,
-              // ✅ Add a container to remove the default table styling
+              dateHeader: AgendaHeader, // ✅ ADDED: Custom sticky date header
               list: AgendaListContainer,
+              empty: AgendaEmpty, // ✅ ADDED: Custom empty state component
             },
           }}
+          // ✅ FIX: Pass agenda length here, outside of the components object
+          length={view === "agenda" ? 7 : undefined}
           eventPropGetter={eventStyleGetter} // ✅ NEW "cool" event colors
           onSelectEvent={(e) => setSelectedEvent(e)}
         />
@@ -367,38 +370,21 @@ function CustomToolbar({
   onView,
   view,
   date,
-  setCurrentDate,
 }) {
   const formatAgendaLabel = () => {
     if (view === "agenda") {
-      const s = moment(date).startOf("isoWeek").format("DD/MM/YYYY");
-      const e = moment(date).endOf("isoWeek").format("DD/MM/YYYY");
+      // The `label` prop for agenda view is a range string like "Mon Nov 03 – Sun Nov 09".
+      // We will parse it and reformat it to DD/MM/YYYY.
+      const [startStr, endStr] = label.split(" – ");
+      // Add the current year to parse correctly.
+      const s = moment(startStr, "ddd MMM DD").year(moment(date).year()).format("DD/MM/YYYY");
+      const e = moment(endStr, "ddd MMM DD").year(moment(date).year()).format("DD/MM/YYYY");
       return `${s} – ${e}`;
     }
     return label;
   };
 
-  const handlePrev = () => {
-    let newDate = moment(date);
-    if (view === "day") newDate = newDate.subtract(1, "day");
-    else if (view === "week" || view === "agenda")
-      newDate = newDate.subtract(1, "week");
-    setCurrentDate(newDate.toDate());
-    onNavigate("PREV");
-  };
-
-  const handleNext = () => {
-    let newDate = moment(date);
-    if (view === "day") newDate = newDate.add(1, "day");
-    else if (view === "week" || view === "agenda")
-      newDate = newDate.add(1, "week");
-    setCurrentDate(newDate.toDate());
-    onNavigate("NEXT");
-  };
-
   const handleToday = () => {
-    const today = new Date();
-    setCurrentDate(today);
     onNavigate("TODAY");
   };
 
@@ -413,13 +399,13 @@ function CustomToolbar({
           Today
         </button>
         <button
-          onClick={handlePrev}
+          onClick={() => onNavigate("PREV")}
           className="px-3 py-2 rounded-md bg-white border border-gray-300 text-gray-700 font-bold hover:bg-gray-50 transition"
         >
           ◀
         </button>
         <button
-          onClick={handleNext}
+          onClick={() => onNavigate("NEXT")}
           className="px-3 py-2 rounded-md bg-white border border-gray-300 text-gray-700 font-bold hover:bg-gray-50 transition"
         >
           ▶
@@ -543,6 +529,33 @@ function AgendaEventCard({ event }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ✅ Custom Sticky Agenda Date Header */
+function AgendaHeader({ label }) {
+  return (
+    <div className="sticky top-0 z-20 bg-gradient-to-r from-purple-700 to-pink-500 px-6 py-3 rounded-lg text-xl font-semibold text-white shadow mb-2 mt-6">
+      {label}
+    </div>
+  );
+}
+
+/* ✅ Custom Empty State for Agenda */
+function AgendaEmpty() {
+  return (
+    <div className="flex flex-col justify-center items-center text-center p-8 mt-8 min-h-[50vh]">
+      <img
+        src="/no-events.png"
+        alt="No events"
+        className="w-64 h-auto mb-6"
+      />
+      <h2 className="text-2xl font-bold text-gray-700">No Events This Week</h2>
+      <p className="text-gray-500 mt-2 max-w-md">
+        It looks like your schedule is clear. Enjoy the quiet time, or create a
+        new study session to get ahead!
+      </p>
     </div>
   );
 }

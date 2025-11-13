@@ -189,13 +189,13 @@ const NotificationBell = ({ notifications, unreadCount }) => {
           <div className="max-h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-purple-400">
             {notifications.length > 0 ? (
               // Use the full NotificationItem component
-              notifications.map((n) => (
+              notifications.slice(0, 5).map((n) => (
                 <div
                   key={n.id}
                   onClick={goToNotifications}
                   className="cursor-pointer"
                 >
-                  <NotificationItem {...n} />
+                  <NotificationItem {...mapNotificationToUI(n)} />
                 </div>
               ))
             ) : (
@@ -243,8 +243,7 @@ const NavLinks = ({ isLoggedIn }) => {
 };
 
 // --- 6. Main Nav Component (MODIFIED) ---
-export default function Nav() {
-  const navigate = useNavigate();
+export default function Nav({ notifications, unreadCount, onLogout }) {
   const location = useLocation();
   const [isLoggedIn, setIsLoggedIn] = useState(
     !!sessionStorage.getItem("token")
@@ -252,66 +251,29 @@ export default function Nav() {
   const [profilePic, setProfilePic] = useState(null);
   const [userName, setUserName] = useState("User");
 
-  // --- NEW STATE FOR NOTIFICATIONS ---
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-
   const handleLogout = useCallback(() => {
-    sessionStorage.removeItem("token");
-    sessionStorage.removeItem("user"); // Also remove user data
-    setIsLoggedIn(false);
-    setUserName("User");
-    setProfilePic(null);
-    setNotifications([]); // Clear notifications on logout
-    setUnreadCount(0);
-    if (location.pathname !== "/login") {
-      navigate("/login");
-    }
-  }, [navigate, location.pathname]);
+    onLogout();
+  }, [onLogout]);
 
   useEffect(() => {
     const token = sessionStorage.getItem("token");
     setIsLoggedIn(!!token);
 
-    const publicPages = [
-      "/",
-      "/about",
-      "/collab",
-      "/login",
-      "/signup",
-      "/forgot-password",
-    ];
-
-    if (publicPages.includes(location.pathname) || !token) {
-      // Clear notifications if on a public page or logged out
-      setNotifications([]);
-      setUnreadCount(0);
+    if (!token) {
+      setUserName("User");
+      setProfilePic(null);
       return;
     }
 
-    const fetchUserDataForNav = async () => {
-      let userData;
+    const fetchNavUserData = async () => {
       try {
-        // Try getting user from session storage first
         const storedUser = sessionStorage.getItem("user");
-        if (storedUser) {
-          userData = JSON.parse(storedUser);
-        } else {
-          // If not in session, fetch user profile
-          const userRes = await fetch(
-            "http://localhost:8145/api/users/profile",
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          );
-          if (!userRes.ok) throw new Error("Failed to fetch user");
-          userData = await userRes.json();
-          sessionStorage.setItem("user", JSON.stringify(userData)); // Save user data
-        }
-
+        const userData = storedUser
+          ? JSON.parse(storedUser)
+          : { name: "User" };
         setUserName(userData.name || "User");
 
-        // Fetch profile pic (this might be separate)
+        // This could be simplified if profile pic URL is in 'user' object
         const profileRes = await fetch("http://localhost:8145/api/profile", {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -322,45 +284,14 @@ export default function Nav() {
         } else {
           setProfilePic(null);
         }
-
-        // --- NEW NOTIFICATION FETCH ---
-        // Fetch notifications only after getting user data
-        if (userData.id) {
-          const notifRes = await fetch(
-            `http://localhost:8145/api/notifications/user/${userData.id}`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          );
-
-          if (notifRes.ok) {
-            const rawNotifData = await notifRes.json();
-
-            // --- Process notifications with timeAgo and sorting ---
-            const processedNotifications = rawNotifData
-              .map(mapNotificationToUI)
-              .sort(sortNotifications);
-
-            // Show the 5 most recent in the dropdown
-            setNotifications(processedNotifications.slice(0, 5));
-            setUnreadCount(
-              processedNotifications.filter((n) => !n.isRead).length
-            );
-          } else {
-            console.error("Failed to fetch notifications for nav");
-            setNotifications([]);
-            setUnreadCount(0);
-          }
-        }
-        // --- END NEW FETCH ---
       } catch (error) {
-        console.error("Failed to fetch user data for nav:", error);
-        handleLogout();
+        console.error("Failed to fetch nav user data:", error);
+        // Optional: handle token expiration
       }
     };
 
-    fetchUserDataForNav();
-  }, [location, handleLogout]); // location triggers re-fetch on page change
+    fetchNavUserData();
+  }, [location.pathname]); // Re-fetches user data on navigation
 
   return (
     <div className="w-full h-[9vh] bg-gradient-to-r from-purple-600 to-orange-500 flex items-center justify-between px-8 sticky top-0 z-50 shadow-md">
@@ -391,14 +322,6 @@ export default function Nav() {
 }
 
 // --- HELPER FUNCTIONS (Copied from NotificationsPage) ---
-
-/**
- * Sorts notifications to show newest first.
- */
-function sortNotifications(a, b) {
-  // Use createdAt, which is preserved in the mapped object
-  return new Date(b.createdAt) - new Date(a.createdAt);
-}
 
 /**
  * Converts an ISO date string into a "time ago" format.

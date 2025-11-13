@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Home from "./components/Home.jsx";
 import Nav from "./components/Nav.jsx";
 import Collab from "./components/Collab.jsx";
@@ -18,11 +18,12 @@ import QuickNavButton from "./components/QuickActionButton.jsx";
 import FloatingChatWindow from "./components/FloatingChatWindow";
 import GroupChat from "./components/groups/GroupChat";
 import NotificationsPage from "./components/NotificationsPage.jsx";
+import { getAllNotifications } from "./services/NotificationService.js"; // Import service
 
 // 🗓️ Calendar Import
 import CalendarView from "./components/Calendar/CalendarView.jsx";
 
-import { Route, Routes, Navigate, useLocation } from "react-router-dom";
+import { Route, Routes, Navigate, useLocation, useNavigate } from "react-router-dom";
 
 // ✅ Protected Route Component
 function ProtectedRoute({ children }) {
@@ -31,13 +32,17 @@ function ProtectedRoute({ children }) {
 }
 
 // ✅ Wrapper to hide QuickNavButton on login/signup pages
-function Layout({ children }) {
+function Layout({ children, notifications, unreadCount, onLogout }) {
   const location = useLocation();
   const hideOn = ["/login", "/signup", "/forgot-password"];
   const shouldHide = hideOn.includes(location.pathname);
   return (
     <>
-      <Nav />
+      <Nav
+        notifications={notifications}
+        unreadCount={unreadCount}
+        onLogout={onLogout}
+      />
       {!shouldHide && <QuickNavButton />} {/* 🟣 Floating button */}
       {children}
     </>
@@ -47,13 +52,54 @@ function Layout({ children }) {
 const App = () => {
   // Support multiple (array) floating chats
   const [floatingChats, setFloatingChats] = useState([]);
-  // floatingChats: array of { id, ...chatProps }
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const fetchNotifications = useCallback(async () => {
+    const token = sessionStorage.getItem("token");
+    const userJson = sessionStorage.getItem("user");
+    if (!token || !userJson) {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
+    try {
+      const user = JSON.parse(userJson);
+      if (user.id) {
+        const notifData = await getAllNotifications(user.id);
+        const sortedNotifs = notifData.sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+        );
+        setNotifications(sortedNotifs);
+        setUnreadCount(sortedNotifs.filter((n) => !n.read).length);
+      }
+    } catch (error) {
+      console.error("Failed to fetch notifications:", error);
+      setNotifications([]);
+      setUnreadCount(0);
+    }
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("user");
+    setNotifications([]);
+    setUnreadCount(0);
+    navigate("/login");
+  }, [navigate]);
+
+  useEffect(() => {
+    const publicPages = ["/login", "/signup", "/forgot-password", "/"];
+    if (!publicPages.includes(location.pathname)) {
+      fetchNotifications();
+    }
+  }, [location.pathname, fetchNotifications]);
 
   const openFloatingChat = (chatProps) => {
     setFloatingChats((prev) => {
-      // Avoid duplicate chat for same groupId
       if (prev.find((c) => c.groupId === chatProps.groupId)) return prev;
-      // Use custom id if needed, here groupId
       return [...prev, { ...chatProps, id: chatProps.groupId }];
     });
   };
@@ -64,7 +110,11 @@ const App = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Layout>
+      <Layout
+        notifications={notifications}
+        unreadCount={unreadCount}
+        onLogout={handleLogout}
+      >
         <Routes>
           {/* 🌍 Public Routes */}
           <Route path="/" element={<Home />} />
@@ -153,7 +203,10 @@ const App = () => {
             path="/notifications"
             element={
               <ProtectedRoute>
-                <NotificationsPage />
+                <NotificationsPage
+                  notifications={notifications}
+                  onNotificationsUpdate={fetchNotifications}
+                />
               </ProtectedRoute>
             }
           />

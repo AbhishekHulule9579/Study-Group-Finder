@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Calendar, momentLocalizer } from "react-big-calendar";
+import { Calendar, momentLocalizer, Views } from "react-big-calendar";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { motion, AnimatePresence } from "framer-motion";
@@ -127,23 +127,8 @@ export default function CalendarView() {
     setShowDateSessionsModal(true);
   };
 
-  // --- Filtering Logic (FIXED) ---
-  const filteredEvents =
-    view === "agenda"
-      ? events.filter((ev) => {
-          const weekStart = moment(currentDate).startOf("isoWeek");
-          const weekEnd = moment(currentDate).endOf("isoWeek");
-          const eventStart = moment(ev.start);
-          const eventEnd = moment(ev.end);
-
-          // Check for overlap: (StartA <= EndB) and (EndA >= StartB)
-          return (
-            eventStart.isSameOrBefore(weekEnd) &&
-            eventEnd.isSameOrAfter(weekStart)
-          );
-        })
-      : events;
-
+  // For a group-specific calendar, you would filter events here.
+  // Example: const filteredEvents = events.filter(e => e.groupId === yourGroupId);
   return (
     <div className="min-h-screen bg-purple-50/50 p-6 relative">
       <div className="max-w-7xl mx-auto bg-white rounded-2xl shadow-xl p-6 border border-gray-200">
@@ -159,7 +144,7 @@ export default function CalendarView() {
         <div className="h-[75vh] rounded-xl overflow-hidden">
           <Calendar
             localizer={localizer}
-            events={filteredEvents}
+            events={events} // Pass all events; the calendar will filter for the view.
             startAccessor="start"
             endAccessor="end"
             style={{ height: "100%" }}
@@ -168,20 +153,43 @@ export default function CalendarView() {
             date={currentDate}
             onSelectSlot={handleSelectSlot}
             onSelectEvent={handleSelectEvent}
-            onView={setView}
+            onView={(newView) => {
+              // ✅ FIX: When switching to agenda, snap date to the start of the week (Monday)
+              if (newView === "agenda") {
+                setCurrentDate(moment(currentDate).startOf("isoWeek").toDate());
+              }
+              setView(newView);
+            }}
+            onNavigate={(newDate) => {
+              // ✅ FIX: When navigating in agenda, snap date to the start of the week (Monday)
+              if (view === "agenda") {
+                setCurrentDate(moment(newDate).startOf("isoWeek").toDate());
+              } else {
+                setCurrentDate(newDate);
+              }
+            }}
             views={["month", "agenda"]}
             // ✅ NEW: Hooks up the "+X more" link to your existing modal!
             onShowMore={(events, date) => {
               openDateModal(date);
             }}
+            // ✅ FIX: Use `formats` for agenda date formatting to avoid conflicts
+            formats={{
+              agendaHeaderFormat: ({ start, end }) => {
+                const s = moment(start).format("ddd MMM DD");
+                const e = moment(end).format("ddd MMM DD");
+                return `${s} – ${e}`;
+              },
+            }}
             components={{
               // ✅ NEW: Custom component for events in the month view
               event: (props) => <MonthEvent {...props} />,
 
-              // ✅ Agenda components remain as they were
+              // ✅ FIX: Pass a valid component to `agenda`. Config is moved.
               agenda: {
                 event: (props) => <AgendaEvent {...props} />,
                 dateHeader: (props) => <AgendaHeader {...props} />,
+                list: (props) => <AgendaListContainer {...props} />,
                 empty: () => <AgendaEmpty />,
               },
 
@@ -192,10 +200,11 @@ export default function CalendarView() {
                   view={view}
                   date={currentDate}
                   onView={setView}
-                  setCurrentDate={setCurrentDate}
                 />
               ),
             }}
+            // ✅ FIX: Pass agenda length here, outside of the components object
+            length={view === "agenda" ? 7 : undefined}
           />
         </div>
       </div>
@@ -301,66 +310,64 @@ function MonthEvent({ event }) {
 
 /* ✅ "Stunner" Agenda Event Item (Unchanged) */
 function AgendaEvent({ event }) {
+  // The card itself. Spacing is handled by the AgendaListContainer.
   return (
-    // This outer wrapper adds vertical spacing between cards
-    <div className="py-2 px-1">
-      <div
-        className="flex rounded-xl shadow-lg hover:shadow-xl transition-all 
+    <div
+      className="flex rounded-xl shadow-lg hover:shadow-xl transition-all 
                         bg-white overflow-hidden border border-gray-200"
-      >
-        {/* === LEFT BLOCK (Time) === */}
-        <div
-          className="flex-shrink-0 w-24 p-4 
+    >
+      {/* === LEFT BLOCK (Time) === */}
+      <div
+        className="flex-shrink-0 w-24 p-4 
                           flex flex-col items-center justify-center 
                           bg-gradient-to-b from-purple-600 to-pink-500 text-white"
-        >
-          <div className="text-2xl font-bold tracking-tight">
-            {moment(event.start).format("hh:mm")}
-          </div>
-          <div className="text-lg font-medium opacity-90">
-            {moment(event.start).format("A")}
-          </div>
-          <div className="w-8 h-px bg-white/50 my-1" />
-          <div className="text-xs font-semibold opacity-90">
-            {moment(event.end).format("hh:mm A")}
-          </div>
+      >
+        <div className="text-2xl font-bold tracking-tight">
+          {moment(event.start).format("hh:mm")}
         </div>
+        <div className="text-lg font-medium opacity-90">
+          {moment(event.start).format("A")}
+        </div>
+        <div className="w-8 h-px bg-white/50 my-1" />
+        <div className="text-xs font-semibold opacity-90">
+          {moment(event.end).format("hh:mm A")}
+        </div>
+      </div>
 
-        {/* === RIGHT BLOCK (Details) === */}
-        <div className="flex-grow p-4 min-w-0">
-          <h4 className="font-bold text-gray-800 text-lg truncate">
-            {event.title}
-          </h4>
+      {/* === RIGHT BLOCK (Details) === */}
+      <div className="flex-grow p-4 min-w-0">
+        <h4 className="font-bold text-gray-800 text-lg truncate">
+          {event.title}
+        </h4>
 
-          {/* --- Tags (Course & Group) --- */}
-          <div className="flex flex-wrap gap-2 mt-2">
-            {event.courseName && (
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800">
-                {event.courseName}
-              </span>
-            )}
-            {event.groupName && (
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-100 text-pink-800">
-                {event.groupName}
-              </span>
-            )}
-            {event.type && (
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-700">
-                {event.type}
-              </span>
-            )}
-          </div>
-
-          {/* --- Organizer --- */}
-          {event.organizer && (
-            <div className="text-gray-500 text-sm mt-3 flex items-center gap-2">
-              <span className="material-icons text-base text-gray-400">
-                person
-              </span>
-              <span>{event.organizer}</span>
-            </div>
+        {/* --- Tags (Course & Group) --- */}
+        <div className="flex flex-wrap gap-2 mt-2">
+          {event.courseName && (
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800">
+              {event.courseName}
+            </span>
+          )}
+          {event.groupName && (
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-100 text-pink-800">
+              {event.groupName}
+            </span>
+          )}
+          {event.type && (
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-700">
+              {event.type}
+            </span>
           )}
         </div>
+
+        {/* --- Organizer --- */}
+        {event.organizer && (
+          <div className="text-gray-500 text-sm mt-3 flex items-center gap-2">
+            <span className="material-icons text-base text-gray-400">
+              person
+            </span>
+            <span>{event.organizer}</span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -375,26 +382,29 @@ function AgendaHeader({ label }) {
   );
 }
 
+/* ✅✅✅ --- NEW AGENDA LIST CONTAINER (Fixes Layout) --- ✅✅✅ */
+// This component replaces the default <table> wrapper
+function AgendaListContainer({ children }) {
+  return <div className="p-4 space-y-4">{children}</div>;
+}
+
 /* ✅ Custom Empty State for Agenda (Unchanged) */
 function AgendaEmpty() {
   return (
-    <div className="flex justify-center items-center mt-10">
-      <div className="bg-white/80 shadow-lg rounded-xl px-10 py-8 flex flex-col items-center gap-4">
-        <span className="text-6xl text-purple-400 animate-bounce">🛌</span>
-        <h2 className="text-2xl font-bold text-purple-600">
-          No Sessions Found!
-        </h2>
-        <p className="text-gray-500 text-lg font-medium">
-          Looks like you’re free this week—why not relax or create a new
-          session?
+    <div className="flex flex-col justify-center items-center text-center p-8 mt-8 min-h-[50vh]">
+      <img
+        src="/no-events.png"
+        alt="No events"
+        className="w-64 h-auto mb-6"
+      />
+      <h2 className="text-2xl font-bold text-gray-700">No Events This Week</h2>
+      <p className="text-gray-500 mt-2 max-w-md">
+        It looks like your schedule is clear. Enjoy the quiet time, or create a
+        new study session to get ahead!
         </p>
-      </div>
     </div>
   );
 }
-
-/* 🛑 DateCellWrapper is no longer needed 🛑 */
-// function DateCellWrapper(...) { ... }
 
 /* ✅ Custom Toolbar (Unchanged) */
 function CustomToolbar({
@@ -403,38 +413,20 @@ function CustomToolbar({
   onView,
   view,
   date,
-  setCurrentDate,
 }) {
   const formatAgendaLabel = () => {
     if (view === "agenda") {
-      const s = moment(date).startOf("isoWeek").format("DD/MM/YYYY");
-      const e = moment(date).endOf("isoWeek").format("DD/MM/YYYY");
+      // The `label` prop for agenda view is a range string like "Mon Nov 03 – Sun Nov 09".
+      // We will parse it and reformat it to DD/MM/YYYY.
+      const [startStr, endStr] = label.split(" – ");
+      // Add the current year to parse correctly.
+      const s = moment(startStr, "ddd MMM DD").year(moment(date).year()).format("DD/MM/YYYY");
+      const e = moment(endStr, "ddd MMM DD").year(moment(date).year()).format("DD/MM/YYYY");
       return `${s} – ${e}`;
     }
     return label;
   };
-
-  const handlePrev = () => {
-    const newDate =
-      view === "month"
-        ? moment(date).subtract(1, "month")
-        : moment(date).subtract(1, "week");
-    setCurrentDate(newDate.toDate());
-    onNavigate("PREV");
-  };
-
-  const handleNext = () => {
-    const newDate =
-      view === "month"
-        ? moment(date).add(1, "month")
-        : moment(date).add(1, "week");
-    setCurrentDate(newDate.toDate());
-    onNavigate("NEXT");
-  };
-
   const handleToday = () => {
-    const today = new Date();
-    setCurrentDate(today);
     onNavigate("TODAY");
   };
 
@@ -450,13 +442,13 @@ function CustomToolbar({
         </button>
         {/* Cleaner Prev/Next buttons */}
         <button
-          onClick={handlePrev}
+          onClick={() => onNavigate("PREV")}
           className="px-3 py-2 rounded-md bg-white border border-gray-300 text-gray-700 font-bold hover:bg-gray-50 transition"
         >
           ◀
         </button>
         <button
-          onClick={handleNext}
+          onClick={() => onNavigate("NEXT")}
           className="px-3 py-2 rounded-md bg-white border border-gray-300 text-gray-700 font-bold hover:bg-gray-50 transition"
         >
           ▶

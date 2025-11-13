@@ -4,57 +4,49 @@ import { AnimatePresence, motion } from "framer-motion";
 import SockJS from "sockjs-client";
 import { Stomp } from "@stomp/stompjs";
 import {
-  getAllNotifications,
   markNotificationRead,
   markAllNotificationsRead,
-  // mapNotificationToUI is removed from imports, we'll define it below
+  getAllNotifications,
 } from "../services/NotificationService";
-
-// Static demo fallback (used only if API not available)
-const demoNotifications = [
-  // ... (demo data remains the same)
-];
 
 const tabs = ["All", "Invites", "Reminders", "Updates"];
 
 export default function NotificationsPage({
-  notifications: initialNotifications,
+  initialNotifications,
+  onNotificationsUpdate,
 }) {
   const [selectedTab, setSelectedTab] = useState("All");
-  const [notifications, setNotifications] = useState(
-    initialNotifications && initialNotifications.length > 0
-      ? initialNotifications
-      : []
-  );
+  const [notifications, setNotifications] = useState([]);
   const stompRef = useRef(null);
   const userJson = sessionStorage.getItem("user");
   const currentUser = userJson ? JSON.parse(userJson) : null;
 
-  // Load from API on mount
   useEffect(() => {
-    let mounted = true;
-    async function load() {
-      try {
-        if (!currentUser?.id) {
-          setNotifications([]);
-          return;
-        }
-        const list = await getAllNotifications(currentUser.id);
-        if (!mounted) return;
+    // Use the initial notifications from props and map them for the UI
+    const mappedNotifications = (initialNotifications || [])
+      .map(mapNotificationToUI)
+      .sort(sortNotifications);
+    setNotifications(mappedNotifications);
+  }, [initialNotifications]);
 
-        // --- MODIFIED: Added sorting ---
-        setNotifications(list.map(mapNotificationToUI).sort(sortNotifications));
+  // Fallback: if no initial notifications provided, fetch from API
+  useEffect(() => {
+    async function load() {
+      if (!currentUser?.id) return;
+      if (initialNotifications && initialNotifications.length > 0) return;
+      try {
+        const list = await getAllNotifications(currentUser.id);
+        const mapped = (list || []).map(mapNotificationToUI).sort(sortNotifications);
+        setNotifications(mapped);
       } catch (e) {
-        setNotifications([]);
+        console.error("Failed to fetch notifications:", e);
       }
     }
     load();
-    return () => {
-      mounted = false;
-    };
-  }, [currentUser?.id]); // Added dependency
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id]);
 
-  // WebSocket subscription for real-time
+  // WebSocket subscription for real-time updates
   useEffect(() => {
     if (!currentUser?.id) return;
     const token = sessionStorage.getItem("token");
@@ -68,26 +60,24 @@ export default function NotificationsPage({
         () => {
           stompRef.current = stomp;
           stomp.subscribe(`/queue/notifications/${currentUser.id}`, (msg) => {
-            try {
-              const payload = JSON.parse(msg.body);
-              const item = mapNotificationToUI(payload);
-
-              // --- MODIFIED: Add new item and re-sort ---
-              setNotifications((prev) =>
-                [item, ...prev].sort(sortNotifications)
-              );
-            } catch {}
+            // When a new notification comes in, just refetch the list
+            // to ensure data consistency (simplest approach)
+            if (onNotificationsUpdate) {
+              onNotificationsUpdate();
+            }
           });
         },
         () => {}
       );
-    } catch {}
+    } catch (e) {
+      console.error("WebSocket connection failed:", e);
+    }
     return () => {
       try {
         if (stomp) stomp.disconnect();
       } catch {}
     };
-  }, [currentUser?.id]);
+  }, [currentUser?.id, onNotificationsUpdate]);
 
   // Filter based on tab
   const filteredNotifications =
@@ -101,17 +91,39 @@ export default function NotificationsPage({
   const handleMarkAsRead = async (id) => {
     try {
       await markNotificationRead(id);
-    } catch {}
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-    );
+      // Optimistically update local state so UI responds immediately
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+      );
+      if (onNotificationsUpdate) {
+        onNotificationsUpdate(); // Refetch to get the latest state
+      }
+    } catch (err) {
+      console.error("Failed to mark notification as read:", err);
+      if (onNotificationsUpdate) {
+        onNotificationsUpdate();
+      }
+    }
   };
 
   const handleMarkAllAsRead = async () => {
+    if (unreadCount === 0) return;
+
     try {
-      if (currentUser?.id) await markAllNotificationsRead(currentUser.id);
-    } catch {}
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      if (currentUser?.id) {
+        await markAllNotificationsRead(currentUser.id);
+        // Optimistically mark all as read locally
+        setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+        if (onNotificationsUpdate) {
+          onNotificationsUpdate(); // Refetch after success
+        }
+      }
+    } catch (err) {
+      console.error("Failed to mark all notifications as read:", err);
+      if (onNotificationsUpdate) {
+        onNotificationsUpdate();
+      }
+    }
   };
 
   return (
@@ -121,7 +133,7 @@ export default function NotificationsPage({
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-4">
             <Link
-              to="/dashboard" // Assuming this is a valid route
+              to="/dashboard"
               className="text-purple-600 hover:text-purple-800 transition"
               aria-label="Back to Dashboard"
             >
@@ -304,43 +316,36 @@ function formatTimeAgo(isoDate) {
  * to a UI-friendly object for rendering.
  */
 function mapNotificationToUI(notification) {
+  // Backend uses type values like "Invites", "Reminders", "Updates" via NotificationService helpers
+  const rawType = notification.type || "Updates";
+  let type = rawType;
   let icon = "🔔";
-  let type = "Updates";
 
-  switch (notification.type) {
-    case "INVITE":
-    case "GROUP_INVITATION":
-      icon = "📬";
-      type = "Invites";
-      break;
-    case "REMINDER":
-    case "DEADLINE":
-      icon = "⏰";
-      type = "Reminders";
-      break;
-    case "MENTION":
-    case "REPLY":
-    case "COMMENT":
-      icon = "💡";
-      type = "Updates";
-      break;
-    case "SUBMISSION":
-    case "GROUP_JOIN_APPROVED":
-      icon = "✅";
-      type = "Updates";
-      break;
-    default:
-      icon = "🔔";
-      type = "Updates";
+  if (rawType === "Invites") {
+    icon = "📬";
+    type = "Invites";
+  } else if (rawType === "Reminders") {
+    icon = "⏰";
+    type = "Reminders";
+  } else {
+    icon = "💡";
+    type = "Updates";
   }
+
+  const isRead =
+    typeof notification.isRead === "boolean"
+      ? notification.isRead
+      : typeof notification.read === "boolean"
+      ? notification.read
+      : false;
 
   return {
     id: notification.id,
-    icon: icon,
-    message: notification.message,
+    icon,
+    message: notification.message || notification.title || "",
     timeAgo: formatTimeAgo(notification.createdAt),
-    isRead: notification.read, // API might use 'read', UI component uses 'isRead'
-    type: type,
-    createdAt: notification.createdAt, // Keep original timestamp for sorting
+    isRead,
+    type,
+    createdAt: notification.createdAt,
   };
 }
