@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
+import { markNotificationRead } from "../services/NotificationService";
 
 // --- 1. Logged-Out View ---
 const AuthButtons = () => (
@@ -104,20 +106,35 @@ const ProfileMenu = ({ userName, profilePic, handleLogout }) => {
   );
 };
 
-// --- 3. Notification Item (Full version from NotificationsPage) ---
-function NotificationItem({ icon, message, timeAgo, isRead }) {
+// --- 3. Notification Item (Animated) ---
+function NotificationItem({ notification, onItemClick }) {
+  const { id, icon, message, timeAgo, isRead } = notification;
+
   return (
-    <div
-      className={`flex items-start space-x-3 p-4 border-b border-gray-100 ${
-        !isRead ? "bg-purple-50" : "hover:bg-gray-50"
-      }`}
+    <motion.div
+      onClick={() => onItemClick(id)}
+      className={`w-full text-left flex items-center space-x-4 p-4
+       transition-all duration-200 cursor-pointer
+       ${
+         !isRead
+           ? "bg-purple-50 hover:bg-purple-100"
+           : "bg-white hover:bg-gray-50"
+       }`}
+      layout
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, x: -50 }}
+      transition={{ duration: 0.3 }}
     >
-      <div className="text-xl bg-gray-100 rounded-full p-2 flex-shrink-0">
-        {icon || "🔔"}
+      {/* Icon */}
+      <div className="text-2xl bg-white rounded-full p-3 shadow-sm border border-gray-100 flex-shrink-0">
+        {icon}
       </div>
+
+      {/* Message Content */}
       <div className="flex-1 min-w-0">
         <p
-          className={`text-sm break-words ${
+          className={`text-sm ${
             !isRead ? "font-semibold text-gray-800" : "text-gray-700"
           }`}
         >
@@ -125,22 +142,31 @@ function NotificationItem({ icon, message, timeAgo, isRead }) {
         </p>
         <p className="text-xs text-gray-400 mt-1">{timeAgo || "Just now"}</p>
       </div>
+
+      {/* Unread Dot */}
       {!isRead && (
-        <div className="w-2.5 h-2.5 bg-purple-500 rounded-full self-center flex-shrink-0 ml-2"></div>
+        <motion.div
+          layoutId={`dot-${id}`}
+          className="w-3 h-3 bg-purple-500 rounded-full flex-shrink-0"
+        />
       )}
-    </div>
+    </motion.div>
   );
 }
 
 // --- 4. Notification Bell (Dynamic) ---
-const NotificationBell = ({ notifications, unreadCount }) => {
+const NotificationBell = ({
+  notifications,
+  unreadCount,
+  onNotificationsUpdate,
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const bellRef = useRef();
   const navigate = useNavigate();
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (bellRef.current && !bellRef.current.contains(event.target)) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
         setIsOpen(false);
       }
     };
@@ -148,10 +174,25 @@ const NotificationBell = ({ notifications, unreadCount }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const goToNotifications = () => {
-    setIsOpen(false);
-    navigate("/notifications");
+  const handleItemClick = async (id) => {
+    try {
+      await markNotificationRead(id);
+      if (onNotificationsUpdate) {
+        onNotificationsUpdate();
+      }
+    } catch (err) {
+      console.error("Failed to mark notification as read from nav:", err);
+    } finally {
+      setIsOpen(false);
+      navigate("/notifications");
+    }
   };
+
+  // Logic: Map, then FILTER for unread, then sort.
+  const unreadNotificationsToShow = (notifications || [])
+    .map(mapNotificationToUI)
+    .filter((n) => !n.isRead) // <-- This only keeps unread messages
+    .sort(sortNotifications);
 
   return (
     <div className="relative" ref={bellRef}>
@@ -174,45 +215,56 @@ const NotificationBell = ({ notifications, unreadCount }) => {
             d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
           />
         </svg>
-        {/* DYNAMIC Notification Badge */}
+
+        {/* --- MODIFICATION --- */}
+        {/* Logic: Show a simple dot if unreadCount > 0 */}
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 block h-4 w-4 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-bold border-2 border-purple-600">
-            {unreadCount}
+          <span className="absolute top-1 right-1 block h-3 w-3 rounded-full bg-red-500 border-2 border-purple-600">
+            {/* No number, just the dot */}
           </span>
         )}
+        {/* --- END MODIFICATION --- */}
       </button>
 
       {/* DYNAMIC Notification Dropdown */}
-      {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg z-50 animate-fadeIn text-gray-800">
-          <div className="font-bold p-4 border-b">Notifications</div>
-          <div className="max-h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-purple-400">
-            {notifications.length > 0 ? (
-              // Use the full NotificationItem component
-              notifications.slice(0, 5).map((n) => (
-                <div
-                  key={n.id}
-                  onClick={goToNotifications}
-                  className="cursor-pointer"
-                >
-                  <NotificationItem {...mapNotificationToUI(n)} />
-                </div>
-              ))
-            ) : (
-              <p className="p-4 text-center text-gray-500 text-sm">
-                No new notifications.
-              </p>
-            )}
-          </div>
-          <Link
-            to="/notifications"
-            onClick={() => setIsOpen(false)}
-            className="block p-3 text-center text-sm font-semibold text-purple-600 hover:bg-gray-50 rounded-b-xl"
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg z-50 text-gray-800 overflow-hidden"
           >
-            View All Notifications
-          </Link>
-        </div>
-      )}
+            <div className="font-bold p-4 border-b">Notifications</div>
+            <div className="max-h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-purple-400">
+              {/* Logic: Renders the filtered unread list */}
+              {unreadNotificationsToShow.length > 0 ? (
+                unreadNotificationsToShow
+                  .slice(0, 5) // Show top 5 unread
+                  .map((n) => (
+                    <NotificationItem
+                      key={n.id}
+                      notification={n}
+                      onItemClick={handleItemClick}
+                    />
+                  ))
+              ) : (
+                <p className="p-4 text-center text-gray-500 text-sm">
+                  No new notifications.
+                </p>
+              )}
+            </div>
+            <Link
+              to="/notifications"
+              onClick={() => setIsOpen(false)}
+              className="block p-3 text-center text-sm font-semibold text-purple-600 hover:bg-gray-50 rounded-b-xl"
+            >
+              View All Notifications
+            </Link>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
@@ -242,14 +294,19 @@ const NavLinks = ({ isLoggedIn }) => {
   );
 };
 
-// --- 6. Main Nav Component (MODIFIED) ---
-export default function Nav({ notifications, unreadCount, onLogout }) {
+// --- 6. Main Nav Component ---
+export default function Nav({
+  notifications,
+  unreadCount,
+  onLogout,
+  onNotificationsUpdate,
+}) {
   const location = useLocation();
   const [isLoggedIn, setIsLoggedIn] = useState(
     !!sessionStorage.getItem("token")
   );
-  const [profilePic, setProfilePic] = useState(null);
-  const [userName, setUserName] = useState("User");
+  const [profilePic, setProfilePic] = new useState(null);
+  const [userName, setUserName] = new useState("User");
 
   const handleLogout = useCallback(() => {
     onLogout();
@@ -268,12 +325,9 @@ export default function Nav({ notifications, unreadCount, onLogout }) {
     const fetchNavUserData = async () => {
       try {
         const storedUser = sessionStorage.getItem("user");
-        const userData = storedUser
-          ? JSON.parse(storedUser)
-          : { name: "User" };
+        const userData = storedUser ? JSON.parse(storedUser) : { name: "User" };
         setUserName(userData.name || "User");
 
-        // This could be simplified if profile pic URL is in 'user' object
         const profileRes = await fetch("http://localhost:8145/api/profile", {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -286,7 +340,6 @@ export default function Nav({ notifications, unreadCount, onLogout }) {
         }
       } catch (error) {
         console.error("Failed to fetch nav user data:", error);
-        // Optional: handle token expiration
       }
     };
 
@@ -304,10 +357,10 @@ export default function Nav({ notifications, unreadCount, onLogout }) {
           <AuthButtons />
         ) : (
           <div className="flex items-center gap-4">
-            {/* --- Pass props to the bell --- */}
             <NotificationBell
               notifications={notifications}
               unreadCount={unreadCount}
+              onNotificationsUpdate={onNotificationsUpdate}
             />
             <ProfileMenu
               userName={userName}
@@ -321,11 +374,17 @@ export default function Nav({ notifications, unreadCount, onLogout }) {
   );
 }
 
-// --- HELPER FUNCTIONS (Copied from NotificationsPage) ---
+// --- HELPER FUNCTIONS ---
+
+/**
+ * Sorts notifications to show newest first.
+ */
+function sortNotifications(a, b) {
+  return new Date(b.createdAt) - new Date(a.createdAt);
+}
 
 /**
  * Converts an ISO date string into a "time ago" format.
- * @param {string} isoDate - The ISO 8601 timestamp string (e.g., from notification.createdAt)
  */
 function formatTimeAgo(isoDate) {
   if (!isoDate) return "Just now";
@@ -344,7 +403,7 @@ function formatTimeAgo(isoDate) {
   const now = new Date();
   const diff = now.getTime() - date.getTime();
 
-  if (diff < 5000) return "Just now"; // less than 5 seconds
+  if (diff < 5000) return "Just now";
 
   for (const { unit, ms } of timeUnits) {
     const elapsed = Math.floor(diff / ms);
@@ -356,48 +415,38 @@ function formatTimeAgo(isoDate) {
 }
 
 /**
- * Maps a raw notification object from the API/WebSocket
- * to a UI-friendly object for rendering.
- * @param {object} notification - The raw notification object.
+ * Maps a raw notification object to a UI-friendly object.
  */
 function mapNotificationToUI(notification) {
+  const rawType = notification.type || "Updates";
+  let type = rawType;
   let icon = "🔔";
-  let type = "Updates"; // 'type' is for filtering on the main page, not used in nav
 
-  switch (notification.type) {
-    case "INVITE":
-    case "GROUP_INVITATION":
-      icon = "📬";
-      type = "Invites";
-      break;
-    case "REMINDER":
-    case "DEADLINE":
-      icon = "⏰";
-      type = "Reminders";
-      break;
-    case "MENTION":
-    case "REPLY":
-    case "COMMENT":
-      icon = "💡";
-      type = "Updates";
-      break;
-    case "SUBMISSION":
-    case "GROUP_JOIN_APPROVED":
-      icon = "✅";
-      type = "Updates";
-      break;
-    default:
-      icon = "🔔";
-      type = "Updates";
+  if (rawType === "Invites") {
+    icon = "📬";
+    type = "Invites";
+  } else if (rawType === "Reminders") {
+    icon = "⏰";
+    type = "Reminders";
+  } else {
+    icon = "💡";
+    type = "Updates";
   }
+
+  const isRead =
+    typeof notification.isRead === "boolean"
+      ? notification.isRead
+      : typeof notification.read === "boolean"
+      ? notification.read
+      : false;
 
   return {
     id: notification.id,
-    icon: icon,
-    message: notification.message,
-    timeAgo: formatTimeAgo(notification.createdAt), // This is where the time is calculated
-    isRead: notification.read, // API uses 'read', UI component uses 'isRead'
-    type: type,
-    createdAt: notification.createdAt, // Keep original timestamp for sorting
+    icon,
+    message: notification.message || notification.title || "",
+    timeAgo: formatTimeAgo(notification.createdAt),
+    isRead,
+    type,
+    createdAt: notification.createdAt,
   };
 }

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-// Reusable, beautifully styled input field component
+// ==========================
+// Reusable Input Field
+// ==========================
 const InputField = ({
   label,
   name,
@@ -11,6 +13,7 @@ const InputField = ({
   onChange,
   required = true,
   step,
+  errors,
 }) => (
   <div>
     <label
@@ -19,6 +22,7 @@ const InputField = ({
     >
       {label} {required && <span className="text-red-500">*</span>}
     </label>
+
     <input
       type={type}
       name={name}
@@ -28,12 +32,23 @@ const InputField = ({
       onChange={onChange}
       required={required}
       step={step}
-      className="w-full rounded-lg border-gray-300 p-3 text-md shadow-sm focus:border-purple-500 focus:ring-purple-500 transition duration-200"
+      className={`w-full rounded-lg p-3 text-md shadow-sm transition duration-200
+        ${
+          errors[name]
+            ? "border-red-500 ring-2 ring-red-300"
+            : "border-gray-300 focus:border-purple-500 focus:ring-purple-500"
+        }`}
     />
+
+    {errors[name] && (
+      <p className="text-red-500 text-sm mt-1">{errors[name]}</p>
+    )}
   </div>
 );
 
-// NEW: Reusable Textarea component for About Me
+// ==========================
+// Reusable Textarea Field
+// ==========================
 const TextareaField = ({
   label,
   name,
@@ -41,6 +56,7 @@ const TextareaField = ({
   value,
   onChange,
   maxLength,
+  errors,
 }) => (
   <div>
     <label
@@ -49,6 +65,7 @@ const TextareaField = ({
     >
       {label}
     </label>
+
     <textarea
       name={name}
       id={name}
@@ -57,12 +74,23 @@ const TextareaField = ({
       onChange={onChange}
       maxLength={maxLength}
       rows="4"
-      className="w-full rounded-lg border-gray-300 p-3 text-md shadow-sm focus:border-purple-500 focus:ring-purple-500 transition duration-200 resize-y"
-    />
+      className={`w-full rounded-lg p-3 text-md shadow-sm transition duration-200 resize-y
+        ${
+          errors[name]
+            ? "border-red-500 ring-2 ring-red-300"
+            : "border-gray-300 focus:border-purple-500 focus:ring-purple-500"
+        }`}
+    ></textarea>
+
+    {errors[name] && (
+      <p className="text-red-500 text-sm mt-1">{errors[name]}</p>
+    )}
   </div>
 );
 
-// Stepper component now dynamically highlights the active step
+// ==========================
+// Stepper Component
+// ==========================
 const SignupStepper = ({ activeStep }) => {
   const steps = ["Account", "Verify", "Profile"];
   return (
@@ -101,13 +129,17 @@ const SignupStepper = ({ activeStep }) => {
   );
 };
 
+// ==========================
+// Main Component
+// ==========================
 export default function BuildProfile() {
   const navigate = useNavigate();
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Current step state (Profile building starts at step 3 in the context of your overall signup flow)
   const [currentStep, setCurrentStep] = useState(1);
+
+  const [errors, setErrors] = useState({});
 
   const [form, setForm] = useState({
     secondarySchool: "",
@@ -119,73 +151,108 @@ export default function BuildProfile() {
     universityName: "",
     universityPassingYear: "",
     universityGpa: "",
-    // NEW: Added aboutMe field
     aboutMe: "",
   });
 
   useEffect(() => {
     const savedSignup = sessionStorage.getItem("signupData");
-    if (!savedSignup) {
-      navigate("/signup");
-    }
+    if (!savedSignup) navigate("/signup");
   }, [navigate]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  // --- Step Navigation Logic ---
+  // ==========================
+  // Validation Helpers
+  // ==========================
+  const isValidYear = (year) => /^\d{4}$/.test(year);
+  const isValidMarks = (marks) => {
+    const n = parseFloat(marks);
+    return !isNaN(n) && n >= 0 && n <= 100;
+  };
+  const isValidGpa = (gpa) => {
+    const n = parseFloat(gpa);
+    return !isNaN(n) && n >= 0 && n <= 10;
+  };
+
+  // ==========================
+  // Handle Next
+  // ==========================
   const handleNext = () => {
     setError("");
-    // Validate current step before proceeding
+    let newErrors = {};
+
     if (currentStep === 1) {
-      if (
-        !form.secondarySchool ||
-        !form.secondarySchoolPassingYear ||
-        !form.secondarySchoolPercentage
-      ) {
-        setError("Please fill in all fields for Secondary School.");
-        return;
-      }
-    } else if (currentStep === 2) {
-      if (
-        !form.higherSecondarySchool ||
-        !form.higherSecondaryPassingYear ||
-        !form.higherSecondaryPercentage
-      ) {
-        setError("Please fill in all fields for Higher Secondary.");
-        return;
-      }
+      if (!form.secondarySchool)
+        newErrors.secondarySchool = "School Name is required.";
+
+      if (!isValidYear(form.secondarySchoolPassingYear))
+        newErrors.secondarySchoolPassingYear = "Must be a valid 4-digit year.";
+
+      if (!isValidMarks(form.secondarySchoolPercentage))
+        newErrors.secondarySchoolPercentage =
+          "Percentage must be between 0 and 100.";
     }
-    setCurrentStep((prev) => prev + 1);
-  };
 
-  const handleBack = () => {
-    setError("");
-    setCurrentStep((prev) => prev - 1);
-  };
-  // --- End of Step Navigation Logic ---
+    if (currentStep === 2) {
+      if (!form.higherSecondarySchool)
+        newErrors.higherSecondarySchool = "School / Jr. College is required.";
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
+      if (!isValidYear(form.higherSecondaryPassingYear))
+        newErrors.higherSecondaryPassingYear = "Must be a valid 4-digit year.";
 
-    // Final validation for the last step: University is mandatory
-    if (
-      !form.universityName ||
-      !form.universityPassingYear ||
-      !form.universityGpa
-    ) {
-      setError("Please fill in all required fields for University.");
+      if (!isValidMarks(form.higherSecondaryPercentage))
+        newErrors.higherSecondaryPercentage =
+          "Percentage must be between 0 and 100.";
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
 
+    setErrors({});
+    setCurrentStep((prev) => prev + 1);
+  };
+
+  // ==========================
+  // Handle Back
+  // ==========================
+  const handleBack = () => {
+    setError("");
+    setErrors({});
+    setCurrentStep((prev) => prev - 1);
+  };
+
+  // ==========================
+  // Handle Submit
+  // ==========================
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    let newErrors = {};
+
+    if (!form.universityName)
+      newErrors.universityName = "University Name is required.";
+
+    if (!isValidYear(form.universityPassingYear))
+      newErrors.universityPassingYear = "Must be a valid 4-digit year.";
+
+    if (!isValidGpa(form.universityGpa))
+      newErrors.universityGpa = "GPA must be between 0 and 10.";
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    setErrors({});
     setIsSubmitting(true);
+
     const savedSignup = JSON.parse(
       sessionStorage.getItem("signupData") || "{}"
     );
-    // The 'aboutMe' field is automatically included via the spread operator 
-    // as it is part of the 'form' state.
+
     const fullUserData = { ...savedSignup, ...form };
 
     try {
@@ -194,6 +261,7 @@ export default function BuildProfile() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(fullUserData),
       });
+
       const message = await res.text();
 
       if (res.ok) {
@@ -202,20 +270,21 @@ export default function BuildProfile() {
           state: { message: "Registration successful! Please log in." },
         });
       } else if (res.status === 403) {
-        setError(
-          "Email not verified. Please complete the verification step first."
-        );
+        setError("Email not verified. Please complete verification first.");
         setTimeout(() => navigate("/signup"), 3000);
       } else {
         setError(message || "An error occurred during signup.");
       }
-    } catch (err) {
-      setError("Failed to connect to the server. Please try again.");
+    } catch {
+      setError("Server error. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // ==========================
+  // UI
+  // ==========================
   return (
     <div className="min-h-screen flex items-center justify-center bg-purple-50/50 p-4">
       <div className="max-w-3xl w-full mx-auto p-8 bg-white rounded-2xl shadow-xl space-y-8">
@@ -228,16 +297,16 @@ export default function BuildProfile() {
           </p>
         </div>
 
-        {/* The new stepper uses a dummy value '3' for the profile step */}
         <SignupStepper activeStep={3} />
 
         <form onSubmit={handleSubmit}>
-          {/* Step 1: Secondary School */}
+          {/* STEP 1 */}
           {currentStep === 1 && (
             <div className="space-y-4 animate-fade-in">
               <h3 className="text-xl font-bold text-gray-700">
                 Secondary School
               </h3>
+
               <div className="grid md:grid-cols-3 gap-6">
                 <InputField
                   label="School Name"
@@ -245,7 +314,9 @@ export default function BuildProfile() {
                   value={form.secondarySchool}
                   onChange={handleChange}
                   placeholder="e.g., Central School"
+                  errors={errors}
                 />
+
                 <InputField
                   label="Passing Year"
                   name="secondarySchoolPassingYear"
@@ -253,7 +324,9 @@ export default function BuildProfile() {
                   onChange={handleChange}
                   placeholder="e.g., 2018"
                   type="number"
+                  errors={errors}
                 />
+
                 <InputField
                   label="Percentage"
                   name="secondarySchoolPercentage"
@@ -262,17 +335,19 @@ export default function BuildProfile() {
                   placeholder="e.g., 85.5"
                   type="number"
                   step="0.01"
+                  errors={errors}
                 />
               </div>
             </div>
           )}
 
-          {/* Step 2: Higher Secondary */}
+          {/* STEP 2 */}
           {currentStep === 2 && (
             <div className="space-y-4 animate-fade-in">
               <h3 className="text-xl font-bold text-gray-700">
                 Higher Secondary
               </h3>
+
               <div className="grid md:grid-cols-3 gap-6">
                 <InputField
                   label="School / Jr. College"
@@ -280,7 +355,9 @@ export default function BuildProfile() {
                   value={form.higherSecondarySchool}
                   onChange={handleChange}
                   placeholder="e.g., City College"
+                  errors={errors}
                 />
+
                 <InputField
                   label="Passing Year"
                   name="higherSecondaryPassingYear"
@@ -288,26 +365,30 @@ export default function BuildProfile() {
                   onChange={handleChange}
                   placeholder="e.g., 2020"
                   type="number"
+                  errors={errors}
                 />
+
                 <InputField
                   label="Percentage"
                   name="higherSecondaryPercentage"
                   value={form.higherSecondaryPercentage}
                   onChange={handleChange}
-                  placeholder="e.g., 90.2"
+                  placeholder="90.2"
                   type="number"
                   step="0.01"
+                  errors={errors}
                 />
               </div>
             </div>
           )}
 
-          {/* Step 3: University and About Me */}
+          {/* STEP 3 */}
           {currentStep === 3 && (
             <div className="space-y-6 animate-fade-in">
               <h3 className="text-xl font-bold text-gray-700">
                 University / Alma Mater
               </h3>
+
               <div className="grid md:grid-cols-3 gap-6">
                 <InputField
                   label="University Name"
@@ -315,7 +396,9 @@ export default function BuildProfile() {
                   value={form.universityName}
                   onChange={handleChange}
                   placeholder="e.g., State University"
+                  errors={errors}
                 />
+
                 <InputField
                   label="Passing Year"
                   name="universityPassingYear"
@@ -323,29 +406,30 @@ export default function BuildProfile() {
                   onChange={handleChange}
                   placeholder="e.g., 2024"
                   type="number"
+                  errors={errors}
                 />
+
                 <InputField
                   label="GPA / CGPA"
                   name="universityGpa"
                   value={form.universityGpa}
                   onChange={handleChange}
-                  placeholder="e.g., 3.8 or 8.5"
+                  placeholder="e.g., 8.5"
                   type="number"
                   step="0.01"
+                  errors={errors}
                 />
               </div>
 
-              {/* NEW: About Me Field */}
-              <div className="pt-4">
-                <TextareaField
-                  label="About Me (Tell us a bit about yourself, max ~255 words)"
-                  name="aboutMe"
-                  value={form.aboutMe}
-                  onChange={handleChange}
-                  maxLength={2000} 
-                  placeholder="E.g., I'm passionate about web development and looking for peers to collaborate on React and Spring Boot projects."
-                />
-              </div>
+              <TextareaField
+                label="About Me (optional)"
+                name="aboutMe"
+                value={form.aboutMe}
+                onChange={handleChange}
+                maxLength={2000}
+                placeholder="Tell us something about yourself..."
+                errors={errors}
+              />
             </div>
           )}
 
@@ -355,7 +439,7 @@ export default function BuildProfile() {
             </p>
           )}
 
-          {/* Navigation Buttons */}
+          {/* Buttons */}
           <div className="flex justify-between items-center pt-8">
             <div>
               {currentStep > 1 && (
@@ -368,6 +452,7 @@ export default function BuildProfile() {
                 </button>
               )}
             </div>
+
             <div>
               {currentStep < 3 && (
                 <button
@@ -375,9 +460,10 @@ export default function BuildProfile() {
                   onClick={handleNext}
                   className="bg-purple-600 text-white font-semibold px-8 py-3 rounded-lg shadow-md hover:bg-purple-700 transition-all transform hover:scale-105"
                 >
-                  Next &rarr;
+                  Next →
                 </button>
               )}
+
               {currentStep === 3 && (
                 <button
                   type="submit"
