@@ -361,7 +361,44 @@ function GroupCard({ group }) {
   );
 }
 
-function NotificationItem({ icon, message, timeAgo, isRead }) {
+// --- ADDED ---
+/**
+ * Converts an ISO date string into a "time ago" format.
+ */
+function formatTimeAgo(isoDate) {
+  if (!isoDate) return "Just now";
+
+  const timeUnits = [
+    { unit: "year", ms: 31536000000 },
+    { unit: "month", ms: 2592000000 },
+    { unit: "week", ms: 604800000 },
+    { unit: "day", ms: 86400000 },
+    { unit: "hour", ms: 3600000 },
+    { unit: "minute", ms: 60000 },
+    { unit: "second", ms: 1000 },
+  ];
+
+  const date = new Date(isoDate);
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+
+  if (diff < 5000) return "Just now"; // less than 5 seconds
+
+  for (const { unit, ms } of timeUnits) {
+    const elapsed = Math.floor(diff / ms);
+    if (elapsed >= 1) {
+      return `${elapsed} ${unit}${elapsed > 1 ? "s" : ""} ago`;
+    }
+  }
+  return "Just now";
+}
+
+// --- MODIFIED ---
+function NotificationItem({ icon, message, timeAgo, isRead, createdAt }) {
+  // Use 'timeAgo' if it exists (from demo data),
+  // otherwise format 'createdAt' (from API data)
+  const displayTime = timeAgo || formatTimeAgo(createdAt);
+
   return (
     <div
       className={`flex items-start space-x-3 p-3 rounded-lg ${
@@ -377,7 +414,8 @@ function NotificationItem({ icon, message, timeAgo, isRead }) {
         >
           {message}
         </p>
-        <p className="text-xs text-gray-400 mt-1">{timeAgo || "Just now"}</p>
+        {/* Use the new displayTime variable */}
+        <p className="text-xs text-gray-400 mt-1">{displayTime}</p>
       </div>
       {!isRead && (
         <div className="w-2.5 h-2.5 bg-purple-500 rounded-full self-center flex-shrink-0"></div>
@@ -386,12 +424,31 @@ function NotificationItem({ icon, message, timeAgo, isRead }) {
   );
 }
 
-function CalendarItem({ formattedDate = "Soon", title, groupName, color }) {
+// --- MODIFIED ---
+function CalendarItem({
+  formattedDate = "Soon",
+  title,
+  groupName,
+  color,
+  eventDate, // Expect 'eventDate' from API
+}) {
   const colors = {
     purple: "border-purple-500 bg-purple-50",
     orange: "border-orange-500 bg-orange-50",
   };
-  const [month, day] = formattedDate.split(" ");
+
+  let month, day;
+
+  if (eventDate) {
+    // If API provides 'eventDate', format it
+    const date = new Date(eventDate);
+    month = date.toLocaleString("default", { month: "short" }).toUpperCase();
+    day = date.getDate();
+  } else {
+    // Fallback for demo data or if 'eventDate' is missing
+    [month, day] = formattedDate.split(" ");
+  }
+
   return (
     <div
       className={`flex items-center space-x-4 p-4 rounded-lg border-l-4 ${
