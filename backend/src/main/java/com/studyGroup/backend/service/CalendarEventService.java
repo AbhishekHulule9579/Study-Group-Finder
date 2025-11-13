@@ -373,9 +373,19 @@ public class CalendarEventService {
     public List<CalendarEventDTO> getUpcomingEventsForUser(User user) {
         LocalDateTime now = LocalDateTime.now();
         List<GroupMember> memberships = groupMemberRepository.findByUser(user);
+        
+        if (memberships.isEmpty()) {
+            return List.of();
+        }
+        
         List<CalendarEvent> upcomingEvents = calendarEventRepository.findByAssociatedGroupInAndStartTimeAfter(
                 memberships.stream().map(GroupMember::getGroup).collect(Collectors.toList()), now);
-        return upcomingEvents.stream().map(this::convertToDTO).collect(Collectors.toList());
+        
+        return upcomingEvents.stream()
+                .sorted((e1, e2) -> e1.getStartTime().compareTo(e2.getStartTime()))
+                .limit(1)
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
 
     public List<CalendarEventDTO> getAllUpcomingEventsForUser(User user) {
