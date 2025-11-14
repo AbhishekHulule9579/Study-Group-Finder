@@ -84,16 +84,6 @@ const ProfileMenu = ({ userName, profilePic, handleLogout }) => {
               Profile
             </button>
           )}
-
-          {location.pathname !== "/calendar" && (
-            <button
-              className="w-full py-2 mb-2 bg-purple-100 text-purple-700 font-bold rounded-lg hover:bg-purple-200 transition"
-              onClick={() => navigateAndClose("/calendar")}
-            >
-              🗓 My Calendar
-            </button>
-          )}
-
           <button
             className="w-full py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition"
             onClick={handleLogout}
