@@ -43,4 +43,16 @@ public class NotificationController {
         notificationService.markAllAsRead(userId);
         return ResponseEntity.ok().build();
     }
+
+    @DeleteMapping("/user/{userId}/read")
+    public ResponseEntity<Void> deleteAllReadNotifications(@PathVariable Integer userId) {
+        notificationService.deleteAllReadNotifications(userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/selected")
+    public ResponseEntity<Void> deleteSelectedNotifications(@RequestBody List<Integer> notificationIds) {
+        notificationService.deleteNotifications(notificationIds);
+        return ResponseEntity.noContent().build();
+    }
 }
