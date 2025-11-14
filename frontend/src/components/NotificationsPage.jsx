@@ -7,9 +7,8 @@ import {
   markNotificationRead,
   markAllNotificationsRead,
   getAllNotifications,
-  // --- Imports commented out to prevent crash ---
-  // deleteSelectedNotifications,
-  // deleteAllRead,
+  deleteSelectedNotifications,
+  deleteAllRead,
 } from "../services/NotificationService";
 
 const tabs = ["All", "Invites", "Reminders", "Updates"];
@@ -156,8 +155,7 @@ export default function NotificationsPage({
     }
 
     try {
-      // TODO: Uncomment this line when 'deleteAllRead' is in NotificationService.js
-      // await deleteAllRead(currentUser.id);
+      await deleteAllRead(currentUser.id);
 
       // Optimistic update
       setNotifications((prev) => prev.filter((n) => !n.isRead));
@@ -183,8 +181,7 @@ export default function NotificationsPage({
     }
 
     try {
-      // TODO: Uncomment this line when 'deleteSelectedNotifications' is in NotificationService.js
-      // await deleteSelectedNotifications(idsToDelete);
+      await deleteSelectedNotifications(idsToDelete);
 
       // Optimistic update
       setNotifications((prev) => prev.filter((n) => !selectedIds.has(n.id)));
