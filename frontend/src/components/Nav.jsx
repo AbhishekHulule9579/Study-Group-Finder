@@ -3,31 +3,32 @@ import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { markNotificationRead } from "../services/NotificationService";
 
-// --- 1. Logged-Out View ---
+// ---------------- AUTH BUTTONS (LOGGED OUT) ----------------
 const AuthButtons = () => (
   <div className="flex gap-4 items-center">
     <Link
       to="/login"
-      className="text-white font-extrabold bg-purple-700 hover:bg-purple-800 px-5 py-2 rounded-lg transition"
+      className="text-white font-bold bg-purple-700 hover:bg-purple-800 px-6 py-2 rounded-xl shadow transition"
     >
       Login
     </Link>
     <Link
       to="/signup"
-      className="text-purple-200 font-extrabold border-2 border-purple-200 hover:border-purple-100 hover:text-white px-5 py-2 rounded-lg transition"
+      className="text-purple-100 font-bold border-2 border-purple-200 hover:border-white hover:text-white px-6 py-2 rounded-xl transition"
     >
       Sign Up
     </Link>
   </div>
 );
 
-// --- 2. Logged-In Profile Menu ---
+// ---------------- PROFILE MENU (LOGGED IN) ----------------
 const ProfileMenu = ({ userName, profilePic, handleLogout }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef();
 
+  // close when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -53,37 +54,37 @@ const ProfileMenu = ({ userName, profilePic, handleLogout }) => {
           <img
             src={profilePic}
             alt="profile"
-            className="w-10 h-10 rounded-full object-cover border-2 border-white"
+            className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-md hover:scale-105 transition"
           />
         ) : (
-          <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-gray-700 font-bold">
+          <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-gray-700 font-bold shadow">
             {userName.charAt(0).toUpperCase()}
           </div>
         )}
       </button>
 
-      {/* Dropdown */}
       {menuOpen && (
-        <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg p-4 z-50 flex flex-col items-center animate-fadeIn">
-          <div className="text-xl font-bold bg-gradient-to-r from-purple-700 to-orange-400 bg-clip-text text-transparent mb-3 text-center">
-            Welcome, {userName}
+        <div className="absolute right-0 mt-3 w-60 bg-white rounded-2xl shadow-xl p-5 z-50 border border-purple-100">
+          <div className="text-lg font-extrabold bg-gradient-to-r from-purple-700 to-orange-400 bg-clip-text text-transparent mb-4 text-center">
+            {userName}
           </div>
 
           {location.pathname === "/profile" ? (
             <button
-              className="w-full py-2 mb-2 bg-gradient-to-r from-purple-700 to-orange-400 text-white font-bold rounded-lg hover:scale-105 transition"
+              className="w-full py-2 mb-2 bg-purple-600 text-white font-bold rounded-lg hover:bg-purple-700 transition"
               onClick={() => navigateAndClose("/dashboard")}
             >
               Dashboard
             </button>
           ) : (
             <button
-              className="w-full py-2 mb-2 bg-gradient-to-r from-purple-700 to-orange-400 text-white font-bold rounded-lg hover:scale-105 transition"
+              className="w-full py-2 mb-2 bg-purple-600 text-white font-bold rounded-lg hover:bg-purple-700 transition"
               onClick={() => navigateAndClose("/profile")}
             >
               Profile
             </button>
           )}
+
           <button
             className="w-full py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition"
             onClick={handleLogout}
@@ -96,7 +97,7 @@ const ProfileMenu = ({ userName, profilePic, handleLogout }) => {
   );
 };
 
-// --- 3. Notification Item ---
+// ---------------- NOTIFICATION ITEM ----------------
 function NotificationItem({ notification, onItemClick }) {
   const { id, icon, message, timeAgo, isRead } = notification;
 
@@ -105,40 +106,38 @@ function NotificationItem({ notification, onItemClick }) {
       onClick={() => onItemClick(id)}
       className={`w-full flex items-center space-x-4 p-4 cursor-pointer transition ${
         !isRead
-          ? "bg-purple-50 hover:bg-purple-100"
+          ? "bg-purple-100 hover:bg-purple-200"
           : "bg-white hover:bg-gray-50"
       }`}
       layout
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, x: -50 }}
+      exit={{ opacity: 0, x: -40 }}
     >
-      <div className="text-2xl bg-white rounded-full p-3 shadow-sm border border-gray-100">
+      <div className="text-2xl bg-white rounded-full p-3 border shadow-sm">
         {icon}
       </div>
 
       <div className="flex-1 min-w-0">
         <p
           className={`text-sm ${
-            !isRead ? "font-semibold text-gray-800" : "text-gray-700"
+            !isRead ? "font-bold text-gray-800" : "text-gray-700"
           }`}
         >
           {message}
         </p>
-        <p className="text-xs text-gray-400">{timeAgo || "Just now"}</p>
+        <p className="text-xs text-gray-400">{timeAgo}</p>
       </div>
 
-      {!isRead && <div className="w-3 h-3 bg-purple-500 rounded-full" />}
+      {!isRead && <div className="w-3 h-3 bg-purple-600 rounded-full" />}
     </motion.div>
   );
 }
 
-// --- 4. Notification Bell ---
-// Note: We compute unreadList from notifications prop to ensure the badge and dropdown
-// show only unread items and stay consistent.
+// ---------------- NOTIFICATION BELL ----------------
 const NotificationBell = ({
   notifications = [],
-  unreadCount /* optional */,
+  unreadCount,
   onNotificationsUpdate,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -158,7 +157,6 @@ const NotificationBell = ({
   const handleItemClick = async (id) => {
     try {
       await markNotificationRead(id);
-      // let parent refresh the notifications (if passed)
       onNotificationsUpdate?.();
     } catch (err) {
       console.error("Failed to mark read:", err);
@@ -168,26 +166,23 @@ const NotificationBell = ({
     }
   };
 
-  // --- compute unread list from notifications (only unread)
   const unreadList = (notifications || [])
     .map(mapNotificationToUI)
     .filter((n) => !n.isRead)
     .sort(sortNotifications);
 
-  // Badge logic -> 9+ limit
-  const computedUnreadCount = unreadList.length;
-  const badgeText = computedUnreadCount > 9 ? "9+" : computedUnreadCount;
+  const computedUnread = unreadList.length;
+  const badgeText = computedUnread > 9 ? "9+" : computedUnread;
 
   return (
     <div className="relative" ref={bellRef}>
       <button
         onClick={() => setIsOpen((o) => !o)}
-        className="relative text-white hover:text-gray-200 p-2 rounded-full"
+        className="relative p-2 text-white hover:text-gray-200 rounded-full transition"
       >
-        {/* Bell Icon */}
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className="h-6 w-6"
+          className="h-7 w-7"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -200,41 +195,26 @@ const NotificationBell = ({
           />
         </svg>
 
-        {/* Badge (uses computedUnreadCount) */}
-        {computedUnreadCount > 0 && (
-          <span
-            className="
-              absolute top-0 right-0 
-              bg-red-600 text-white 
-              text-[10px] font-bold
-              rounded-full min-w-[18px] h-[18px]
-              flex items-center justify-center
-              border-2 border-purple-600
-              -mt-1 -mr-1
-            "
-            aria-label={`${computedUnreadCount} unread notifications`}
-            title={`${computedUnreadCount} unread notifications`}
-          >
+        {computedUnread > 0 && (
+          <span className="absolute top-0 right-0 bg-red-600 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center border-2 border-purple-600 -mt-1 -mr-1">
             {badgeText}
           </span>
         )}
       </button>
 
-      {/* Dropdown */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg overflow-hidden z-50"
+            transition={{ duration: 0.25 }}
+            className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-xl overflow-hidden z-50 border border-purple-200"
           >
             <div className="font-bold p-4 border-b">Notifications</div>
 
             <div className="max-h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-purple-400">
               {unreadList.length > 0 ? (
-                // show only unread items (top 5)
                 unreadList
                   .slice(0, 5)
                   .map((n) => (
@@ -245,7 +225,7 @@ const NotificationBell = ({
                     />
                   ))
               ) : (
-                <p className="p-4 text-center text-gray-500 text-sm">
+                <p className="p-4 text-center text-gray-500">
                   No new notifications.
                 </p>
               )}
@@ -253,8 +233,8 @@ const NotificationBell = ({
 
             <Link
               to="/notifications"
+              className="block p-3 text-center text-sm font-semibold text-purple-600 hover:bg-gray-100"
               onClick={() => setIsOpen(false)}
-              className="block p-3 text-center text-sm font-semibold text-purple-600 hover:bg-gray-50"
             >
               View All Notifications
             </Link>
@@ -265,13 +245,15 @@ const NotificationBell = ({
   );
 };
 
-// --- 5. Nav Links ---
+// ---------------- NAV LINKS ----------------
 const NavLinks = ({ isLoggedIn }) => {
   const navClass = ({ isActive }) =>
-    `text-white font-extrabold hover:underline ${isActive ? "underline" : ""}`;
+    `font-bold text-white hover:text-orange-200 transition ${
+      isActive ? "underline underline-offset-4" : ""
+    }`;
 
   return (
-    <div className="flex gap-6 items-center">
+    <div className="flex gap-8 items-center text-lg">
       <NavLink to="/" className={navClass}>
         Home
       </NavLink>
@@ -290,10 +272,10 @@ const NavLinks = ({ isLoggedIn }) => {
   );
 };
 
-// --- 6. Main Nav Component ---
+// ---------------- MAIN NAV COMPONENT ----------------
 export default function Nav({
   notifications = [],
-  unreadCount /* optional */,
+  unreadCount,
   onLogout,
   onNotificationsUpdate,
 }) {
@@ -303,7 +285,6 @@ export default function Nav({
   );
   const [profilePic, setProfilePic] = useState(null);
   const [userName, setUserName] = useState("User");
-
   const handleLogout = useCallback(() => onLogout(), [onLogout]);
 
   useEffect(() => {
@@ -331,7 +312,7 @@ export default function Nav({
           setProfilePic(data.profilePicUrl || null);
         }
       } catch (err) {
-        console.error("Failed to fetch nav user:", err);
+        console.error("Failed Nav user fetch:", err);
       }
     };
 
@@ -339,32 +320,34 @@ export default function Nav({
   }, [location.pathname]);
 
   return (
-    <div className="w-full h-[9vh] bg-gradient-to-r from-purple-600 to-orange-500 flex items-center justify-between px-8 sticky top-0 z-50 shadow-md">
+    <div className="w-full h-[9vh] bg-gradient-to-r from-purple-600 to-orange-500 flex items-center justify-between px-10 sticky top-0 z-50 shadow-lg backdrop-blur-xl bg-opacity-90">
+      <h1 className="text-2xl font-black text-white tracking-wide drop-shadow">
+        StudySphere
+      </h1>
+
       <NavLinks isLoggedIn={isLoggedIn} />
 
-      <div>
-        {!isLoggedIn ? (
-          <AuthButtons />
-        ) : (
-          <div className="flex items-center gap-4">
-            <NotificationBell
-              notifications={notifications}
-              unreadCount={unreadCount}
-              onNotificationsUpdate={onNotificationsUpdate}
-            />
-            <ProfileMenu
-              userName={userName}
-              profilePic={profilePic}
-              handleLogout={handleLogout}
-            />
-          </div>
-        )}
-      </div>
+      {!isLoggedIn ? (
+        <AuthButtons />
+      ) : (
+        <div className="flex items-center gap-6">
+          <NotificationBell
+            notifications={notifications}
+            unreadCount={unreadCount}
+            onNotificationsUpdate={onNotificationsUpdate}
+          />
+          <ProfileMenu
+            userName={userName}
+            profilePic={profilePic}
+            handleLogout={handleLogout}
+          />
+        </div>
+      )}
     </div>
   );
 }
 
-// --- Helper Functions ---
+// ---------------- HELPER FUNCTIONS ----------------
 function sortNotifications(a, b) {
   return new Date(b.createdAt) - new Date(a.createdAt);
 }
