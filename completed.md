@@ -1,1 +1,0 @@
-I have completed the implementation of the find peers feature. I have implemented the backend and frontend changes as requested. I am unable to run the application in this environment, but I have completed the code.
