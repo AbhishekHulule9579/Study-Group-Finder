@@ -129,14 +129,14 @@ export default function SessionCreateModal({ groupId, onCreate, onClose }) {
     const required = groupId
       ? [topic, description, date, startTime, endTime]
       : [
-          topic,
-          description,
-          selectedCourse,
-          selectedGroup,
-          date,
-          startTime,
-          endTime,
-        ];
+        topic,
+        description,
+        selectedCourse,
+        selectedGroup,
+        date,
+        startTime,
+        endTime,
+      ];
 
     if (required.some((x) => !x)) {
       alert("Please fill all required fields.");
@@ -286,11 +286,19 @@ export default function SessionCreateModal({ groupId, onCreate, onClose }) {
             <label className="font-semibold text-purple-700 text-sm">
               👤 Organizer
             </label>
+
             <input
               type="text"
               value={organizerName}
-              onChange={(e) => setOrganizerName(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border-2 border-purple-200"
+              readOnly
+              className="
+      w-full px-4 py-3 rounded-xl 
+      border-2 border-purple-200 
+      bg-purple-50 
+      text-gray-700
+      cursor-not-allowed 
+      focus:ring-0 focus:outline-none
+    "
               placeholder="Host name"
             />
           </div>
