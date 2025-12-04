@@ -14,6 +14,7 @@ import com.studyGroup.backend.repository.GroupJoinRequestRepository;
 import com.studyGroup.backend.repository.GroupMemberRepository;
 import com.studyGroup.backend.repository.GroupRepository;
 import com.studyGroup.backend.repository.ProfileRepository;
+import com.studyGroup.backend.repository.CalendarEventRepository;
 
 import java.util.List;
 import java.util.Optional;
@@ -33,24 +34,29 @@ public class GroupService {
 
     @Autowired
     private GroupJoinRequestRepository groupJoinRequestRepository;
-    
+
     @Autowired
-    private ProfileRepository profileRepository; 
+    private ProfileRepository profileRepository;
+
+    @Autowired
+    private CalendarEventRepository calendarEventRepository;
 
     /**
      * Helper method to retrieve the "About Me" field from the Profile entity.
      * Searches by email using the defined repository method.
      */
     private String getUserAboutMe(User user) {
-        if (user == null || user.getEmail() == null) return null;
-        
+        if (user == null || user.getEmail() == null)
+            return null;
+
         // Explicitly use the findByEmail method (as defined in your ProfileRepository)
         Optional<Profile> profile = profileRepository.findByEmail(user.getEmail());
 
         if (profile.isPresent()) {
             String aboutMe = profile.get().getAboutMe();
-            
-            // Defensive check: Return null if the string is empty or just whitespace in the DB
+
+            // Defensive check: Return null if the string is empty or just whitespace in the
+            // DB
             if (aboutMe != null && !aboutMe.trim().isEmpty()) {
                 return aboutMe.trim();
             }
@@ -70,9 +76,8 @@ public class GroupService {
                 Long.valueOf(user.getId()),
                 user.getName(),
                 user.getEmail(),
-                aboutMe, 
-                member.getRole()
-        );
+                aboutMe,
+                member.getRole());
     }
 
     private Optional<GroupMember> getMembership(Long groupId, User user) {
@@ -96,14 +101,15 @@ public class GroupService {
                 group.getGroupId(),
                 group.getName(),
                 group.getDescription(),
-                new CourseSummaryDTO(group.getAssociatedCourse().getCourseId(), group.getAssociatedCourse().getCourseName()),
-                new UserSummaryDTO(Long.valueOf(creator.getId()), creator.getName(), creator.getEmail(), creatorAboutMe, "Admin"), 
+                new CourseSummaryDTO(group.getAssociatedCourse().getCourseId(),
+                        group.getAssociatedCourse().getCourseName()),
+                new UserSummaryDTO(Long.valueOf(creator.getId()), creator.getName(), creator.getEmail(), creatorAboutMe,
+                        "Admin"),
                 group.getPrivacy(),
                 group.getMemberLimit(),
                 memberCount,
                 hasPasskey,
-                userRole
-        );
+                userRole);
     }
 
     @Transactional
@@ -111,7 +117,8 @@ public class GroupService {
         Group group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new RuntimeException("Group not found with ID: " + groupId));
 
-        Optional<GroupMember> optionalMembership = groupMemberRepository.findByGroupGroupIdAndUser_Id(groupId, currentUser.getId());
+        Optional<GroupMember> optionalMembership = groupMemberRepository.findByGroupGroupIdAndUser_Id(groupId,
+                currentUser.getId());
 
         if (optionalMembership.isEmpty()) {
             throw new RuntimeException("You are not a member of this group.");
@@ -126,6 +133,10 @@ public class GroupService {
             Long remainingMembers = groupMemberRepository.countByGroup(group);
 
             if (remainingMembers == 0) {
+                // Delete associated calendar events first to avoid foreign key constraint
+                // violation
+                calendarEventRepository.deleteByAssociatedGroup(group);
+
                 groupJoinRequestRepository.deleteByGroup(group);
                 groupRepository.delete(group);
 
@@ -135,11 +146,11 @@ public class GroupService {
 
                 if (!remainingGroupMembers.isEmpty()) {
                     Optional<GroupMember> nextAdminOptional = remainingGroupMembers.stream()
-                        .filter(m -> !"Admin".equalsIgnoreCase(m.getRole()))
-                        .findFirst();
+                            .filter(m -> !"Admin".equalsIgnoreCase(m.getRole()))
+                            .findFirst();
 
                     if (nextAdminOptional.isEmpty()) {
-                         nextAdminOptional = remainingGroupMembers.stream().findFirst();
+                        nextAdminOptional = remainingGroupMembers.stream().findFirst();
                     }
 
                     if (nextAdminOptional.isPresent()) {
@@ -150,7 +161,8 @@ public class GroupService {
                         group.setCreatedBy(nextAdmin.getUser());
                         groupRepository.save(group);
 
-                        return "Successfully left the group. Ownership has been transferred to " + nextAdmin.getUser().getName() + ", who is now the new Admin.";
+                        return "Successfully left the group. Ownership has been transferred to "
+                                + nextAdmin.getUser().getName() + ", who is now the new Admin.";
                     }
                 }
                 return "Successfully left the group. The group remains active, but ownership transfer succeeded/failed (check group status).";
@@ -223,7 +235,8 @@ public class GroupService {
     @Transactional
     public GroupDTO createGroup(CreateGroupRequest request, User user) {
         Course course = courseService.getCourseById(request.getAssociatedCourseId())
-                .orElseThrow(() -> new RuntimeException("Course not found with ID: " + request.getAssociatedCourseId()));
+                .orElseThrow(
+                        () -> new RuntimeException("Course not found with ID: " + request.getAssociatedCourseId()));
 
         Group group = new Group();
         group.setName(request.getName());
@@ -233,7 +246,8 @@ public class GroupService {
         group.setPrivacy(request.getPrivacy());
         group.setMemberLimit(request.getMemberLimit());
 
-        if ("private".equalsIgnoreCase(request.getPrivacy()) && request.getPasskey() != null && !request.getPasskey().isEmpty()) {
+        if ("private".equalsIgnoreCase(request.getPrivacy()) && request.getPasskey() != null
+                && !request.getPasskey().isEmpty()) {
             group.setPasskey(request.getPasskey());
         }
 
@@ -316,14 +330,12 @@ public class GroupService {
                 .map(req -> new GroupJoinRequestDTO(
                         req.getId(),
                         new UserSummaryDTO(
-                                Long.valueOf(req.getUser().getId()), 
-                                req.getUser().getName(), 
-                                req.getUser().getEmail(), 
+                                Long.valueOf(req.getUser().getId()),
+                                req.getUser().getName(),
+                                req.getUser().getEmail(),
                                 getUserAboutMe(req.getUser()), // Correctly fetching bio from Profile
-                                "Pending"
-                        ),
-                        req.getStatus()
-                ))
+                                "Pending"),
+                        req.getStatus()))
                 .collect(Collectors.toList());
     }
 
@@ -343,23 +355,23 @@ public class GroupService {
         if (!isAdmin) {
             throw new RuntimeException("You are not authorized to manage requests for this group.");
         }
-        
+
         // 2. Find and Validate Request
         GroupJoinRequest request = groupJoinRequestRepository.findById(requestId)
                 .orElseThrow(() -> new RuntimeException("Request not found."));
-                
+
         if (!request.getGroup().getGroupId().equals(groupId)) {
-             throw new RuntimeException("Request ID does not belong to the provided Group ID.");
+            throw new RuntimeException("Request ID does not belong to the provided Group ID.");
         }
 
         if ("APPROVED".equalsIgnoreCase(status)) {
             // 3. Check member limit before adding
             long currentMemberCount = groupMemberRepository.countByGroup(group);
             if (currentMemberCount >= group.getMemberLimit()) {
-                groupJoinRequestRepository.delete(request); 
+                groupJoinRequestRepository.delete(request);
                 throw new RuntimeException("Group is full. Cannot approve this request.");
             }
-            
+
             // Add member
             GroupMember newMembership = new GroupMember();
             newMembership.setId(new GroupMemberId(group.getGroupId(), request.getUser().getId()));
@@ -368,13 +380,13 @@ public class GroupService {
             newMembership.setRole("Member");
             groupMemberRepository.save(newMembership);
         } else if (!"DENIED".equalsIgnoreCase(status)) {
-             throw new RuntimeException("Invalid status provided. Must be APPROVED or DENIED.");
+            throw new RuntimeException("Invalid status provided. Must be APPROVED or DENIED.");
         }
 
         // 4. Delete the request after handling to clear it from the pending list
         groupJoinRequestRepository.delete(request);
     }
-    
+
     /**
      * NEW METHOD: Allows an Admin to remove a member.
      */
@@ -387,31 +399,33 @@ public class GroupService {
         if (!"Admin".equalsIgnoreCase(adminMembership.getRole())) {
             throw new RuntimeException("You are not authorized to remove members from this group.");
         }
-        
+
         // 2. Prevent self-removal
         if (currentUser.getId().equals(memberIdToRemove.intValue())) {
-             throw new RuntimeException("You cannot remove yourself. Use the leave group button instead.");
+            throw new RuntimeException("You cannot remove yourself. Use the leave group button instead.");
         }
 
         // 3. Find group and member
         Group group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new RuntimeException("Group not found."));
-                
-        GroupMember memberToRemove = groupMemberRepository.findByGroupGroupIdAndUser_Id(groupId, memberIdToRemove.intValue())
+
+        GroupMember memberToRemove = groupMemberRepository
+                .findByGroupGroupIdAndUser_Id(groupId, memberIdToRemove.intValue())
                 .orElseThrow(() -> new RuntimeException("Member not found in this group."));
-        
+
         // 4. Cannot remove the original creator
         if (memberToRemove.getUser().getId().equals(group.getCreatedBy().getId())) {
-             throw new RuntimeException("The original group creator cannot be removed by other admins.");
+            throw new RuntimeException("The original group creator cannot be removed by other admins.");
         }
-        
+
         // 5. Remove the member
         groupMemberRepository.delete(memberToRemove);
-        
-        // 6. Clean up any related join requests (Requires deleteByGroupAndUser in repository)
-        groupJoinRequestRepository.deleteByGroupAndUser(group, memberToRemove.getUser()); 
+
+        // 6. Clean up any related join requests (Requires deleteByGroupAndUser in
+        // repository)
+        groupJoinRequestRepository.deleteByGroupAndUser(group, memberToRemove.getUser());
     }
-    
+
     /**
      * NEW METHOD: Allows an Admin to change a non-creator/non-self member's role.
      */
@@ -431,14 +445,15 @@ public class GroupService {
 
         // 2. Cannot change role for yourself or the group creator
         if (currentUser.getId().equals(memberIdToUpdate.intValue())) {
-             throw new RuntimeException("You cannot change your own role through this management tool.");
+            throw new RuntimeException("You cannot change your own role through this management tool.");
         }
         if (memberIdToUpdate.intValue() == group.getCreatedBy().getId()) {
-             throw new RuntimeException("The original group creator's role cannot be modified.");
+            throw new RuntimeException("The original group creator's role cannot be modified.");
         }
 
         // 3. Find and update the member's role
-        GroupMember memberToUpdate = groupMemberRepository.findByGroupGroupIdAndUser_Id(groupId, memberIdToUpdate.intValue())
+        GroupMember memberToUpdate = groupMemberRepository
+                .findByGroupGroupIdAndUser_Id(groupId, memberIdToUpdate.intValue())
                 .orElseThrow(() -> new RuntimeException("Member not found in this group."));
 
         memberToUpdate.setRole(newRole);

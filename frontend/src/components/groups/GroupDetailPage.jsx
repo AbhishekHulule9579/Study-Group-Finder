@@ -155,7 +155,7 @@ export default function GroupDetailPage({ openFloatingChat }) {
     if (isOwner) {
       if (remainingMembersCount === 0) {
         confirmationMessage =
-          "⚠️ WARNING: You are the Group Admin/Owner and the last member. Leaving will result in the permanent deletion of this group. Are you sure you want to proceed?";
+          "⚠️ WARNING: If You are the Group Admin/Owner and the last member. Leaving will result in the permanent deletion of this group. Are you sure you want to proceed?";
       } else {
         const nextAdminCandidate = otherMembers.find(
           (m) =>
@@ -164,12 +164,11 @@ export default function GroupDetailPage({ openFloatingChat }) {
         );
 
         if (nextAdminCandidate) {
-          confirmationMessage = `⚠️ WARNING: You are the Group Admin/Owner. Leaving will transfer ownership to ${
-            nextAdminCandidate.name || "another member"
-          }. Are you sure you want to proceed?`;
+          confirmationMessage = `⚠️ WARNING: You are the Group Admin/Owner. Leaving will transfer ownership to ${nextAdminCandidate.name || "another member"
+            }. Are you sure you want to proceed?`;
         } else {
           confirmationMessage =
-            "⚠️ WARNING: You are the Group Admin/Owner. Leaving will result in ownership transfer. Are you sure you want to proceed?";
+            "⚠️ WARNING: If You are the Group Admin/Owner. Leaving will result in ownership transfer. Are you sure you want to proceed?";
         }
       }
     }
@@ -220,11 +219,10 @@ export default function GroupDetailPage({ openFloatingChat }) {
         setActiveTab(tabName);
         setIsSidebarOpen(false);
       }}
-      className={`w-full text-left py-3 px-4 rounded-lg flex items-center gap-2 font-medium transition-colors ${
-        activeTab === tabName
+      className={`w-full text-left py-3 px-4 rounded-lg flex items-center gap-2 font-medium transition-colors ${activeTab === tabName
           ? "bg-purple-200 text-purple-800"
           : "text-gray-600 hover:bg-gray-200 hover:text-gray-900"
-      }`}
+        }`}
     >
       {label}
       {count !== undefined && (

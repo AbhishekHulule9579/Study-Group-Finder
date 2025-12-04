@@ -29,3 +29,8 @@ Thumbs.db
 ### Creating separate application-local.properties ###
 src/main/resources/application-local.properties
 
+
+# ----------------------------
+# Document Storage
+# ----------------------------
+/document-storage/

@@ -27,4 +27,6 @@ public interface CalendarEventRepository extends JpaRepository<CalendarEvent, Lo
     List<CalendarEvent> findByAssociatedGroupIn(List<Group> groups);
 
     List<CalendarEvent> findByAssociatedGroupAndStartTimeBetween(Group group, LocalDateTime start, LocalDateTime end);
+
+    void deleteByAssociatedGroup(Group group);
 }
