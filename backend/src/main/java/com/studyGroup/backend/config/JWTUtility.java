@@ -1,8 +1,5 @@
 package com.studyGroup.backend.config;
 
-
-
-
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.stereotype.Component;
@@ -11,15 +8,14 @@ import java.security.Key;
 import java.util.Date;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 
 @Component
 public class JWTUtility {
 
-	@Value("${jwt.secret}")
+    @Value("${jwt.secret}")
     private String SECRET; // at least 32 chars
-	
-	@Value("${jwt.expiration}")
+
+    @Value("${jwt.expiration}")
     private long EXPIRATION;
 
     private Key getSigningKey() {

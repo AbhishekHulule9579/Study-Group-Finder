@@ -4,11 +4,11 @@ import com.studyGroup.backend.dto.ChatMessageDTO;
 import com.studyGroup.backend.model.GroupMessage;
 import com.studyGroup.backend.service.GroupMessageService;
 import com.studyGroup.backend.repository.MessageReplyRepository;
-import com.studyGroup.backend.model.MessageReply;
+
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.MessageMapping;
-import org.springframework.messaging.handler.annotation.SendTo;
+
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.stereotype.Controller;
 
@@ -47,7 +47,8 @@ public class WebSocketController {
             dto.setReplyToSenderName(mr.getOriginalMessage().getSender().getName());
         });
 
-        // Explicitly broadcast to topic so all subscribers receive the persisted message
+        // Explicitly broadcast to topic so all subscribers receive the persisted
+        // message
         messagingTemplate.convertAndSend("/topic/group/" + groupId, dto);
     }
 }
