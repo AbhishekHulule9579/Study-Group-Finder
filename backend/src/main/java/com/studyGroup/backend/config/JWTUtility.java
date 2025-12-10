@@ -13,7 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 public class JWTUtility {
 
     @Value("${jwt.secret}")
-    private String SECRET; // at least 32 chars
+    private String SECRET; //32 char is the length of the jwt
 
     @Value("${jwt.expiration}")
     private long EXPIRATION;

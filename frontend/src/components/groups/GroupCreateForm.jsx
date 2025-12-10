@@ -3,9 +3,8 @@ import React, { useState, useEffect } from "react";
 // A helper component to display each validation rule's status.
 const ValidationItem = ({ isValid, text }) => (
   <li
-    className={`flex items-center text-sm ${
-      isValid ? "text-green-600" : "text-red-500"
-    } transition-colors duration-300`}
+    className={`flex items-center text-sm ${isValid ? "text-green-600" : "text-red-500"
+      } transition-colors duration-300`}
   >
     {isValid ? (
       <svg
@@ -60,7 +59,7 @@ const GroupCreateForm = ({ courses = [], onSubmit, onCancel }) => {
 
   // Set the default selected course when the component loads
   useEffect(() => {
-    if (courses.length > 0) {
+    if ((courses || []).length > 0) {
       setAssociatedCourseId(courses[0].courseId);
     }
   }, [courses]);
@@ -166,7 +165,7 @@ const GroupCreateForm = ({ courses = [], onSubmit, onCancel }) => {
                 onChange={(e) => setAssociatedCourseId(e.target.value)}
                 className="w-full rounded-lg border-gray-300 p-3 text-md shadow-sm focus:border-purple-500 focus:ring-purple-500 transition duration-200 bg-white"
               >
-                {courses.map((course) => (
+                {(courses || []).map((course) => (
                   <option key={course.courseId} value={course.courseId}>
                     {course.courseName}
                   </option>
