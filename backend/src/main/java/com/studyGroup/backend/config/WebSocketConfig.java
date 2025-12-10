@@ -1,4 +1,3 @@
-//com/infy/project/config/WebSocketConfig.java
 package com.studyGroup.backend.config;
 
 

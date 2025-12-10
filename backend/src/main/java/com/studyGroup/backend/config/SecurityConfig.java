@@ -26,11 +26,11 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .cors(Customizer.withDefaults())
-            // Disable CSRF for API and SockJS endpoints (we use stateless JWT)
+            
             .csrf(csrf -> csrf.disable())
 
             .authorizeHttpRequests(auth -> auth
-                // Permit WebSocket handshake/info endpoints and app/topic used by STOMP/SockJS
+                
                 .requestMatchers(
                     "/ws/**",
                     "/ws/info/**",
@@ -45,9 +45,7 @@ public class SecurityConfig {
 
                 .anyRequest().authenticated()
             )
-            // Ensure sessions are stateless (required for JWT)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            // The JWT filter runs before authentication attempts on protected routes
             .addFilterBefore(authFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -60,7 +58,6 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
-        // CRITICAL FIX: Allow credentials (JWT header) for both REST and WebSocket
         configuration.setAllowCredentials(true); 
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

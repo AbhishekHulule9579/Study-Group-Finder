@@ -9,18 +9,19 @@ const MyGroups = () => {
   const navigate = useNavigate();
   const [myGroups, setMyGroups] = useState([]);
   const [allGroups, setAllGroups] = useState([]);
-  const [courses, setCourses] = useState([]);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState("joined");
-  const [showJoinModal, setShowJoinModal] = useState(false);
-  const [groupToJoin, setGroupToJoin] = useState(null);
-  const [joiningGroupId, setJoiningGroupId] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCourse, setSelectedCourse] = useState("All");
-  const [memberFilter, setMemberFilter] = useState("any");
-  const [ratingFilter, setRatingFilter] = useState("any");
+  const [enrolledCourses, setEnrolledCourses] = useState([]); // This was the new one
+  const [courses, setCourses] = useState([]); // Restored
+  const [showCreateForm, setShowCreateForm] = useState(false); // Restored
+  const [loading, setLoading] = useState(true); // Restored
+  const [error, setError] = useState(""); // Restored
+  const [activeTab, setActiveTab] = useState("joined"); // Restored
+  const [showJoinModal, setShowJoinModal] = useState(false); // Restored
+  const [groupToJoin, setGroupToJoin] = useState(null); // Restored
+  const [joiningGroupId, setJoiningGroupId] = useState(null); // Restored
+  const [searchTerm, setSearchTerm] = useState(""); // Restored
+  const [selectedCourse, setSelectedCourse] = useState("All"); // Restored
+  const [memberFilter, setMemberFilter] = useState("any"); // Restored
+  const [ratingFilter, setRatingFilter] = useState("any"); // Restored
 
   const fetchAllData = useCallback(async () => {
     const token = sessionStorage.getItem("token");
@@ -31,7 +32,7 @@ const MyGroups = () => {
     setLoading(true);
     setError("");
     try {
-      const [myGroupsRes, allGroupsRes, coursesRes] = await Promise.all([
+      const [myGroupsRes, allGroupsRes, coursesRes, enrolledCoursesRes] = await Promise.all([
         fetch("http://localhost:8145/api/groups/my-groups", {
           headers: { Authorization: `Bearer ${token}` },
         }),
@@ -41,8 +42,11 @@ const MyGroups = () => {
         fetch("http://localhost:8145/api/courses", {
           headers: { Authorization: `Bearer ${token}` },
         }),
+        fetch("http://localhost:8145/api/profile/courses", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
       ]);
-      if (!myGroupsRes.ok || !allGroupsRes.ok || !coursesRes.ok) {
+      if (!myGroupsRes.ok || !allGroupsRes.ok || !coursesRes.ok || !enrolledCoursesRes.ok) {
         throw new Error(
           "Failed to load group data. Please try logging in again."
         );
@@ -50,9 +54,11 @@ const MyGroups = () => {
       const myGroupsData = await myGroupsRes.json();
       const allGroupsData = await allGroupsRes.json();
       const coursesData = await coursesRes.json();
-      setMyGroups(myGroupsData);
-      setAllGroups(allGroupsData);
-      setCourses(coursesData);
+      const enrolledCoursesData = await enrolledCoursesRes.json();
+      setMyGroups(myGroupsData || []);
+      setAllGroups(allGroupsData || []);
+      setCourses(coursesData || []);
+      setEnrolledCourses(enrolledCoursesData || []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -63,6 +69,9 @@ const MyGroups = () => {
   useEffect(() => {
     fetchAllData();
   }, [fetchAllData]);
+
+  const [joinError, setJoinError] = useState("");
+  const joinErrorTimer = React.useRef(null);
 
   const handleCreateGroup = async (newGroupData) => {
     const token = sessionStorage.getItem("token");
@@ -84,6 +93,26 @@ const MyGroups = () => {
   };
 
   const handleJoinClick = (group) => {
+    // Check enrollment
+    const isEnrolled = enrolledCourses.some(
+      (c) => c.courseId === group.associatedCourse.courseId
+    );
+
+    if (!isEnrolled) {
+      // Clear previous timer if exists
+      if (joinErrorTimer.current) {
+        clearTimeout(joinErrorTimer.current);
+      }
+      setJoinError("You need to enroll in the course before joining this group.");
+
+      // Set new timer
+      joinErrorTimer.current = setTimeout(() => {
+        setJoinError("");
+        joinErrorTimer.current = null;
+      }, 3000);
+      return;
+    }
+
     const isPrivate = group.privacy.toLowerCase() === "private";
     if (isPrivate && group.hasPasskey) {
       setGroupToJoin(group);
@@ -187,14 +216,27 @@ const MyGroups = () => {
   if (showCreateForm)
     return (
       <GroupCreateForm
-        courses={courses}
+        courses={enrolledCourses}
         onSubmit={handleCreateGroup}
         onCancel={() => setShowCreateForm(false)}
       />
     );
 
   return (
-    <div className="min-h-screen bg-purple-50/50 p-4 sm:p-8">
+    <div className="min-h-screen bg-purple-50/50 p-4 sm:p-8 relative">
+      {/* Custom Error Toast */}
+      {joinError && (
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 bg-red-100 border-l-4 border-red-500 text-red-700 p-3 rounded shadow-lg animate-fade-in-down flex items-center gap-2 min-w-[300px] justify-center">
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <path
+              fillRule="evenodd"
+              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+              clipRule="evenodd"
+            />
+          </svg>
+          <span className="font-medium text-sm">{joinError}</span>
+        </div>
+      )}
       <div className="max-w-7xl mx-auto">
         {/* My Groups Section */}
         <div className="mb-12">
@@ -204,21 +246,19 @@ const MyGroups = () => {
           <div className="flex border-b border-gray-200">
             <button
               onClick={() => setActiveTab("joined")}
-              className={`py-3 px-5 text-md font-semibold focus:outline-none transition-colors duration-200 ${
-                activeTab === "joined"
-                  ? "border-b-2 border-purple-600 text-purple-600"
-                  : "text-gray-500 hover:text-purple-500"
-              }`}
+              className={`py-3 px-5 text-md font-semibold focus:outline-none transition-colors duration-200 ${activeTab === "joined"
+                ? "border-b-2 border-purple-600 text-purple-600"
+                : "text-gray-500 hover:text-purple-500"
+                }`}
             >
               Joined Groups
             </button>
             <button
               onClick={() => setActiveTab("owned")}
-              className={`py-3 px-5 text-md font-semibold focus:outline-none transition-colors duration-200 ${
-                activeTab === "owned"
-                  ? "border-b-2 border-purple-600 text-purple-600"
-                  : "text-gray-500 hover:text-purple-500"
-              }`}
+              className={`py-3 px-5 text-md font-semibold focus:outline-none transition-colors duration-200 ${activeTab === "owned"
+                ? "border-b-2 border-purple-600 text-purple-600"
+                : "text-gray-500 hover:text-purple-500"
+                }`}
             >
               My Groups
             </button>
@@ -276,7 +316,7 @@ const MyGroups = () => {
                 className="w-full p-3 border rounded-lg bg-white focus:ring-2 focus:ring-purple-400 transition"
               >
                 <option value="All">All Courses</option>
-                {courses.map((course) => (
+                {(courses || []).map((course) => (
                   <option key={course.courseId} value={course.courseId}>
                     {course.courseName}
                   </option>

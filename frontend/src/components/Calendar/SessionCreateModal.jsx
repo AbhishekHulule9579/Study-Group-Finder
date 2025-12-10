@@ -60,7 +60,7 @@ export default function SessionCreateModal({ groupId, onCreate, onClose }) {
 
     const fetchCourses = async () => {
       try {
-        const response = await fetch("http://localhost:8145/api/courses", {
+        const response = await fetch("http://localhost:8145/api/profile/courses", {
           headers: { Authorization: `Bearer ${token}` },
         });
 

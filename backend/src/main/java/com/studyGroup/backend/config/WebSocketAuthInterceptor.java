@@ -26,8 +26,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
 
             if (token != null) {
                 System.out.println("✅ STOMP connection received with token: " + token);
-                // 🔹 (Optional) Validate using your JWT utility
-                // jwtService.validateToken(token);
+                
             } else {
                 System.out.println("⚠️ No token found in STOMP CONNECT headers");
             }

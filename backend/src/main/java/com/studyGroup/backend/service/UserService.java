@@ -15,7 +15,6 @@ import com.studyGroup.backend.repository.UsersRepository;
 import java.util.ArrayList;
 import java.util.Optional;
 
-
 @Service
 public class UserService implements UserDetailsService {
 
@@ -26,15 +25,14 @@ public class UserService implements UserDetailsService {
     private ProfileRepository profileRepository;
 
     @Autowired
-    private EmailService emailService;
-    
-    @Autowired
     private JWTService jwtService;
+
+    @Autowired
+    private NotificationService notificationService;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         Optional<User> userOptional = usersRepository.findByEmail(username);
@@ -42,11 +40,11 @@ public class UserService implements UserDetailsService {
             throw new UsernameNotFoundException("User not found with email: " + username);
         }
         User user = userOptional.get();
-        
-        return new org.springframework.security.core.userdetails.User(user.getEmail(), user.getPassword(), new ArrayList<>());
+
+        return new org.springframework.security.core.userdetails.User(user.getEmail(), user.getPassword(),
+                new ArrayList<>());
     }
-    
-    
+
     public Optional<User> getUserByEmail(String email) {
         return usersRepository.findByEmail(email);
     }
@@ -60,17 +58,25 @@ public class UserService implements UserDetailsService {
             return "401::Email Id already exists";
         }
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-        usersRepository.save(user);
+        User savedUser = usersRepository.save(user);
 
         Profile profile = new Profile();
         profile.setEmail(user.getEmail());
         profile.setFullname(user.getName());
         profileRepository.save(profile);
-        
+
+        // Send Welcome Notification
+        notificationService.createNotification(
+                savedUser.getId(),
+                "Welcome to Study Sphere",
+                "Welcome to the study sphere ,enrolled the course and also joined the group",
+                "Updates",
+                null,
+                null);
+
         return "200::User Registered Successfully";
     }
 
- 
     public String validateCredentials(String email, String password) {
         Optional<User> userOptional = usersRepository.findByEmail(email);
 
@@ -86,7 +92,6 @@ public class UserService implements UserDetailsService {
         return "404::User not found";
     }
 
-    
     public User getUserProfile(String token) {
         String email = jwtService.validateToken(token);
         if ("401".equals(email)) {
@@ -98,8 +103,7 @@ public class UserService implements UserDetailsService {
         }
         return user;
     }
-    
-    
+
     public User updateUser(String email, User userDetails) {
         Optional<User> userOptional = usersRepository.findByEmail(email);
         if (userOptional.isPresent()) {
@@ -113,7 +117,7 @@ public class UserService implements UserDetailsService {
             existingUser.setHigherSecondaryPercentage(userDetails.getHigherSecondaryPercentage());
             existingUser.setUniversityName(userDetails.getUniversityName());
             existingUser.setUniversityPassingYear(userDetails.getUniversityPassingYear());
-          
+
             existingUser.setUniversityGpa(userDetails.getUniversityGpa());
 
             return usersRepository.save(existingUser);

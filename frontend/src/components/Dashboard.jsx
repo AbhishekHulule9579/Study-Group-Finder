@@ -13,30 +13,6 @@ export default function Dashboard() {
   const [error, setError] = useState("");
   const [userName, setUserName] = useState("User");
 
-  const demoNotifications = [
-    {
-      id: 1,
-      icon: "✅",
-      message: "Assignment submitted successfully.",
-      timeAgo: "2h ago",
-      isRead: false,
-    },
-    {
-      id: 2,
-      icon: "💡",
-      message: "New update in Group Project discussion.",
-      timeAgo: "5h ago",
-      isRead: true,
-    },
-    {
-      id: 3,
-      icon: "⚠️",
-      message: "Course registration deadline is tomorrow.",
-      timeAgo: "1d ago",
-      isRead: false,
-    },
-  ];
-
   const handleLogout = useCallback(() => {
     sessionStorage.removeItem("token");
     navigate("/login");
@@ -91,8 +67,7 @@ export default function Dashboard() {
   if (error) return <CenteredMessage text={`Error: ${error}`} error />;
 
   const { dashboard, notifications, calendar } = data;
-  const notificationsToShow =
-    notifications.length > 0 ? notifications : demoNotifications;
+  const notificationsToShow = notifications;
 
   return (
     <div className="min-h-screen bg-purple-50/50 p-4 sm:p-8">
@@ -149,9 +124,8 @@ export default function Dashboard() {
 // --- HELPERS / UI components ---
 const CenteredMessage = ({ text, error }) => (
   <div
-    className={`min-h-screen flex items-center justify-center text-xl font-semibold ${
-      error ? "text-red-500" : ""
-    }`}
+    className={`min-h-screen flex items-center justify-center text-xl font-semibold ${error ? "text-red-500" : ""
+      }`}
   >
     {text}
   </div>
@@ -490,16 +464,14 @@ function NotificationItem({ icon, message, timeAgo, isRead, createdAt }) {
   const displayTime = timeAgo || formatTimeAgo(createdAt);
   return (
     <div
-      className={`flex items-start space-x-3 p-3 rounded-lg ${
-        !isRead ? "bg-purple-50" : "hover:bg-gray-50"
-      }`}
+      className={`flex items-start space-x-3 p-3 rounded-lg ${!isRead ? "bg-purple-50" : "hover:bg-gray-50"
+        }`}
     >
       <div className="text-xl bg-gray-100 rounded-full p-2">{icon}</div>
       <div className="flex-1">
         <p
-          className={`text-sm ${
-            !isRead ? "font-semibold text-gray-800" : "text-gray-700"
-          }`}
+          className={`text-sm ${!isRead ? "font-semibold text-gray-800" : "text-gray-700"
+            }`}
         >
           {message}
         </p>
