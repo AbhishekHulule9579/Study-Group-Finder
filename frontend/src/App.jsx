@@ -19,6 +19,7 @@ import FloatingChatWindow from "./components/FloatingChatWindow";
 import GroupChat from "./components/groups/GroupChat";
 import NotificationsPage from "./components/NotificationsPage.jsx";
 import { getAllNotifications } from "./services/NotificationService.js"; // Import service
+import AIChat from "./components/AIChat.jsx";
 
 // 🗓️ Calendar Import
 import CalendarView from "./components/Calendar/CalendarView.jsx";
@@ -167,6 +168,15 @@ const App = () => {
             element={
               <ProtectedRoute>
                 <FindPeers />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/ai-chat"
+            element={
+              <ProtectedRoute>
+                <AIChat />
               </ProtectedRoute>
             }
           />
