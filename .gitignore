@@ -34,3 +34,4 @@ src/main/resources/application-local.properties
 # Document Storage
 # ----------------------------
 /document-storage/
+*.node_modules/*
