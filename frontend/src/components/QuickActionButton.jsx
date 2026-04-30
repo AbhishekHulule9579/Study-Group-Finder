@@ -214,6 +214,12 @@ const QuickActionButton = () => {
           >
             🔍 Find Peers
           </button>
+          <button
+            className={btnClasses}
+            onClick={() => quickNav("/ai-chat")}
+          >
+            🔍 AI Chat
+          </button>
           <div className="border-t my-1" style={{ borderColor: "#7c3aed" }} />
           <button
             className="flex items-center gap-2 justify-center px-3 py-1.5 rounded-lg text-sm text-red-600 font-medium hover:bg-red-50"

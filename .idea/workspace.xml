@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="c6410e9f-f1be-4a63-bcd5-00badae84606" name="Changes" comment="" />
+    <list default="true" id="c6410e9f-f1be-4a63-bcd5-00badae84606" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/backend/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/studyGroup/backend/dto/GeminiDTO.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/studyGroup/backend/dto/GeminiDTO.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/studyGroup/backend/service/GeminiService.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/studyGroup/backend/service/GeminiService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/components/AIChat.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/components/AIChat.jsx" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -18,8 +24,8 @@
 }</component>
   <component name="GithubPullRequestsUISettings">{
   &quot;selectedUrlAndAccountId&quot;: {
-    &quot;url&quot;: &quot;https://github.com/AbhishekHulule9579/Study-Group-Finder.git&quot;,
-    &quot;accountId&quot;: &quot;cd7e66bb-1178-43f1-8943-511a4750caca&quot;
+    &quot;url&quot;: &quot;https://github.com/AbhishekHulule9579/Study-Group-Finder&quot;,
+    &quot;accountId&quot;: &quot;f0c17614-2a08-4a2d-94cb-26735afe66e9&quot;
   }
 }</component>
   <component name="ProjectColorInfo">{
@@ -35,10 +41,10 @@
     &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;feature-auth-setup&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;google-ai&quot;,
     &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;D:/Study_Group_Finder&quot;,
-    &quot;project.structure.last.edited&quot;: &quot;Project&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/Study-Group-Finder&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;SDKs&quot;,
     &quot;project.structure.proportion&quot;: &quot;0.15&quot;,
     &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;
   }
